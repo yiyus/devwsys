@@ -1,0 +1,20 @@
+<../mkconfig
+
+TARG=devdraw
+
+XFILES=\
+
+OFILES=\
+	fs.$O\
+	main.$O\
+	$LIBIXP\
+#	${XFILES:%=x11/%}\
+
+HFILES=\
+	devdraw.h\
+
+LIBS=	9 draw memdraw memlayer
+
+BIN=$ROOT/$OBJDIR/bin
+
+<$ROOT/mkfiles/mkone-$SHELLTYPE
