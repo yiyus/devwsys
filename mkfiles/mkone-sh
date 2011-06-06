@@ -2,7 +2,7 @@ libs=${LIBS:%=$ROOT/$OBJDIR/lib/lib%.a}
 
 all:V:	$O.out
 
-install:V:	$BIN/$TARG
+install:V:	mkdir $BIN/$TARG
 
 installall:V:
 	for objtype in $CPUS
@@ -13,6 +13,9 @@ installall:V:
 nuke:V:	nuke-std
 
 clean:V: clean-std
+
+mkdir:V:
+	mkdir -p $ROOT/$OBJDIR/bin
 
 $O.out:	$OFILES $libs
 	$LD $LDFLAGS -o $target $OFILES $libs $SYSLIBS

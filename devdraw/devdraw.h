@@ -26,3 +26,7 @@ struct Win
 extern Ixp9Srv p9srv;
 extern Fileinfo files[];
 extern int debuglevel;
+
+/* Window server functions */
+extern int winsrvinit(void);
+

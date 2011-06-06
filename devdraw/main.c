@@ -19,10 +19,12 @@ main(int argc, char **argv)
 {
 	IxpServer srv = {0};
 	char *address, *cp, buf[512];
+	char *argv0;
 	int fd, i;
 
 	address = getenv("IXP_ADDRESS");
 	/* XXX TODO: use ARGBEGIN, ... from <ixp_local.h> */
+	argv0 = argv[0];
 	while(*++argv) {
 		if(strcmp(*argv, "--") == 0 || !(**argv == '-')) {
 			break;
@@ -35,7 +37,7 @@ main(int argc, char **argv)
 				address = GETARG();
 				break;
 			} else {
-				errx(1, "usage: %s [-d] [ -a ADDRESS ]", argv[0]);
+				errx(1, "usage: %s [-d] [ -a ADDRESS ]", argv0);
 			}
 		}
 	}
@@ -47,6 +49,10 @@ main(int argc, char **argv)
 		snprintf(buf, sizeof(buf), "unix!%s/win", nsdir);
 		address = buf;
 	}
+
+	/* Initialize the window server */
+	if(winsrvinit() != 0)
+		errx(1, "unable to connect to window server");
 
 	fd = ixp_announce(address);
 	if(fd < 0) {

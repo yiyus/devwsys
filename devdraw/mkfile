@@ -3,15 +3,20 @@
 TARG=devdraw
 
 XFILES=\
+	init.$O\
 
 OFILES=\
 	fs.$O\
 	main.$O\
 	$LIBIXP\
-#	${XFILES:%=x11/%}\
+	${XFILES:%=x11/%}\
+
+XHFILES=\
+	inc.h\
 
 HFILES=\
 	devdraw.h\
+	${XHFILES:%=x11/%}\
 
 LIBS=	9 draw memdraw memlayer
 
