@@ -46,7 +46,7 @@ xioerror(XDisplay *d)
  * Connect to the X server.
  */
 int
-winsrvinit(void)
+xinit(void)
 {
 	char *disp;
 	int i, n, xrootid;
@@ -54,6 +54,9 @@ winsrvinit(void)
 	XScreen *xscreen;
 	XWindow xrootwin;
 	XVisualInfo xvi;
+
+	if(xconn.display != nil) /* already connected */
+		return 0;
 
 	/*
 	 * Connect to X server.

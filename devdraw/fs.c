@@ -142,7 +142,7 @@ fs_read(Ixp9Req *r)
 {
 	char buf[512];
 	Win *win;
-	int n;
+	int n = 0;
 
 	debug("fs_read(%p)\n", r);
 

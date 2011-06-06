@@ -50,9 +50,9 @@ main(int argc, char **argv)
 		address = buf;
 	}
 
-	/* Initialize the window server */
-	if(winsrvinit() != 0)
-		errx(1, "unable to connect to window server");
+	/* Connect to X */
+	if(xinit() != 0)
+		errx(1, "unable to connect to X server");
 
 	fd = ixp_announce(address);
 	if(fd < 0) {
