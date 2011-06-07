@@ -1,6 +1,6 @@
 /* Temporary */
 #define fatal(...) ixp_eprint("ixpsrv: fatal: " __VA_ARGS__)
-#define debug(...) if(debuglevel) fprintf(stderr, "ixpsrv: " __VA_ARGS__)
+#define debug(...) if(debuglevel) fprint(2, "ixpsrv: " __VA_ARGS__)
 
 /* Datatypes: */
 typedef enum {QNONE=-1, QROOT=0, QIDENT, QLABEL, QMAX} qpath;
@@ -20,6 +20,7 @@ struct Win
 {
 	int id;
 	char *label;
+	void *x;
 };
 
 /* Global Vars */
@@ -29,4 +30,5 @@ extern int debuglevel;
 
 /* Xlib functions */
 extern int xinit(void);
+extern void xnewwindow(char*, char*);
 

@@ -54,6 +54,9 @@ main(int argc, char **argv)
 	if(xinit() != 0)
 		errx(1, "unable to connect to X server");
 
+	// /* TODO: we'll need this for drawing. */
+	//memimageinit();
+
 	fd = ixp_announce(address);
 	if(fd < 0) {
 		err(1, "ixp_announce");

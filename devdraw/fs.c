@@ -1,11 +1,10 @@
 /* 2011 JGL (yiyus) */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <lib9.h>
 
 #include <ixp.h>
 
 #include "devdraw.h"
+#include "drawfcall.h"
 
 static int id = 0;
 
@@ -43,18 +42,23 @@ newwin(void)
 void
 fs_attach(Ixp9Req *r)
 {
-	Win *win = NULL;
+	Wsysmsg m;
+	Win *w = nil;
 
 	debug("fs_attach(%p)\n", r);
 
 	r->fid->qid.type = files[QROOT].type;
 	r->fid->qid.path = QROOT;
 	r->ofcall.rattach.qid = r->fid->qid;
-	if(!(win = newwin())) {
+	if(!(w = newwin())) {
 		ixp_respond(r, Enomem);
 		return;
 	}
-	r->fid->aux = win;
+	m.type = Tinit;
+	m.label = "9wsys";
+	m.winsize = "300x200";
+	runmsg(w, &m);
+	r->fid->aux = w;
 	ixp_respond(r, NULL);
 }
 
@@ -180,7 +184,7 @@ fs_read(Ixp9Req *r)
 
 	switch(r->fid->qid.path){
 		case QIDENT: {
-			sprintf(buf, "%11d ", win->id);
+			sprint(buf, "%11d ", win->id);
 			if(r->ifcall.tread.offset <  11) {
 				n = strlen(buf);
 				if(r->ifcall.tread.offset + r->ifcall.tread.count >  11) {

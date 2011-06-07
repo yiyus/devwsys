@@ -4,8 +4,10 @@ TARG=devdraw
 
 XFILES=\
 	init.$O\
+	window.$O\
 
 OFILES=\
+	drawfcall.$O\
 	fs.$O\
 	main.$O\
 	$LIBIXP\
@@ -16,6 +18,7 @@ XHFILES=\
 
 HFILES=\
 	devdraw.h\
+	drawfcall.h\
 	${XHFILES:%=x11/%}\
 
 LIBS=	9 draw memdraw memlayer
