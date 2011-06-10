@@ -7,7 +7,7 @@ LIBOBJ=${OFILES:%=$LIBRARY(%)}
 
 default:V:	all
 
-install:V:		mkdir
+install:V:		$ROOT/$OBJDIR/lib
 
 all install:V:	$LIBRARY
 
@@ -21,7 +21,7 @@ clean:V:	clean-std
 
 nuke:V:		nuke-std
 
-mkdir:V:
+$ROOT/$OBJDIR/lib:
 	mkdir -p $ROOT/$OBJDIR/lib
 
 $LIBRARY:	$LIBOBJ
