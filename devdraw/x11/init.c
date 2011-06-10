@@ -51,8 +51,6 @@ xinit(void)
 	char *disp;
 	int i, n, xrootid;
 	XPixmapFormatValues *pfmt;
-	XScreen *xscreen;
-	XWindow xrootwin;
 	XVisualInfo xvi;
 
 	if(xconn.display != nil) /* already connected */
@@ -72,7 +70,7 @@ xinit(void)
 	XSetErrorHandler(xerror);
 	XSetIOErrorHandler(xioerror);
 	xrootid = DefaultScreen(xconn.display);
-	xrootwin = DefaultRootWindow(xconn.display);
+	xconn.root = DefaultRootWindow(xconn.display);
 
 	/* 
 	 * Figure out underlying screen format.
@@ -163,12 +161,13 @@ xinit(void)
 	/*
 	 * Set up color map if necessary.
 	 */
-	xscreen = DefaultScreenOfDisplay(xconn.display);
-	xconn.cmap = DefaultColormapOfScreen(xscreen);
+	xconn.screen = DefaultScreenOfDisplay(xconn.display);
+	xconn.cmap = DefaultColormapOfScreen(xconn.screen);
 	if(xconn.vis->class != StaticColor){
 		plan9cmap();
-		setupcmap(xrootwin);
+		setupcmap(xconn.root);
 	}
+	xconn.screenrect = Rect(0, 0, WidthOfScreen(xconn.screen), HeightOfScreen(xconn.screen));
 	return 0;
 
 err0:

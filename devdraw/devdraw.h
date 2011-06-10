@@ -20,15 +20,21 @@ struct Win
 {
 	int id;
 	char *label;
+	Memimage *img;
+	Rectangle r;
 	void *x;
 };
 
 /* Global Vars */
-extern Ixp9Srv p9srv;
 extern Fileinfo files[];
 extern int debuglevel;
 
-/* Xlib functions */
-extern int xinit(void);
-extern void xnewwindow(char*, char*);
+/* Global Funcs */
+extern Win* newwin(void);
 
+/* Xlib functions */
+extern Memimage* xallocmemimage(void*);
+extern void* xcreatewin(char*, char*, Rectangle);
+extern int xinit(void);
+extern Rectangle xmapwin(void*, int, Rectangle);
+extern Rectangle xwinrectangle(char*, char*, int*);

@@ -3,6 +3,7 @@
 TARG=devdraw
 
 XFILES=\
+	alloc.$O\
 	init.$O\
 	window.$O\
 
@@ -10,18 +11,20 @@ OFILES=\
 	drawfcall.$O\
 	fs.$O\
 	main.$O\
+	window.$O\
 	$LIBIXP\
 	${XFILES:%=x11/%}\
 
 XHFILES=\
 	inc.h\
+	x.h\
 
 HFILES=\
 	devdraw.h\
 	drawfcall.h\
 	${XHFILES:%=x11/%}\
 
-LIBS=	9 draw memdraw memlayer
+LIBS=	9 draw kern memdraw memlayer
 
 BIN=$ROOT/$OBJDIR/bin
 

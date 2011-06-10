@@ -1,0 +1,12 @@
+<../mkconfig
+
+LIB=libkern.a
+
+OFILES=\
+#	fmt.$O\
+	fmtprint.$O\
+#	fmtquote.$O\
+#	fmtstr.$O\
+#	fmtvprint.$O\
+
+<$ROOT/mkfiles/mksyslib-$SHELLTYPE

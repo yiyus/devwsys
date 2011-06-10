@@ -3,6 +3,7 @@
 DIRS=\
 	lib9\
 	libdraw\
+	libkern\
 	libmemdraw\
 	libmemlayer\
 	devdraw\

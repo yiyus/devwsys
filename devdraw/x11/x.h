@@ -13,9 +13,17 @@ struct Xconn {
 	int			toplan9[256];
 	int			tox11[256];
 	int			usetable;
+	Rectangle		screenrect;
+	XScreen		*screen;
 	XVisual		*vis;
+	XWindow		root;
 };
 
-struct Xwin {};
+struct Xwin {
+	XDrawable	drawable;
+	XDrawable	screenpm;
+	XDrawable	nextscreenpm;
+	XWindow		window;
+};
 
 extern Xconn xconn;

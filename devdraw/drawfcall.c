@@ -3,8 +3,6 @@
 #include <draw.h>
 #include <memdraw.h>
 
-#include <ixp.h>
-
 #include "devdraw.h"
 #include "drawfcall.h"
 
@@ -13,11 +11,14 @@ runmsg(Win *w, Wsysmsg *m)
 {
 //	uchar buf[65536];
 //	int n;
-	Memimage *i;
+	int havemin;
 	
 	switch(m->type){
 	case Tinit:
-		xnewwindow(m->label, m->winsize);
+		w->r = xwinrectangle(m->label, m->winsize, &havemin);
+		w->x = xcreatewin(m->label, m->winsize, w->r);
+		w->r = xmapwin(w->x, havemin, w->r);
+		w->img = xallocmemimage(w->x);
 //		replymsg(m);
 		break;
 
@@ -110,3 +111,4 @@ runmsg(Win *w, Wsysmsg *m)
 ***/
 	}
 }
+

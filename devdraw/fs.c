@@ -1,12 +1,12 @@
 /* 2011 JGL (yiyus) */
 #include <lib9.h>
+#include <draw.h>
+#include <memdraw.h>
 
 #include <ixp.h>
 
 #include "devdraw.h"
 #include "drawfcall.h"
-
-static int id = 0;
 
 /* Error messages */
 static char
@@ -26,19 +26,6 @@ Fileinfo files[QMAX] = {
 	{"label", QROOT, P9_QTFILE, 0600, 0}
 };
 
-Win*
-newwin(void)
-{
-	Win *win;
-
-	if(!(win = malloc(sizeof(Win))))
-		return NULL;
-	win->id = id++;
-	win->label = NULL;
-
-	return win;
-}
-
 void
 fs_attach(Ixp9Req *r)
 {
@@ -50,14 +37,17 @@ fs_attach(Ixp9Req *r)
 	r->fid->qid.type = files[QROOT].type;
 	r->fid->qid.path = QROOT;
 	r->ofcall.rattach.qid = r->fid->qid;
+	m.type = Tinit;
+	m.label = nil; // pjw face
+	m.winsize = nil; // full screen
 	if(!(w = newwin())) {
+		return;
+	}
+	runmsg(w, &m);
+	if(w == nil) {
 		ixp_respond(r, Enomem);
 		return;
 	}
-	m.type = Tinit;
-	m.label = "9wsys";
-	m.winsize = "300x200";
-	runmsg(w, &m);
 	r->fid->aux = w;
 	ixp_respond(r, NULL);
 }

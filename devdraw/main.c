@@ -1,10 +1,10 @@
 /* 2011 JGL (yiyus) */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <err.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <lib9.h>
+#include <draw.h>
+#include <memdraw.h>
 
 #include <ixp.h>
 
@@ -13,6 +13,8 @@
 int debuglevel = 0;
 
 #define GETARG() (cp-*argv == strlen(*argv)-1) ? *++argv : cp+1
+
+extern Ixp9Srv p9srv; /* fs.c:/p9srv */
 
 int
 main(int argc, char **argv)
@@ -46,7 +48,7 @@ main(int argc, char **argv)
 		if(mkdir(nsdir, 0700) == -1 && errno != EEXIST) {
 			err(1, "mkdir: %s", nsdir);
 		}
-		snprintf(buf, sizeof(buf), "unix!%s/win", nsdir);
+		snprint(buf, sizeof(buf), "unix!%s/win", nsdir);
 		address = buf;
 	}
 
