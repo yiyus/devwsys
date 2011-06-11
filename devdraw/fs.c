@@ -10,31 +10,27 @@
 
 /* Error messages */
 static char
+	Edeleted[] = "window deleted",
 	Enoperm[] = "permission denied",
 	Enofile[] = "file not found",
 	Enomem[] = "out of memory";
 
-/* 
-0400 /id
-0600 /label
-*/
-
 /* name, parent, type, mode, size */
-Fileinfo files[QMAX] = {
+Fileinfo file[QMAX] = {
 	{"", QNONE, P9_QTDIR, 0500|P9_DMDIR, 0},
-	{"id", QROOT, P9_QTFILE, 0400, 0},
-	{"label", QROOT, P9_QTFILE, 0600, 0}
+	{"label", QROOT, P9_QTFILE, 0600, 0},
+	{"winid", QROOT, P9_QTFILE, 0400, 0},
 };
 
 void
 fs_attach(Ixp9Req *r)
 {
 	Wsysmsg m;
-	Win *w = nil;
+	Window *w = nil;
 
 	debug("fs_attach(%p)\n", r);
 
-	r->fid->qid.type = files[QROOT].type;
+	r->fid->qid.type = file[QROOT].type;
 	r->fid->qid.path = QROOT;
 	r->ofcall.rattach.qid = r->fid->qid;
 	m.type = Tinit;
@@ -64,14 +60,14 @@ fs_walk(Ixp9Req *r)
 	r->ofcall.rwalk.nwqid = 0;
 	for(i = 0; i < r->ifcall.twalk.nwname; ++i){
 		for(j = 0; j < QMAX; ++j){
-			if(files[j].parent == cwd && strcmp(files[j].name, r->ifcall.twalk.wname[i]) == 0)
+			if(file[j].parent == cwd && strcmp(file[j].name, r->ifcall.twalk.wname[i]) == 0)
 				break;
 		}
 		if(j >= QMAX){
 			ixp_respond(r, Enofile);
 			return;
 		}
-		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].type = files[j].type;
+		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].type = file[j].type;
 		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].path = j;
 		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].version = 0;
 		++r->ofcall.rwalk.nwqid;
@@ -99,11 +95,11 @@ fs_clunk(Ixp9Req *r)
 void
 dostat(IxpStat *st, int path)
 {
-	st->type = files[path].type;
-	st->qid.type = files[path].type;
+	st->type = file[path].type;
+	st->qid.type = file[path].type;
 	st->qid.path = path;
-	st->mode = files[path].mode;
-	st->name = files[path].name;
+	st->mode = file[path].mode;
+	st->name = file[path].name;
 	st->length = 0;
 	st->uid = st->gid = st->muid = "";
 }
@@ -135,12 +131,18 @@ void
 fs_read(Ixp9Req *r)
 {
 	char buf[512];
-	Win *win;
+	Window *win;
 	int n = 0;
 
 	debug("fs_read(%p)\n", r);
 
-	if(files[r->fid->qid.path].type & P9_QTDIR){
+	win = r->fid->aux;
+	if(win->deleted){
+		ixp_respond(r, Edeleted);
+		return;
+	}
+
+	if(file[r->fid->qid.path].type & P9_QTDIR){
 		IxpStat st = {0};
 		IxpMsg m;
 		int i;
@@ -154,7 +156,7 @@ fs_read(Ixp9Req *r)
 			return;
 		}
 		for(i = 0; i < QMAX; ++i){
-			if(files[i].parent == r->fid->qid.path){
+			if(file[i].parent == r->fid->qid.path){
 				dostat(&st, i);
 				ixp_pstat(&m, &st);
 				r->ofcall.rread.count += ixp_sizeof_stat(&st);
@@ -169,8 +171,6 @@ fs_read(Ixp9Req *r)
 		ixp_respond(r, NULL);
 		return;
 	}
-
-	win = r->fid->aux;
 
 	switch(r->fid->qid.path){
 		case QIDENT: {
@@ -217,11 +217,15 @@ fs_read(Ixp9Req *r)
 void
 fs_write(Ixp9Req *r)
 {
-	Win *win;
+	Window *win;
 
 	debug("fs_write(%p)\n", r);
 
 	win = r->fid->aux;
+	if(win->deleted){
+		ixp_respond(r, Edeleted);
+		return;
+	}
 
 	switch(r->fid->qid.path){
 		case QLABEL: {

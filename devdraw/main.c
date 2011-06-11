@@ -9,12 +9,19 @@
 #include <ixp.h>
 
 #include "devdraw.h"
-
-int debuglevel = 0;
+#include "x11/inc.h"
+#include "x11/x.h"
 
 #define GETARG() (cp-*argv == strlen(*argv)-1) ? *++argv : cp+1
 
+int debuglevel = 0;
+int nwindow;
+Window **window;
+
 extern Ixp9Srv p9srv; /* fs.c:/p9srv */
+
+void endconnection(IxpConn*);
+void eventfdready(IxpConn*);
 
 int
 main(int argc, char **argv)
@@ -65,8 +72,27 @@ main(int argc, char **argv)
 	}
 
 	ixp_listen(&srv, fd, &p9srv, ixp_serve9conn, NULL);
+	ixp_listen(&srv, xconn.fd, nil, eventfdready, endconnection);
 
 	i = ixp_serverloop(&srv);
 
 	return i;
+}
+
+void
+endconnection(IxpConn *c)
+{
+	USED(c);
+	xclose();
+}
+
+void
+eventfdready(IxpConn *c)
+{
+	int closedwin;
+
+	USED(c);
+	closedwin = xnextevent();
+	if(closedwin >= 0)
+		deletewin(closedwin);
 }

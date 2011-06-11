@@ -7,7 +7,7 @@
 #include "drawfcall.h"
 
 void
-runmsg(Win *w, Wsysmsg *m)
+runmsg(Window *w, Wsysmsg *m)
 {
 //	uchar buf[65536];
 //	int n;

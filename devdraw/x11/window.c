@@ -6,7 +6,21 @@
 #include "inc.h"
 #include "x.h"
 
+#define MouseMask (\
+	ButtonPressMask|\
+	ButtonReleaseMask|\
+	PointerMotionMask|\
+	Button1MotionMask|\
+	Button2MotionMask|\
+	Button3MotionMask)
+
+#define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask
+
+extern int nwindow;
+
 extern int parsewinsize(char*, Rectangle*, int*);
+
+Xwin **xwindow;
 
 Rectangle
 xwinrectangle(char *label, char *winsize, int *havemin)
@@ -92,6 +106,9 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	xwin = malloc(sizeof(Xwin));
 	if(xwin == nil)
 		return nil;
+	if(!(xwindow = realloc(xwindow, nwindow*sizeof(Xwin*))))
+		return NULL;
+	xwindow[nwindow-1] = xwin;
 
 	/* remove warnings for unitialized vars */
 	height = x = y = mask = width = 0;
@@ -100,7 +117,7 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	attr.colormap = xconn.cmap;
 	attr.background_pixel = ~0;
 	attr.border_pixel = 0;
-	xwin->window = XCreateWindow(
+	xwin->drawable = XCreateWindow(
 		xconn.display,	/* display */
 		xconn.root,	/* parent */
 		x,		/* x */
@@ -115,7 +132,16 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 		CWBackPixel|CWBorderPixel|CWColormap,
 		&attr		/* attributes (the above aren't?!) */
 	);
-	xwin->drawable = xwin->window;
+	/*
+	 * Start getting event from the window asap
+	 */
+	XSelectInput(xconn.display, xwin->drawable, Mask);
+	/*
+	 * WM_DELETE_WINDOW will be sent by the window
+	 * manager when the window is trying to be closed.
+	 */
+	xwin->wmdelmsg = XInternAtom(xconn.display, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(xconn.display, xwin->drawable, &xwin->wmdelmsg, 1);
 
 	/*
 	 * Label and other properties required by ICCCCM.

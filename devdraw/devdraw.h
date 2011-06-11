@@ -15,10 +15,11 @@ struct Fileinfo
 	unsigned int size;
 };
 
-typedef struct Win Win;
-struct Win
+typedef struct Window Window;
+struct Window
 {
 	int id;
+	int deleted;
 	char *label;
 	Memimage *img;
 	Rectangle r;
@@ -26,15 +27,20 @@ struct Win
 };
 
 /* Global Vars */
-extern Fileinfo files[];
-extern int debuglevel;
+extern Fileinfo file[];
+int debuglevel;
+int nwindow;
+Window **window;
 
 /* Global Funcs */
-extern Win* newwin(void);
+Window* newwin(void);
+void deletewin(int);
 
 /* Xlib functions */
-extern Memimage* xallocmemimage(void*);
-extern void* xcreatewin(char*, char*, Rectangle);
-extern int xinit(void);
-extern Rectangle xmapwin(void*, int, Rectangle);
-extern Rectangle xwinrectangle(char*, char*, int*);
+Memimage* xallocmemimage(void*);
+void xclose(void);
+void* xcreatewin(char*, char*, Rectangle);
+int xinit(void);
+Rectangle xmapwin(void*, int, Rectangle);
+int xnextevent(void);
+Rectangle xwinrectangle(char*, char*, int*);

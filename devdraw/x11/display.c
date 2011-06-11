@@ -1,7 +1,9 @@
 #include <lib9.h>
-#include "draw.h"
+#include <draw.h>
 #include "inc.h"
 #include "x.h"
+
+void xclose(void);
 
 static void	plan9cmap(void);
 static int	setupcmap(XWindow);
@@ -98,7 +100,8 @@ xinit(void)
 		if(xconn.depth > 8){
 			werrstr("can't deal with colormapped depth %d screens",
 				xconn.depth);
-			goto err0;
+			xclose();
+			return -1;
 		}
 		xconn.vis = xvi.visual;
 		xconn.depth = 8;
@@ -107,7 +110,8 @@ xinit(void)
 		xconn.depth = DefaultDepth(xconn.display, xrootid);
 		if(xconn.depth != 8){
 			werrstr("can't understand depth %d screen", xconn.depth);
-			goto err0;
+			xclose();
+			return -1;
 		}
 		xconn.vis = DefaultVisual(xconn.display, xrootid);
 	}
@@ -155,7 +159,8 @@ xinit(void)
 	}
 	if(xconn.chan == 0){
 		werrstr("could not determine screen pixel format");
-		goto err0;
+		xclose();
+		return -1;
 	}
 
 	/*
@@ -169,13 +174,6 @@ xinit(void)
 	}
 	xconn.screenrect = Rect(0, 0, WidthOfScreen(xconn.screen), HeightOfScreen(xconn.screen));
 	return 0;
-
-err0:
-	/*
-	 * Should do a better job of cleaning up here.
-	 */
-	XCloseDisplay(xconn.display);
-	return -1;
 }
 
 /*
@@ -337,4 +335,14 @@ setupcmap(XWindow w)
 		return -1;
 	}
 	return 0;
+}
+
+void
+xclose(void)
+{
+	/*
+	 * Should do a better job of cleaning up here.
+	 */
+print("XXX Closing display\n");
+	XCloseDisplay(xconn.display);
 }

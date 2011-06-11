@@ -20,10 +20,11 @@ struct Xconn {
 };
 
 struct Xwin {
+	Atom 		wmdelmsg;
 	XDrawable	drawable;
 	XDrawable	screenpm;
 	XDrawable	nextscreenpm;
-	XWindow		window;
 };
 
 extern Xconn xconn;
+extern Xwin **xwindow;

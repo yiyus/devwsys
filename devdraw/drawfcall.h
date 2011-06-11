@@ -115,7 +115,7 @@ struct Wsysmsg
 //	Rectangle rect;
 };
 
-void runmsg(Win*, Wsysmsg*);
+void runmsg(Window*, Wsysmsg*);
 
 // uint	convW2M(Wsysmsg*, uchar*, uint);
 // uint	convM2W(uchar*, uint, Wsysmsg*);

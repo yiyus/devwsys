@@ -7,19 +7,22 @@ int isdigit(uchar);
 
 static int id = 0;
 
-Win*
+Window*
 newwin(void)
 {
-	Win *win;
+	Window *w;
 
-	if(!(win = malloc(sizeof(Win))))
+	if(!(w = malloc(sizeof(Window))))
 		return NULL;
-	win->id = id++;
-	win->label = NULL;
+	if(!(window = realloc(window, ++nwindow*sizeof(Window*))))
+		return NULL;
+	window[nwindow-1] = w;
 
-	// TODO: add win to []wins and inc nwins
+	w->id = id++;
+	w->deleted = 0;
+	w->label = NULL;
 
-	return win;
+	return w;
 }
 
 int
@@ -91,6 +94,16 @@ parsewinsize(char *s, Rectangle *r, int *havemin)
 oops:
 	werrstr("bad syntax in window size '%s'", os);
 	return -1;
+}
+
+void
+deletewin(int i)
+{
+	free(window[i]->x);
+	window[i]->x = nil;
+	window[i]->deleted++;
+	--nwindow;
+	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
 }
 
 int
