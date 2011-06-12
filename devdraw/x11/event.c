@@ -2,13 +2,15 @@
 #include <draw.h>
 #include "inc.h"
 #include "x.h"
+#include "../mouse.h"
 
-#define debug(...) if(debuglevel) fprint(2, "X: " __VA_ARGS__)
+#define debug(...) if(0 && debuglevel) fprint(2, "X: " __VA_ARGS__)
 
 extern int nwindow;
 extern int debuglevel;
 
-int xlookupwin(XWindow);
+int lookupxwin(XWindow);
+void mouseevent(XEvent);
 
 int
 xnextevent(void) {
@@ -21,7 +23,7 @@ xnextevent(void) {
 	debug("\t Event type: ");
 	switch(xev.type){
 	case ClientMessage:
-		i = xlookupwin(xev.xclient.window);
+		i = lookupxwin(xev.xclient.window);
 		if(xev.xclient.data.l[0] == xwindow[i]->wmdelmsg) {
 			debug("Delete window msg\n");
 			XDestroyWindow(xconn.display, xev.xclient.window);
@@ -43,8 +45,8 @@ xnextevent(void) {
 	case ButtonPress:
 	case ButtonRelease:
 	case MotionNotify:
-		//debug("Mouse event\n");
-		//xmouse(xev);
+		debug("Mouse event\n");
+		mouseevent(xev);
 		break;
 
 	default:
@@ -55,7 +57,7 @@ xnextevent(void) {
 }
 
 int
-xlookupwin(XWindow w)
+lookupxwin(XWindow w)
 {
 	int i;
 
@@ -64,4 +66,20 @@ xlookupwin(XWindow w)
 			return i;
 	}
 	return -1;
+}
+
+void
+mouseevent(XEvent xev)
+{
+	int i;
+	Mouse m;
+
+	i = lookupxwin(xev.xany.window);
+	if(i < 0)
+		return;
+	debug("Mouse event at window %d\n", i);
+	if(xtoplan9mouse(&xev, &m) < 0)
+			return;
+	addmouse(i, m);
+	matchmouse(i);
 }

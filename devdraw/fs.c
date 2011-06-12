@@ -5,12 +5,14 @@
 
 #include <ixp.h>
 
+#include "mouse.h"
 #include "devdraw.h"
 #include "drawfcall.h"
 
 /* Error messages */
 static char
 	Edeleted[] = "window deleted",
+	Einuse[] = "file in use",
 	Enoperm[] = "permission denied",
 	Enofile[] = "file not found",
 	Enomem[] = "out of memory";
@@ -19,8 +21,11 @@ static char
 Fileinfo file[QMAX] = {
 	{"", QNONE, P9_QTDIR, 0500|P9_DMDIR, 0},
 	{"label", QROOT, P9_QTFILE, 0600, 0},
+	{"mouse", QROOT, P9_QTFILE, 0400, 0},
 	{"winid", QROOT, P9_QTFILE, 0400, 0},
 };
+
+const char* rread(Ixp9Req*, char*);
 
 void
 fs_attach(Ixp9Req *r)
@@ -39,7 +44,7 @@ fs_attach(Ixp9Req *r)
 	if(!(w = newwin())) {
 		return;
 	}
-	runmsg(w, &m);
+	runmsg(w, &m, nil);
 	if(w == nil) {
 		ixp_respond(r, Enomem);
 		return;
@@ -79,16 +84,39 @@ fs_walk(Ixp9Req *r)
 void
 fs_open(Ixp9Req *r)
 {
+	Window *w;
+
 	debug("fs_open(%p)\n", r);
-	
+
+	switch(r->fid->qid.path){
+		case QMOUSE: {
+			w = r->fid->aux;
+			if(w->mouseopen){
+				ixp_respond(r, Einuse);
+				return;
+			}
+			w->mouseopen = 1;
+			break;
+		}
+	}
+
 	ixp_respond(r, NULL);
 }
 
 void
 fs_clunk(Ixp9Req *r)
 {
+	Window *w;
+
 	debug("fs_clunk(%p)\n", r);
 	
+	switch(r->fid->qid.path){
+		case QMOUSE: {
+			w = r->fid->aux;
+			w->mouseopen = 0;
+			break;
+		}
+	}
 	ixp_respond(r, NULL);
 }
 
@@ -131,13 +159,13 @@ void
 fs_read(Ixp9Req *r)
 {
 	char buf[512];
-	Window *win;
-	int n = 0;
+	Window *w;
+	Wsysmsg m;
 
 	debug("fs_read(%p)\n", r);
 
-	win = r->fid->aux;
-	if(win->deleted){
+	w = r->fid->aux;
+	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
 	}
@@ -173,45 +201,21 @@ fs_read(Ixp9Req *r)
 	}
 
 	switch(r->fid->qid.path){
-		case QIDENT: {
-			sprint(buf, "%11d ", win->id);
-			if(r->ifcall.tread.offset <  11) {
-				n = strlen(buf);
-				if(r->ifcall.tread.offset + r->ifcall.tread.count >  11) {
-					r->ofcall.rread.count =  11 - r->ifcall.tread.offset;
-				} else {
-					r->ofcall.rread.count = r->ifcall.tread.count;
-				}
-				if(!(r->ofcall.rread.data = malloc(r->ofcall.rread.count))) {
-					r->ofcall.rread.count = 0;
-					ixp_respond(r, Enomem);
-					return;
-				}
-				memcpy(r->ofcall.rread.data, buf, r->ofcall.rread.count);
-			}
-			break;
+		case QWINID: {
+			sprint(buf, "%11d ", w->id);
+			ixp_respond(r, rread(r, buf));
+			return;
+		}
+		case QMOUSE: {
+			m.type = Trdmouse;
+			runmsg(w, &m, r);
+			return; // Block
 		}
 		case QLABEL: {
-			if(win->label != NULL)
-				n = strlen(win->label);
-			if(n > 0 && r->ifcall.tread.offset < n) {
-				if(r->ifcall.tread.offset + r->ifcall.tread.count > n) {
-					r->ofcall.rread.count = n - r->ifcall.tread.offset;
-				} else {
-					r->ofcall.rread.count = r->ifcall.tread.count;
-				}
-				if(!(r->ofcall.rread.data = malloc(r->ofcall.rread.count))) {
-					r->ofcall.rread.count = 0;
-					ixp_respond(r, Enomem);
-					return;
-				}
-				memcpy(r->ofcall.rread.data, win->label+r->ifcall.tread.offset, r->ofcall.rread.count);
-			}
-			break;
+			ixp_respond(r, rread(r, w->label));
+			return;
 		}
 	}
-
-	ixp_respond(r, NULL);
 }
 
 void
@@ -275,3 +279,48 @@ Ixp9Srv p9srv = {
 	.remove=fs_remove,
 	.wstat=fs_wstat,
 };
+
+void
+fs_reply(Window *w, Wsysmsg *m)
+{
+	const char *error;
+	int c;
+	uchar buf[65536];
+	Ixp9Req *r;
+	Mouse ms;
+
+	if(m->type = Rrdmouse){
+		r = m->v;
+		ms = m->mouse;
+		c = 'm';
+		if(m->resized)
+			c = 'r';
+		sprint(buf, "%c%11d %11d %11d %11ld ", c, ms.xy.x, ms.xy.y, ms.buttons, ms.msec);
+		// w->resized = 0;
+		r->ifcall.rread.offset %= strlen(buf);
+		error = rread(r, buf);
+		ixp_respond(r, error);
+	}
+}
+
+const char*
+rread(Ixp9Req *r, char *s)
+{
+	int n = 0;
+
+	if(s != nil)
+		n = strlen(s);
+	if(n > 0 && r->ifcall.tread.offset < n) {
+		if(r->ifcall.tread.offset + r->ifcall.tread.count > n) {
+			r->ofcall.rread.count = n - r->ifcall.tread.offset;
+		} else {
+			r->ofcall.rread.count = r->ifcall.tread.count;
+		}
+		if(!(r->ofcall.rread.data = malloc(r->ofcall.rread.count))) {
+			r->ofcall.rread.count = 0;
+			return Enomem;
+		}
+		memcpy(r->ofcall.rread.data, s+r->ifcall.tread.offset, r->ofcall.rread.count);
+	}
+	return nil;
+}

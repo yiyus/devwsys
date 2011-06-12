@@ -6,12 +6,14 @@ XFILES=\
 	alloc.$O\
 	display.$O\
 	event.$O\
+	itrans.$O\
 	window.$O\
 
 OFILES=\
 	drawfcall.$O\
 	fs.$O\
 	main.$O\
+	mouse.$O\
 	window.$O\
 	$LIBIXP\
 	${XFILES:%=x11/%}\
@@ -23,6 +25,7 @@ XHFILES=\
 HFILES=\
 	devdraw.h\
 	drawfcall.h\
+	mouse.h\
 	${XHFILES:%=x11/%}\
 
 LIBS=	9 draw kern memdraw memlayer

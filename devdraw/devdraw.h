@@ -3,7 +3,7 @@
 #define debug(...) if(debuglevel) fprint(2, "ixpsrv: " __VA_ARGS__)
 
 /* Datatypes: */
-typedef enum {QNONE=-1, QROOT=0, QIDENT, QLABEL, QMAX} qpath;
+typedef enum {QNONE=-1, QROOT=0, QLABEL, QMOUSE, QWINID, QMAX} qpath;
 
 typedef struct Fileinfo Fileinfo;
 struct Fileinfo
@@ -20,8 +20,11 @@ struct Window
 {
 	int id;
 	int deleted;
+	int mouseopen;
 	char *label;
 	Memimage *img;
+	Mousebuf mouse;
+	Tagbuf mousetags;
 	Rectangle r;
 	void *x;
 };

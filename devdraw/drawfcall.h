@@ -1,5 +1,3 @@
-/* Copyright (c) 2006 Russ Cox */
-
 /*
 
 tag[1] Rerror error[s]
@@ -100,9 +98,9 @@ typedef struct Wsysmsg Wsysmsg;
 struct Wsysmsg
 {
 	uchar type;
-//	uchar tag;
-//	Mouse mouse;
-//	int resized;
+	uchar tag;
+	Mouse mouse;
+	int resized;
 //	Cursor cursor;
 //	int arrowcursor;
 //	Rune rune;
@@ -113,9 +111,13 @@ struct Wsysmsg
 //	uchar *data;
 //	uint count;
 //	Rectangle rect;
+	void *v;
 };
 
-void runmsg(Window*, Wsysmsg*);
+void replymsg(Window*, Wsysmsg*);
+void runmsg(Window*, Wsysmsg*, void*);
+
+void fs_reply(Window*, Wsysmsg*);
 
 // uint	convW2M(Wsysmsg*, uchar*, uint);
 // uint	convM2W(uchar*, uint, Wsysmsg*);

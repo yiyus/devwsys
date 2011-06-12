@@ -133,7 +133,7 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 		&attr		/* attributes (the above aren't?!) */
 	);
 	/*
-	 * Start getting event from the window asap
+	 * Start getting events from the window asap
 	 */
 	XSelectInput(xconn.display, xwin->drawable, Mask);
 	/*

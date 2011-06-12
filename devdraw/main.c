@@ -8,6 +8,7 @@
 
 #include <ixp.h>
 
+#include "mouse.h"
 #include "devdraw.h"
 #include "x11/inc.h"
 #include "x11/x.h"
@@ -55,7 +56,7 @@ main(int argc, char **argv)
 		if(mkdir(nsdir, 0700) == -1 && errno != EEXIST) {
 			err(1, "mkdir: %s", nsdir);
 		}
-		snprint(buf, sizeof(buf), "unix!%s/win", nsdir);
+		snprint(buf, sizeof(buf), "unix!%s/wsys", nsdir);
 		address = buf;
 	}
 

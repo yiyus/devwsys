@@ -3,37 +3,49 @@
 #include <draw.h>
 #include <memdraw.h>
 
+#include "mouse.h"
 #include "devdraw.h"
 #include "drawfcall.h"
 
+int lookupwin(Window*);
+
 void
-runmsg(Window *w, Wsysmsg *m)
+runmsg(Window *w, Wsysmsg *m, void *v)
 {
-//	uchar buf[65536];
-//	int n;
+	int i;
+	Mousebuf *mouse;
+	Tagbuf *mousetags;
 	int havemin;
-	
+
+	i = lookupwin(w);
+	if(i < 0)
+		return;
+	mouse = &w->mouse;
+	mousetags = &w->mousetags;
+
 	switch(m->type){
 	case Tinit:
 		w->r = xwinrectangle(m->label, m->winsize, &havemin);
 		w->x = xcreatewin(m->label, m->winsize, w->r);
 		w->r = xmapwin(w->x, havemin, w->r);
 		w->img = xallocmemimage(w->x);
-//		replymsg(m);
+//		replymsg(w, m);
+		break;
+
+	case Trdmouse:
+		mousetags->t[mousetags->wi] = m->tag;
+		mousetags->r[mousetags->wi] = v;
+		mousetags->wi++;
+		if(mousetags->wi == nelem(mousetags->t))
+			mousetags->wi = 0;
+		if(mousetags->wi == mousetags->ri)
+			sysfatal("too many queued mouse reads");
+		// fprint(2, "mouse unstall\n");
+		mouse->stall = 0;
+		matchmouse(i);
 		break;
 
 /***
-	case Trdmouse:
-		mousetags.t[mousetags.wi++] = m->tag;
-		if(mousetags.wi == nelem(mousetags.t))
-			mousetags.wi = 0;
-		if(mousetags.wi == mousetags.ri)
-			sysfatal("too many queued mouse reads");
-		// fprint(2, "mouse unstall\n");
-		mouse.stall = 0;
-		matchmouse();
-		break;
-
 	case Trdkbd:
 		kbdtags.t[kbdtags.wi++] = m->tag;
 		if(kbdtags.wi == nelem(kbdtags.t))
@@ -112,3 +124,20 @@ runmsg(Window *w, Wsysmsg *m)
 	}
 }
 
+void
+replymsg(Window *w, Wsysmsg *m)
+{
+	fs_reply(w, m);
+}
+
+int
+lookupwin(Window *w)
+{
+	int i;
+
+	for(i = 0; i < nwindow; i++){
+		if(window[i] == w)
+			return i;
+	}
+	return -1;
+}

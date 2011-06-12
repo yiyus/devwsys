@@ -1,9 +1,9 @@
+#include <ctype.h>
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
+#include "mouse.h"
 #include "devdraw.h"
-
-int isdigit(uchar);
 
 static int id = 0;
 
@@ -21,6 +21,7 @@ newwin(void)
 	w->id = id++;
 	w->deleted = 0;
 	w->label = NULL;
+	w->mouseopen = 0;
 
 	return w;
 }
@@ -34,12 +35,12 @@ parsewinsize(char *s, Rectangle *r, int *havemin)
 	os = s;
 	*havemin = 0;
 	*r = Rect(0,0,0,0);
-	if(!isdigit((uchar)*s))
+	if(!isdigit((int)*s))
 		goto oops;
 	i = strtol(s, &s, 0);
 	if(*s == 'x'){
 		s++;
-		if(!isdigit((uchar)*s))
+		if(!isdigit((int)*s))
 			goto oops;
 		j = strtol(s, &s, 0);
 		r->max.x = i;
@@ -50,13 +51,13 @@ parsewinsize(char *s, Rectangle *r, int *havemin)
 			goto oops;
 
 		s++;
-		if(!isdigit((uchar)*s))
+		if(!isdigit((int)*s))
 			goto oops;
 		i = strtol(s, &s, 0);
 		if(*s != ',' && *s != ' ')
 			goto oops;
 		s++;
-		if(!isdigit((uchar)*s))
+		if(!isdigit((int)*s))
 			goto oops;
 		j = strtol(s, &s, 0);
 		if(*s != 0)
@@ -70,19 +71,19 @@ parsewinsize(char *s, Rectangle *r, int *havemin)
 	if(c != ' ' && c != ',')
 		goto oops;
 	s++;
-	if(!isdigit((uchar)*s))
+	if(!isdigit((int)*s))
 		goto oops;
 	j = strtol(s, &s, 0);
 	if(*s != c)
 		goto oops;
 	s++;
-	if(!isdigit((uchar)*s))
+	if(!isdigit((int)*s))
 		goto oops;
 	k = strtol(s, &s, 0);
 	if(*s != c)
 		goto oops;
 	s++;
-	if(!isdigit((uchar)*s))
+	if(!isdigit((int)*s))
 		goto oops;
 	l = strtol(s, &s, 0);
 	if(*s != 0)
@@ -104,9 +105,4 @@ deletewin(int i)
 	window[i]->deleted++;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
-}
-
-int
-isdigit(uchar c){
-	return '0'<=c && c<='9';
 }
