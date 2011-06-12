@@ -9,7 +9,7 @@
 #include "drawfcall.h"
 
 void
-addmouse(int i, Mouse m)
+addmouse(int i, Mouse m, int resized)
 {
 	Mousebuf *mouse;
 
@@ -28,6 +28,7 @@ addmouse(int i, Mouse m)
 		mouse->m[0] = m;
 		/* fprint(2, "mouse stall\n"); */
 	}
+	mouse->resized = resized;
 }
 
 /*

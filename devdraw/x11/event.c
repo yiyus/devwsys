@@ -10,6 +10,7 @@ extern int nwindow;
 extern int debuglevel;
 
 int lookupxwin(XWindow);
+void configevent(XEvent);
 void mouseevent(XEvent);
 
 int
@@ -30,6 +31,11 @@ xnextevent(void) {
 			XSync(xconn.display, False);
 			return i;
 		}
+		break;
+
+	case ConfigureNotify:
+		debug("Configure event\n");
+		configevent(xev);
 		break;
 
 	case Expose:
@@ -69,6 +75,24 @@ lookupxwin(XWindow w)
 }
 
 void
+configevent(XEvent xev)
+{
+	int i;
+	Mouse m;
+
+	i = lookupxwin(xev.xany.window);
+	if(i < 0)
+		return;
+	debug("Configure event at window %d\n", i);
+	// TODO: plan9port/src/cmd/devdraw/x11-init.c:686
+	m.xy.x = xev.xconfigure.width;
+	m.xy.y = xev.xconfigure.height;
+	// _xreplacescreenimage();
+	addmouse(i, m, 1);
+	matchmouse(i);
+}
+
+void
 mouseevent(XEvent xev)
 {
 	int i;
@@ -79,7 +103,7 @@ mouseevent(XEvent xev)
 		return;
 	debug("Mouse event at window %d\n", i);
 	if(xtoplan9mouse(&xev, &m) < 0)
-			return;
-	addmouse(i, m);
+		return;
+	addmouse(i, m, 0);
 	matchmouse(i);
 }

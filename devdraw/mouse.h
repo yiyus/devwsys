@@ -25,6 +25,6 @@ struct Tagbuf
 	int wi;
 };
 
-void addmouse(int, Mouse);
+void addmouse(int, Mouse, int);
 void matchmouse(int);
 
