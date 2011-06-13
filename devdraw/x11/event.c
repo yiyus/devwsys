@@ -2,7 +2,7 @@
 #include <draw.h>
 #include "inc.h"
 #include "x.h"
-#include "../mouse.h"
+#include "mouse.h"
 
 #define debug(...) if(0 && debuglevel) fprint(2, "X: " __VA_ARGS__)
 

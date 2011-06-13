@@ -2,7 +2,7 @@
 #include <draw.h>
 #include "inc.h"
 #include "x.h"
-#include "../mouse.h"
+#include "mouse.h"
 
 int
 xtoplan9mouse(XEvent *e, Mouse *m)

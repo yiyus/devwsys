@@ -32,4 +32,11 @@ LIBS=	9 draw kern memdraw memlayer
 
 BIN=$ROOT/$OBJDIR/bin
 
+# to include ./*.h files form x11/
+CFLAGS=$CFLAGS -I.
+
+# to remove .$O files from x11/
+nuke:
+	rm -f `echo $OS | sed 's,.,x11/*.&,g'`
+
 <$ROOT/mkfiles/mkone-$SHELLTYPE
