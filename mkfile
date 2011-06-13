@@ -6,7 +6,7 @@ DIRS=\
 	libkern\
 	libmemdraw\
 	libmemlayer\
-	devdraw\
+	devwsys\
 
 all:V:		all-$HOSTMODEL
 clean:V:	clean-$HOSTMODEL

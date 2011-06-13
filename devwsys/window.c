@@ -3,7 +3,7 @@
 #include <draw.h>
 #include <memdraw.h>
 #include "mouse.h"
-#include "devdraw.h"
+#include "devwsys.h"
 
 static int id = 0;
 

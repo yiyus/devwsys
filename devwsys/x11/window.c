@@ -100,15 +100,15 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	XSetWindowAttributes attr;
 	XSizeHints normalhint;
 	XTextProperty name;
-	Xwin *xwin;
+	Xwin *xw;
 	XWMHints hint;
 
-	xwin = malloc(sizeof(Xwin));
-	if(xwin == nil)
+	xw = malloc(sizeof(Xwin));
+	if(xw == nil)
 		return nil;
 	if(!(xwindow = realloc(xwindow, nwindow*sizeof(Xwin*))))
 		return NULL;
-	xwindow[nwindow-1] = xwin;
+	xwindow[nwindow-1] = xw;
 
 	/* remove warnings for unitialized vars */
 	height = x = y = mask = width = 0;
@@ -117,7 +117,7 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	attr.colormap = xconn.cmap;
 	attr.background_pixel = ~0;
 	attr.border_pixel = 0;
-	xwin->drawable = XCreateWindow(
+	xw->drawable = XCreateWindow(
 		xconn.display,	/* display */
 		xconn.root,	/* parent */
 		x,		/* x */
@@ -135,13 +135,13 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	/*
 	 * Start getting events from the window asap
 	 */
-	XSelectInput(xconn.display, xwin->drawable, Mask);
+	XSelectInput(xconn.display, xw->drawable, Mask);
 	/*
 	 * WM_DELETE_WINDOW will be sent by the window
 	 * manager when the window is trying to be closed.
 	 */
-	xwin->wmdelmsg = XInternAtom(xconn.display, "WM_DELETE_WINDOW", False);
-	XSetWMProtocols(xconn.display, xwin->drawable, &xwin->wmdelmsg, 1);
+	xw->wmdelmsg = XInternAtom(xconn.display, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(xconn.display, xw->drawable, &xw->wmdelmsg, 1);
 
 	/*
 	 * Label and other properties required by ICCCCM.
@@ -192,7 +192,7 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 
 	XSetWMProperties(
 		xconn.display,	/* display */
-		xwin->drawable,	/* window */
+		xw->drawable,	/* window */
 		&name,		/* XA_WM_NAME property */
 		&name,		/* XA_WM_ICON_NAME property */
 		argv,		/* XA_WM_COMMAND */
@@ -202,16 +202,16 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 		&classhint	/* XA_WM_CLASSHINTS */
 	);
 	XFlush(xconn.display);
-	return xwin;
+	return xw;
 }
 
 Rectangle
-xmapwin(void *xw, int havemin, Rectangle r)
+xmapwin(void *x, int havemin, Rectangle r)
 {
-	Xwin *xwin;
+	Xwin *xw;
 	XWindowAttributes wattr;
 
-	xwin = xw;
+	xw = x;
 
 	if(havemin){
 		XWindowChanges ch;
@@ -219,7 +219,7 @@ xmapwin(void *xw, int havemin, Rectangle r)
 		memset(&ch, 0, sizeof ch);
 		ch.x = r.min.x;
 		ch.y = r.min.y;
-		XConfigureWindow(xconn.display, xwin->drawable, CWX|CWY, &ch);
+		XConfigureWindow(xconn.display, xw->drawable, CWX|CWY, &ch);
 		/*
 		 * Must pretend origin is 0,0 for X.
 		 */
@@ -233,10 +233,10 @@ xmapwin(void *xw, int havemin, Rectangle r)
 	/*
 	 * Put the window on the screen, check to see what size we actually got.
 	 */
-	XMapWindow(xconn.display, xwin->drawable);
+	XMapWindow(xconn.display, xw->drawable);
 	XSync(xconn.display, False);
 
-	if(!XGetWindowAttributes(xconn.display, xwin->drawable, &wattr))
+	if(!XGetWindowAttributes(xconn.display, xw->drawable, &wattr))
 		fprint(2, "XGetWindowAttributes failed\n");
 	else if(wattr.width && wattr.height){
 		if(wattr.width != Dx(r) || wattr.height != Dy(r)){
@@ -249,8 +249,8 @@ xmapwin(void *xw, int havemin, Rectangle r)
 	/*
 	 * Allocate our local backing store.
 	 */
-	xwin->screenpm = XCreatePixmap(xconn.display, xwin->drawable, Dx(r), Dy(r), xconn.depth);
-	xwin->nextscreenpm = xwin->screenpm;
+	xw->screenpm = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), xconn.depth);
+	xw->nextscreenpm = xw->screenpm;
 
 	/*
 	 * Allocate some useful graphics contexts for the future.

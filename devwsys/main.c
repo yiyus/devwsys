@@ -9,7 +9,7 @@
 #include <ixp.h>
 
 #include "mouse.h"
-#include "devdraw.h"
+#include "devwsys.h"
 #include "x11/inc.h"
 #include "x11/x.h"
 

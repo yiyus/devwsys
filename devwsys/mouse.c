@@ -5,7 +5,7 @@
 #include <ixp.h>
 
 #include "mouse.h"
-#include "devdraw.h"
+#include "devwsys.h"
 #include "drawfcall.h"
 
 void

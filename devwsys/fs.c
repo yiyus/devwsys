@@ -6,7 +6,7 @@
 #include <ixp.h>
 
 #include "mouse.h"
-#include "devdraw.h"
+#include "devwsys.h"
 #include "drawfcall.h"
 
 /* Error messages */
@@ -226,12 +226,12 @@ fs_read(Ixp9Req *r)
 void
 fs_write(Ixp9Req *r)
 {
-	Window *win;
+	Window *w;
 
 	debug("fs_write(%p)\n", r);
 
-	win = r->fid->aux;
-	if(win->deleted){
+	w = r->fid->aux;
+	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
 	}
@@ -239,13 +239,13 @@ fs_write(Ixp9Req *r)
 	switch(r->fid->qid.path){
 		case QLABEL: {
 			r->ofcall.rwrite.count = r->ifcall.twrite.count;
-			if(!(win->label = realloc(win->label, r->ifcall.twrite.count + 1))) {
+			if(!(w->label = realloc(w->label, r->ifcall.twrite.count + 1))) {
 				r->ofcall.rwrite.count = 0;
 				ixp_respond(r, Enomem);
 				return;
 			}
-			memcpy(win->label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
-			win->label[r->ifcall.twrite.count] = 0;
+			memcpy(w->label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
+			w->label[r->ifcall.twrite.count] = 0;
 			break;
 		}
 	}

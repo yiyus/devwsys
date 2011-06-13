@@ -1,6 +1,6 @@
 <../mkconfig
 
-TARG=devdraw
+TARG=devwsys
 
 XFILES=\
 	alloc.$O\
@@ -23,7 +23,7 @@ XHFILES=\
 	x.h\
 
 HFILES=\
-	devdraw.h\
+	devwsys.h\
 	drawfcall.h\
 	mouse.h\
 	${XHFILES:%=x11/%}\
@@ -32,11 +32,11 @@ LIBS=	9 draw kern memdraw memlayer
 
 BIN=$ROOT/$OBJDIR/bin
 
+<$ROOT/mkfiles/mkone-$SHELLTYPE
+
 # to include ./*.h files form x11/
 CFLAGS=$CFLAGS -I.
 
 # to remove .$O files from x11/
 nuke:
 	rm -f `echo $OS | sed 's,.,x11/*.&,g'`
-
-<$ROOT/mkfiles/mkone-$SHELLTYPE
