@@ -20,6 +20,8 @@ static char
 /* name, parent, type, mode, size */
 Fileinfo file[QMAX] = {
 	{"", QNONE, P9_QTDIR, 0500|P9_DMDIR, 0},
+	{"cons", QROOT, P9_QTFILE, 0600, 0},
+	{"consctl", QROOT, P9_QTFILE, 0600, 0},
 	{"label", QROOT, P9_QTFILE, 0600, 0},
 	{"mouse", QROOT, P9_QTFILE, 0400, 0},
 	{"winid", QROOT, P9_QTFILE, 0400, 0},
@@ -114,6 +116,8 @@ fs_clunk(Ixp9Req *r)
 		case QMOUSE: {
 			w = r->fid->aux;
 			w->mouseopen = 0;
+			w->mouse.wi = w->mouse.ri;
+			w->mousetags.wi = w->mousetags.ri;
 			break;
 		}
 	}
@@ -216,6 +220,7 @@ fs_read(Ixp9Req *r)
 			return;
 		}
 	}
+	ixp_respond(r, nil);
 }
 
 void

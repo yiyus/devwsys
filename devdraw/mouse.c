@@ -13,6 +13,8 @@ addmouse(int i, Mouse m, int resized)
 {
 	Mousebuf *mouse;
 
+	if(!window[i]->mouseopen)
+		return;
 	mouse = &window[i]->mouse;
 	if(mouse->stall)
 		return;
@@ -41,9 +43,11 @@ matchmouse(int i)
 	Tagbuf *mousetags;
 	Wsysmsg m;
 
+	if(!window[i]->mouseopen)
+		return;
 	mouse = &window[i]->mouse;
 	mousetags = &window[i]->mousetags;
-	
+
 	while(mouse->ri != mouse->wi && mousetags->ri != mousetags->wi){
 		m.type = Rrdmouse;
 		m.tag = mousetags->t[mousetags->ri];
