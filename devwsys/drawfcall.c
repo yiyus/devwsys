@@ -3,6 +3,7 @@
 #include <draw.h>
 #include <memdraw.h>
 
+#include "keyboard.h"
 #include "mouse.h"
 #include "devwsys.h"
 #include "drawfcall.h"
@@ -13,15 +14,14 @@ void
 runmsg(Window *w, Wsysmsg *m, void *v)
 {
 	int i;
+	Kbdbuf *kbd;
 	Mousebuf *mouse;
-	Tagbuf *mousetags;
+	Tagbuf *kbdtags, *mousetags;
 	int havemin;
 
 	i = lookupwin(w);
 	if(i < 0)
 		return;
-	mouse = &w->mouse;
-	mousetags = &w->mousetags;
 
 	switch(m->type){
 	case Tinit:
@@ -33,6 +33,8 @@ runmsg(Window *w, Wsysmsg *m, void *v)
 		break;
 
 	case Trdmouse:
+		mouse = &w->mouse;
+		mousetags = &w->mousetags;
 		mousetags->t[mousetags->wi] = m->tag;
 		mousetags->r[mousetags->wi] = v;
 		mousetags->wi++;
@@ -45,17 +47,22 @@ runmsg(Window *w, Wsysmsg *m, void *v)
 		matchmouse(i);
 		break;
 
-/***
 	case Trdkbd:
-		kbdtags.t[kbdtags.wi++] = m->tag;
-		if(kbdtags.wi == nelem(kbdtags.t))
-			kbdtags.wi = 0;
-		if(kbdtags.wi == kbdtags.ri)
-			sysfatal("too many queued keyboard reads");
-		kbd.stall = 0;
-		matchkbd();
+		kbd = &w->kbd;
+		kbdtags = &w->kbdtags;
+		kbdtags->t[kbdtags->wi] = m->tag;
+		kbdtags->r[kbdtags->wi] = v;
+		kbdtags->wi++;
+		if(kbdtags->wi == nelem(kbdtags->t))
+			kbdtags->wi = 0;
+		if(kbdtags->wi == kbdtags->ri)
+			sysfatal("too many queued kbd reads");
+		// fprint(2, "kbd unstall\n");
+		kbd->stall = 0;
+		matchkbd(i);
 		break;
 
+/***
 	case Tmoveto:
 		_xmoveto(m->mouse.xy);
 		replymsg(m);

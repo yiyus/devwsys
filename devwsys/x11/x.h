@@ -29,4 +29,5 @@ struct Xwin {
 extern Xconn xconn;
 extern Xwin **xwindow;
 
+int xtoplan9kbd(XEvent*);
 int xtoplan9mouse(XEvent*, Mouse*);

@@ -103,7 +103,7 @@ struct Wsysmsg
 	int resized;
 //	Cursor cursor;
 //	int arrowcursor;
-//	Rune rune;
+	Rune rune;
 	char *winsize;
 	char *label;
 //	char *snarf;

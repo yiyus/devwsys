@@ -7,11 +7,14 @@ XFILES=\
 	display.$O\
 	event.$O\
 	itrans.$O\
+	keysym2ucs.$O\
 	window.$O\
 
 OFILES=\
 	drawfcall.$O\
 	fs.$O\
+	keyboard.$O\
+	latin1.$O\
 	main.$O\
 	mouse.$O\
 	window.$O\
@@ -20,11 +23,14 @@ OFILES=\
 
 XHFILES=\
 	inc.h\
+	keysym2ucs.h\
 	x.h\
 
 HFILES=\
 	devwsys.h\
 	drawfcall.h\
+	keyboard.h\
+	latin1.h\
 	mouse.h\
 	${XHFILES:%=x11/%}\
 

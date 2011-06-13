@@ -1,5 +1,4 @@
 typedef struct Mousebuf Mousebuf;
-typedef struct Tagbuf Tagbuf;
 
 struct  Mouse
 {
@@ -17,14 +16,5 @@ struct Mousebuf
 	int resized;
 };
 
-struct Tagbuf
-{
-	int t[32];
-	void *r[32];
-	int ri;
-	int wi;
-};
-
 void addmouse(int, Mouse, int);
 void matchmouse(int);
-

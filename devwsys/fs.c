@@ -5,6 +5,7 @@
 
 #include <ixp.h>
 
+#include "keyboard.h"
 #include "mouse.h"
 #include "devwsys.h"
 #include "drawfcall.h"
@@ -205,18 +206,23 @@ fs_read(Ixp9Req *r)
 	}
 
 	switch(r->fid->qid.path){
-		case QWINID: {
-			sprint(buf, "%11d ", w->id);
-			ixp_respond(r, rread(r, buf));
+		case QCONS: {
+			m.type = Trdkbd;
+			runmsg(w, &m, r);
+			return;
+		}
+		case QLABEL: {
+			ixp_respond(r, rread(r, w->label));
 			return;
 		}
 		case QMOUSE: {
 			m.type = Trdmouse;
 			runmsg(w, &m, r);
-			return; // Block
+			return;
 		}
-		case QLABEL: {
-			ixp_respond(r, rread(r, w->label));
+		case QWINID: {
+			sprint(buf, "%11d ", w->id);
+			ixp_respond(r, rread(r, buf));
 			return;
 		}
 	}
@@ -293,9 +299,17 @@ fs_reply(Window *w, Wsysmsg *m)
 	uchar buf[65536];
 	Ixp9Req *r;
 	Mouse ms;
+	Rune rune;
 
-	if(m->type = Rrdmouse){
-		r = m->v;
+	r = m->v;
+	switch(m->type){
+	case Rrdkbd:
+		rune = m->rune;
+		sprint(buf, "%c", rune);
+		r->ifcall.rread.offset = 0;
+		break;
+
+	case Rrdmouse:
 		ms = m->mouse;
 		c = 'm';
 		if(m->resized)
@@ -303,9 +317,15 @@ fs_reply(Window *w, Wsysmsg *m)
 		sprint(buf, "%c%11d %11d %11d %11ld ", c, ms.xy.x, ms.xy.y, ms.buttons, ms.msec);
 		// w->resized = 0;
 		r->ifcall.rread.offset %= strlen(buf);
-		error = rread(r, buf);
-		ixp_respond(r, error);
+		break;
+
+	default:
+		return;
 	}
+	if(strlen(buf) == 0)
+		return;
+	error = rread(r, buf);
+	ixp_respond(r, error);
 }
 
 const char*

@@ -2,15 +2,17 @@
 #include <draw.h>
 #include "inc.h"
 #include "x.h"
+#include "keyboard.h"
 #include "mouse.h"
 
-#define debug(...) if(0 && debuglevel) fprint(2, "X: " __VA_ARGS__)
+#define debug(...) if(debuglevel) fprint(2, __VA_ARGS__)
 
 extern int nwindow;
 extern int debuglevel;
 
 int lookupxwin(XWindow);
 void configevent(XEvent);
+void kbdevent(XEvent);
 void mouseevent(XEvent);
 
 int
@@ -18,10 +20,10 @@ xnextevent(void) {
 	int i;
 	XEvent xev;
 
-	debug("Next event\n");
+	debug("Next event: ");
 	XNextEvent(xconn.display, &xev);
-	debug("\t Event window: %d\n", xev.xany.window);
-	debug("\t Event type: ");
+	debug("window: %d\t", xev.xany.window);
+	debug("type: ");
 	switch(xev.type){
 	case ClientMessage:
 		i = lookupxwin(xev.xclient.window);
@@ -34,29 +36,34 @@ xnextevent(void) {
 		break;
 
 	case ConfigureNotify:
-		debug("Configure event\n");
+		debug("ConfigureNotify\n");
 		configevent(xev);
 		break;
 
 	case Expose:
-		debug("Window exposed\n");
+		debug("Expose\n");
 		//xexpose(xev);
 		break;
 	
 	case DestroyNotify:
-		debug("Window destroyed\n");
+		debug("DestroyNotify\n");
 		/* Nop */
 		break;
 
 	case ButtonPress:
 	case ButtonRelease:
 	case MotionNotify:
-		debug("Mouse event\n");
+		debug("Mouse\n");
 		mouseevent(xev);
 		break;
 
+	case KeyPress:
+		debug("KeyPress\n");
+		kbdevent(xev);
+		break;
+	
 	default:
-		debug("Other event (%d)\n", xev.type);
+		debug("Unknown (%d)\n", xev.type);
 		break;
 	}
 	return -1;
@@ -88,8 +95,33 @@ configevent(XEvent xev)
 	m.xy.x = xev.xconfigure.width;
 	m.xy.y = xev.xconfigure.height;
 	// _xreplacescreenimage();
+	debug("Configure event at window %d: w=%d h=%d\n", i, m.xy.x, m.xy.y);
 	addmouse(i, m, 1);
 	matchmouse(i);
+}
+
+void
+kbdevent(XEvent xev)
+{
+	int i, c;
+	KeySym k;
+
+	i = lookupxwin(xev.xany.window);
+	if(i < 0)
+		return;
+	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
+	if(k == XK_F11){
+		/* TODO
+		fullscreen = !fullscreen;
+		_xmovewindow(fullscreen ? screenrect : windowrect);
+		*/
+		return;
+	}
+	if((c = xtoplan9kbd(&xev)) < 0)
+		return;
+	debug("Keyboard event at window %d. rune=%c\n", i, c);
+	addkbd(i, c);
+	matchkbd(i);
 }
 
 void
@@ -101,9 +133,9 @@ mouseevent(XEvent xev)
 	i = lookupxwin(xev.xany.window);
 	if(i < 0)
 		return;
-	debug("Mouse event at window %d\n", i);
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
+	debug("Mouse event at window %d: x=%d y=%d b=%d\n", i, m.xy.x, m.xy.y, m.buttons);
 	addmouse(i, m, 0);
 	matchmouse(i);
 }

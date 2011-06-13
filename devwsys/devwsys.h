@@ -16,6 +16,9 @@ typedef enum
 } qpath;
 
 typedef struct Fileinfo Fileinfo;
+typedef struct Tagbuf Tagbuf;
+typedef struct Window Window;
+
 struct Fileinfo
 {
 	char *name;
@@ -25,15 +28,24 @@ struct Fileinfo
 	unsigned int size;
 };
 
-typedef struct Window Window;
+struct Tagbuf
+{
+	int t[32];
+	void *r[32];
+	int ri;
+	int wi;
+};
+
 struct Window
 {
 	int id;
 	int deleted;
 	int mouseopen;
 	char *label;
+	Kbdbuf kbd;
 	Memimage *img;
 	Mousebuf mouse;
+	Tagbuf kbdtags;
 	Tagbuf mousetags;
 	Rectangle r;
 	void *x;
@@ -46,8 +58,8 @@ int nwindow;
 Window **window;
 
 /* Global Funcs */
-Window* newwin(void);
 void deletewin(int);
+Window* newwin(void);
 
 /* Xlib functions */
 Memimage* xallocmemimage(void*);

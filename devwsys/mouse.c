@@ -4,6 +4,7 @@
 
 #include <ixp.h>
 
+#include "keyboard.h"
 #include "mouse.h"
 #include "devwsys.h"
 #include "drawfcall.h"
@@ -13,6 +14,12 @@ addmouse(int i, Mouse m, int resized)
 {
 	Mousebuf *mouse;
 
+	/*
+	 * TODO:
+	 * The last resize event should be added
+	 * even when mouse is closed to read
+	 * after the file is opened.
+	 */
 	if(!window[i]->mouseopen)
 		return;
 	mouse = &window[i]->mouse;

@@ -8,6 +8,7 @@
 
 #include <ixp.h>
 
+#include "keyboard.h"
 #include "mouse.h"
 #include "devwsys.h"
 #include "x11/inc.h"

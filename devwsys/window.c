@@ -2,6 +2,7 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
+#include "keyboard.h"
 #include "mouse.h"
 #include "devwsys.h"
 
