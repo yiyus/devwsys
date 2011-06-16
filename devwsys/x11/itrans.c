@@ -7,7 +7,7 @@
 
 long keysym2ucs(KeySym);
 static KeySym
-_xtoplan9kbd(XEvent *e)
+xtoplan9key(XEvent *e)
 {
 	KeySym k;
 
@@ -117,71 +117,49 @@ _xtoplan9kbd(XEvent *e)
 }
 
 long latin1(uchar*, int);
-static uchar*
-xtoplan9latin1(XEvent *e)
+int
+xtoplan9kbd(XEvent *e)
 {
-	static uchar k[10];
+	int ch, n;
+	Rune r;
+	static uchar k[5*UTFmax];
 	static int alting, nk;
-	int n;
-	int r;
 
-	r = _xtoplan9kbd(e);
-	if(r < 0)
-		return nil;
+	ch = xtoplan9key(e);
+	if(ch < 0)
+		return -1;
+	r = ch;
 	if(alting){
 		/*
 		 * Kludge for Mac's X11 3-button emulation.
 		 * It treats Command+Button as button 3, but also
 		 * ends up sending XK_Meta_L twice.
 		 */
-		if(r == Kalt){
+		if(ch == Kalt){
 			alting = 0;
-			return nil;
+			return -1;
 		}
-		k[nk++] = r;
+		nk += runetochar((char*)&k[nk], &r);
 		n = latin1(k, nk);
 		if(n > 0){
 			alting = 0;
-			k[0] = n;
-			k[1] = 0;
-			return k;
+			r = (Rune)n;
+			return r;
 		}
 		if(n == -1){
 			alting = 0;
 			k[nk] = 0;
-			return k;
+			r = (Rune)0;
+			return r;
 		}
 		/* n < -1, need more input */
-		return nil;
-	}else if(r == Kalt){
-		return nil; // TODO
+		return -1;
+	}else if(ch == Kalt){
 		alting = 1;
 		nk = 0;
-		return nil;
-	}else{
-		k[0] = r;
-		k[1] = 0;
-		return k;
+		return -1;
 	}
-}
-
-int
-xtoplan9kbd(XEvent *e)
-{
-	static uchar *r;
-
-	if(e == (XEvent*)-1){
-		// assert(r);
-		if(r == nil)
-			exit(1);
-		r--;
-		return 0;
-	}
-	if(e)
-		r = xtoplan9latin1(e);
-	if(r && *r)
-		return *r++;
-	return -1;
+	return r;
 }
 
 int

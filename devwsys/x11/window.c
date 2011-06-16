@@ -205,6 +205,18 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	return xw;
 }
 
+int
+xlookupwin(XWindow w)
+{
+	int i;
+
+	for(i = 0; i < nwindow; i++){
+		if(xwindow[i]->drawable == w)
+			return i;
+	}
+	return -1;
+}
+
 Rectangle
 xmapwin(void *x, int havemin, Rectangle r)
 {

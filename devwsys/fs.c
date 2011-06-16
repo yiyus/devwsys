@@ -305,7 +305,7 @@ fs_reply(Window *w, Wsysmsg *m)
 	switch(m->type){
 	case Rrdkbd:
 		rune = m->rune;
-		sprint(buf, "%c", rune);
+		sprint(buf, "%C", rune);
 		r->ifcall.rread.offset = 0;
 		break;
 

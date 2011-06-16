@@ -10,7 +10,6 @@
 extern int nwindow;
 extern int debuglevel;
 
-int lookupxwin(XWindow);
 void configevent(XEvent);
 void kbdevent(XEvent);
 void mouseevent(XEvent);
@@ -26,7 +25,7 @@ xnextevent(void) {
 	debug("type: ");
 	switch(xev.type){
 	case ClientMessage:
-		i = lookupxwin(xev.xclient.window);
+		i = xlookupwin(xev.xclient.window);
 		if(xev.xclient.data.l[0] == xwindow[i]->wmdelmsg) {
 			debug("Delete window msg\n");
 			XDestroyWindow(xconn.display, xev.xclient.window);
@@ -69,25 +68,13 @@ xnextevent(void) {
 	return -1;
 }
 
-int
-lookupxwin(XWindow w)
-{
-	int i;
-
-	for(i = 0; i < nwindow; i++){
-		if(xwindow[i]->drawable == w)
-			return i;
-	}
-	return -1;
-}
-
 void
 configevent(XEvent xev)
 {
 	int i;
 	Mouse m;
 
-	i = lookupxwin(xev.xany.window);
+	i = xlookupwin(xev.xany.window);
 	if(i < 0)
 		return;
 	debug("Configure event at window %d\n", i);
@@ -103,10 +90,10 @@ configevent(XEvent xev)
 void
 kbdevent(XEvent xev)
 {
-	int i, c;
+	int i;
 	KeySym k;
 
-	i = lookupxwin(xev.xany.window);
+	i = xlookupwin(xev.xany.window);
 	if(i < 0)
 		return;
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
@@ -117,10 +104,12 @@ kbdevent(XEvent xev)
 		*/
 		return;
 	}
-	if((c = xtoplan9kbd(&xev)) < 0)
+
+	k = xtoplan9kbd(&xev);
+	if(k == -1)
 		return;
-	debug("Keyboard event at window %d. rune=%c\n", i, c);
-	addkbd(i, c);
+	debug("Keyboard event at window %d. rune=%C (%d)\n", i, k, k);
+	addkbd(i, k);
 	matchkbd(i);
 }
 
@@ -130,7 +119,7 @@ mouseevent(XEvent xev)
 	int i;
 	Mouse m;
 
-	i = lookupxwin(xev.xany.window);
+	i = xlookupwin(xev.xany.window);
 	if(i < 0)
 		return;
 	if(xtoplan9mouse(&xev, &m) < 0)
