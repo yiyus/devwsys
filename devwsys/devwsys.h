@@ -1,6 +1,6 @@
 /* Temporary */
-#define fatal(...) ixp_eprint("ixpsrv: fatal: " __VA_ARGS__)
-#define debug(...) if(debuglevel) fprint(2, "ixpsrv: " __VA_ARGS__)
+#define fatal(...) fprint(2, "devwsys: fatal: " __VA_ARGS__); exit(1)
+#define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Datatypes: */
 typedef enum
@@ -60,11 +60,13 @@ Window **window;
 /* Global Funcs */
 void deletewin(int);
 Window* newwin(void);
+int ixpserve(char*);
 
-/* Xlib functions */
+/* Xlib Funcs */
 Memimage* xallocmemimage(void*);
 void xclose(void);
 void* xcreatewin(char*, char*, Rectangle);
+int xfd(void);
 int xinit(void);
 Rectangle xmapwin(void*, int, Rectangle);
 int xnextevent(void);

@@ -44,6 +44,12 @@ xioerror(XDisplay *d)
 	return -1;
 }
 
+int
+xfd(void)
+{
+	return xconn.fd;
+}
+
 /*
  * Connect to the X server.
  */

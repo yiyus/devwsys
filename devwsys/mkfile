@@ -12,7 +12,8 @@ XFILES=\
 
 OFILES=\
 	drawfcall.$O\
-	fs.$O\
+	ixp_fsys.$O\
+	ixp_srv.$O\
 	keyboard.$O\
 	latin1.$O\
 	main.$O\
