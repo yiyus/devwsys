@@ -71,7 +71,6 @@ xinit(void)
 	if(xconn.display == nil){
 		disp = getenv("DISPLAY");
 		werrstr("XOpenDisplay %s: %r", disp ? disp : ":0");
-		free(disp);
 		return -1;
 	}
 	xconn.fd = ConnectionNumber(xconn.display);

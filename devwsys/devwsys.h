@@ -1,5 +1,5 @@
 /* Temporary */
-#define fatal(...) {fprint(2, "devwsys: fatal: " __VA_ARGS__); exit(1);}
+#define fatal(...) sysfatal("devwsys: fatal: " __VA_ARGS__)
 #define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Datatypes: */
