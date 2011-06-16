@@ -46,7 +46,6 @@ main(int argc, char **argv)
 
 	// /* TODO: we'll need this for drawing. */
 	//memimageinit();
-
 	/* Start the 9p server */
 	return ixpserve(address);
 }

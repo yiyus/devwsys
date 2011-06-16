@@ -32,3 +32,5 @@ struct Kbdbuf
 
 void addkbd(int, Rune);
 void matchkbd(int);
+int kbdputc(int);
+

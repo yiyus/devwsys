@@ -105,7 +105,7 @@ kbdevent(XEvent xev)
 		return;
 	}
 
-	k = xtoplan9kbd(&xev);
+	k = kbdputc(xtoplan9kbd(&xev));
 	if(k == -1)
 		return;
 	debug("Keyboard event at window %d. rune=%C (%d)\n", i, k, k);

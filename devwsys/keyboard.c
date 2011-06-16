@@ -50,3 +50,49 @@ matchkbd(int i)
 		replymsg(window[i], &m);
 	}
 }
+
+long latin1(uchar*, int);
+int
+kbdputc(int ch)
+{
+	int n;
+	Rune r;
+	static uchar k[5*UTFmax];
+	static int alting, nk;
+
+	if(ch < 0)
+		return -1;
+	r = ch;
+	if(alting){
+		/*
+		 * Kludge for Mac's X11 3-button emulation.
+		 * It treats Command+Button as button 3, but also
+		 * ends up sending XK_Meta_L twice.
+		 */
+		if(ch == Kalt){
+			alting = 0;
+			return -1;
+		}
+		nk += runetochar((char*)&k[nk], &r);
+		n = latin1(k, nk);
+		if(n > 0){
+			alting = 0;
+			r = (Rune)n;
+			return r;
+		}
+		if(n == -1){
+			alting = 0;
+			k[nk] = 0;
+			r = (Rune)0;
+			return r;
+		}
+		/* n < -1, need more input */
+		return -1;
+	}else if(ch == Kalt){
+		alting = 1;
+		nk = 0;
+		return -1;
+	}
+	return r;
+}
+
