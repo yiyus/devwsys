@@ -44,16 +44,11 @@ fs_attach(Ixp9Req *r)
 	m.type = Tinit;
 	m.label = nil; // pjw face
 	m.winsize = nil; // full screen
+	m.v = r;
 	if(!(w = newwin())) {
 		return;
 	}
-	runmsg(w, &m, nil);
-	if(w == nil) {
-		ixp_respond(r, Enomem);
-		return;
-	}
-	r->fid->aux = w;
-	ixp_respond(r, NULL);
+	runmsg(w, &m);
 }
 
 void
@@ -208,7 +203,8 @@ fs_read(Ixp9Req *r)
 	switch(r->fid->qid.path){
 		case QCONS: {
 			m.type = Trdkbd;
-			runmsg(w, &m, r);
+			m.v = r;
+			runmsg(w, &m);
 			return;
 		}
 		case QLABEL: {
@@ -217,7 +213,8 @@ fs_read(Ixp9Req *r)
 		}
 		case QMOUSE: {
 			m.type = Trdmouse;
-			runmsg(w, &m, r);
+			m.v = r;
+			runmsg(w, &m);
 			return;
 		}
 		case QWINID: {
@@ -303,6 +300,15 @@ fs_reply(Window *w, Wsysmsg *m)
 
 	r = m->v;
 	switch(m->type){
+	case Rinit:
+		if(w == nil) {
+			ixp_respond(r, Enomem);
+			return;
+		}
+		r->fid->aux = w;
+		ixp_respond(r, NULL);
+		return;
+
 	case Rrdkbd:
 		rune = m->rune;
 		sprint(buf, "%C", rune);

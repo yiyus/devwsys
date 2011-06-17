@@ -11,7 +11,7 @@
 int lookupwin(Window*);
 
 void
-runmsg(Window *w, Wsysmsg *m, void *v)
+runmsg(Window *w, Wsysmsg *m)
 {
 	int i;
 	Kbdbuf *kbd;
@@ -29,14 +29,14 @@ runmsg(Window *w, Wsysmsg *m, void *v)
 		w->x = xcreatewin(m->label, m->winsize, w->r);
 		w->r = xmapwin(w->x, havemin, w->r);
 		w->img = xallocmemimage(w->x);
-//		replymsg(w, m);
+		replymsg(w, m);
 		break;
 
 	case Trdmouse:
 		mouse = &w->mouse;
 		mousetags = &w->mousetags;
 		mousetags->t[mousetags->wi] = m->tag;
-		mousetags->r[mousetags->wi] = v;
+		mousetags->r[mousetags->wi] = m->v;
 		mousetags->wi++;
 		if(mousetags->wi == nelem(mousetags->t))
 			mousetags->wi = 0;
@@ -51,7 +51,7 @@ runmsg(Window *w, Wsysmsg *m, void *v)
 		kbd = &w->kbd;
 		kbdtags = &w->kbdtags;
 		kbdtags->t[kbdtags->wi] = m->tag;
-		kbdtags->r[kbdtags->wi] = v;
+		kbdtags->r[kbdtags->wi] = m->v;
 		kbdtags->wi++;
 		if(kbdtags->wi == nelem(kbdtags->t))
 			kbdtags->wi = 0;
@@ -134,6 +134,10 @@ runmsg(Window *w, Wsysmsg *m, void *v)
 void
 replymsg(Window *w, Wsysmsg *m)
 {
+	/* T -> R msg */
+	if(m->type%2 == 0)
+		m->type++;
+		
 	fs_reply(w, m);
 }
 

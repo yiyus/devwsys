@@ -115,7 +115,7 @@ struct Wsysmsg
 };
 
 void replymsg(Window*, Wsysmsg*);
-void runmsg(Window*, Wsysmsg*, void*);
+void runmsg(Window*, Wsysmsg*);
 
 void fs_reply(Window*, Wsysmsg*);
 
