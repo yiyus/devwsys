@@ -10,6 +10,28 @@
 #include "devwsys.h"
 #include "drawfcall.h"
 
+typedef enum
+{
+	QNONE=-1,
+	QROOT=0,
+	QCONS,
+	QCONSCTL,
+	QLABEL,
+	QMOUSE,
+	QWINID,
+	QMAX
+} qpath;
+
+typedef struct Fileinfo Fileinfo;
+struct Fileinfo
+{
+	char *name;
+	qpath parent;
+	int type;
+	int mode;
+	unsigned int size;
+};
+
 /* Error messages */
 static char
 	Edeleted[] = "window deleted",
@@ -43,11 +65,8 @@ fs_attach(Ixp9Req *r)
 	r->ofcall.rattach.qid = r->fid->qid;
 	m.type = Tinit;
 	m.label = nil; // pjw face
-	m.winsize = nil; // full screen
+	m.winsize = nil;
 	m.v = r;
-	if(!(w = newwin())) {
-		return;
-	}
 	runmsg(w, &m);
 }
 

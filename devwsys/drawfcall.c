@@ -19,16 +19,18 @@ runmsg(Window *w, Wsysmsg *m)
 	Tagbuf *kbdtags, *mousetags;
 	int havemin;
 
-	i = lookupwin(w);
-	if(i < 0)
-		return;
+	if(m->type != Tinit)
+		if((i = lookupwin(w)) < 0)
+			return;
 
 	switch(m->type){
 	case Tinit:
-		w->r = xwinrectangle(m->label, m->winsize, &havemin);
-		w->x = xcreatewin(m->label, m->winsize, w->r);
-		w->r = xmapwin(w->x, havemin, w->r);
-		w->img = xallocmemimage(w->x);
+		if((w = newwin()) != nil) {
+			w->r = xwinrectangle(m->label, m->winsize, &havemin);
+			w->x = xcreatewin(m->label, m->winsize, w->r);
+			w->r = xmapwin(w->x, havemin, w->r);
+			w->img = xallocmemimage(w->x);
+		}
 		replymsg(w, m);
 		break;
 

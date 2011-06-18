@@ -3,30 +3,8 @@
 #define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Datatypes: */
-typedef enum
-{
-	QNONE=-1,
-	QROOT=0,
-	QCONS,
-	QCONSCTL,
-	QLABEL,
-	QMOUSE,
-	QWINID,
-	QMAX
-} qpath;
-
-typedef struct Fileinfo Fileinfo;
 typedef struct Tagbuf Tagbuf;
 typedef struct Window Window;
-
-struct Fileinfo
-{
-	char *name;
-	qpath parent;
-	int type;
-	int mode;
-	unsigned int size;
-};
 
 struct Tagbuf
 {
@@ -52,7 +30,6 @@ struct Window
 };
 
 /* Global Vars */
-extern Fileinfo file[];
 int debuglevel;
 int nwindow;
 Window **window;
