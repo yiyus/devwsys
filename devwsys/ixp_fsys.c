@@ -22,8 +22,8 @@ enum {
 	FsRoot,
 //	FsDDraw,
 //	FsDDrawn,
-//	FsDWsys,
-//	FsDWsysn,
+	FsDWsys,
+	FsDWsysn,
 	/* Files */
 	FsFCons,
 	FsFConsctl,
@@ -61,14 +61,14 @@ static IxpDirtab
 dirtab_root[] = {
 	{".",			QTDIR,	FsRoot,		0500|DMDIR },
 //	{"draw",		QTDIR,	FsDDraw,		0500|DMDIR },
-//	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
+	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
 	{"cons",		QTFILE,	FsFCons,		0600 },
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
 	{nil}
-//},
+},
 //dirtab_draw[] = {
 //	{".",			QTDIR,	FsDDraw,		0500|DMDIR },
 //	{"",			QTDIR,	FsDDrawn,	0500|DMDIR },
@@ -83,20 +83,28 @@ dirtab_root[] = {
 //	{"refresh",		QTFILE,	FsFRefresh,	0400 },
 //	{nil}
 //},
-//dirtab_wsys[] = {
-//	{".",			QTDIR,	FsDWsys,		0500|DMDIR },
-//	{"",			QTDIR,	FsDWsysn,	0500|DMDIR },
-//	{nil}
-//},
-//dirtab_wsysn = dirtab_root
+dirtab_wsys[] = {
+	{".",			QTDIR,	FsDWsys,		0500|DMDIR },
+	{"",			QTDIR,	FsDWsysn,	0500|DMDIR },
+	{nil}
+},
+dirtab_wsysn[] = {
+	{".",			QTDIR,	FsDWsysn,	0500|DMDIR },
+	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
+	{"cons",		QTFILE,	FsFCons,		0600 },
+	{"consctl",		QTFILE,	FsFConsctl,	0200 },
+	{"label",		QTFILE,	FsFLabel,		0600 },
+	{"mouse",		QTFILE,	FsFMouse,	0400 },
+	{"winid",		QTFILE,	FsFWinid,		0400 },
+	{nil}
 };
 
 static IxpDirtab* dirtab[] = {
 	[FsRoot] = dirtab_root,
 //	[FsDDraw] = dirtab_draw,
 //	[FsDDrawn] = dirtab_drawn,
-//	[FsDWsys] = dirtab_wsys,
-//	[FsDWsysn] = dirtab_wsysn,
+	[FsDWsys] = dirtab_wsys,
+	[FsDWsysn] = dirtab_wsysn,
 };
 
 typedef char* (*MsgFunc)(void*, IxpMsg*);
@@ -124,8 +132,10 @@ dostat(IxpStat *s, IxpFileId *f) {
 static IxpFileId*
 lookup_file(IxpFileId *parent, char *name)
 {
+	int i, id;
 	IxpFileId *ret, *file, **last;
 	IxpDirtab *dir;
+	Window *w;
 
 	if(!(parent->tab.perm & DMDIR))
 		return nil;
@@ -140,15 +150,32 @@ lookup_file(IxpFileId *parent, char *name)
 			*last = file; \
 			last = &file->next; \
 			file->tab = *dir; \
-			file->tab.name = strdup(nam); \
+			file->tab.name = nam; \
 			if(!file->tab.name) fatal("no mem");
 		/* Dynamic dirs */
 		if(dir->name[0] == '\0') {
-			// TODO: wmii/cmd/wmii/fs.c:259
-
+			switch(parent->tab.type) {
+			case FsDWsys:
+				id = 0;
+				if(name) {
+					id = (int)strtol(name, &name, 10);
+					if(*name)
+						continue;
+				}
+				for(i = 0; i < nwindow; i++) {
+					w = window[i];
+					if(!name || w->id == id) {
+						push_file(smprint("%d", w->id), w->id, 1);
+						file->p.window = w;
+						file->index = id;
+						if(name)
+							goto LastItem;
+					}
+				}
+			}
 		}else /* Static dirs */
 		if(!name || name && !strcmp(name, dir->name)) {
-			push_file(file->tab.name, 0, 0);
+			push_file(strdup(file->tab.name), 0, 0);
 			file->p.ref = parent->p.ref;
 			file->index = parent->index;
 			if(name)
