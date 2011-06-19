@@ -1,67 +1,183 @@
-/* 2011 JGL (yiyus) */
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-
-#include <ixp.h>
 
 #include "keyboard.h"
 #include "mouse.h"
 #include "devwsys.h"
 #include "drawfcall.h"
 
-typedef enum
-{
-	QNONE=-1,
-	QROOT=0,
-	QCONS,
-	QCONSCTL,
-	QLABEL,
-	QMOUSE,
-	QWINID,
-	QMAX
-} qpath;
+#include <ixp.h>
+#define bool int
+typedef union IxpFileIdU IxpFileIdU;
+union IxpFileIdU {
+	Window*	window;
+	void*	ref;
+};
+#include <ixp_srvutil.h>
 
-typedef struct Fileinfo Fileinfo;
-struct Fileinfo
-{
-	char *name;
-	qpath parent;
-	int type;
-	int mode;
-	unsigned int size;
+/* Constants */
+enum {
+	/* Dirs */
+	FsRoot,
+//	FsDDraw,
+//	FsDDrawn,
+//	FsDWsys,
+//	FsDWsysn,
+	/* Files */
+	FsFCons,
+	FsFConsctl,
+	FsFLabel,
+	FsFMouse,
+	FsFWinid,
+//	/* draw/ */
+//	FsFNew,
+//	/* draw/n/ */
+//	FsFCtl,
+//	FsFData,
+//	FsFColormap,
+//	FsFRefresh,
 };
 
 /* Error messages */
 static char
 	Edeleted[] = "window deleted",
+	Einterrupted[] = "interrupted",
 	Einuse[] = "file in use",
 	Enoperm[] = "permission denied",
 	Enofile[] = "file not found",
 	Enomem[] = "out of memory";
 
-/* name, parent, type, mode, size */
-Fileinfo file[QMAX] = {
-	{"", QNONE, P9_QTDIR, 0500|P9_DMDIR, 0},
-	{"cons", QROOT, P9_QTFILE, 0600, 0},
-	{"consctl", QROOT, P9_QTFILE, 0600, 0},
-	{"label", QROOT, P9_QTFILE, 0600, 0},
-	{"mouse", QROOT, P9_QTFILE, 0400, 0},
-	{"winid", QROOT, P9_QTFILE, 0400, 0},
+/* Macros */
+#define QID(t, i) (((vlong)((t)&0xFF)<<32)|((i)&0xFFFFFFFF))
+
+/* Global Vars */
+
+/* ad-hoc file tree. Empty names ("") indicate dynamic entries to be filled
+ * in by lookup_file
+ */
+static IxpDirtab
+	/* name		qtype	type			perm */
+dirtab_root[] = {
+	{".",			QTDIR,	FsRoot,		0500|DMDIR },
+//	{"draw",		QTDIR,	FsDDraw,		0500|DMDIR },
+//	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
+	{"cons",		QTFILE,	FsFCons,		0600 },
+	{"consctl",		QTFILE,	FsFConsctl,	0200 },
+	{"label",		QTFILE,	FsFLabel,		0600 },
+	{"mouse",		QTFILE,	FsFMouse,	0400 },
+	{"winid",		QTFILE,	FsFWinid,		0400 },
+	{nil}
+//},
+//dirtab_draw[] = {
+//	{".",			QTDIR,	FsDDraw,		0500|DMDIR },
+//	{"",			QTDIR,	FsDDrawn,	0500|DMDIR },
+//	{"new",		QTFILE,	FsFNew,		0600 },
+//	{nil}
+//},
+//dirtab_drawn[] = {
+//	{".",			QTDIR,	FsDDrawn,	0500|DMDIR },
+//	{"ctl",		QTFILE,	FsFCtl,		0600 },
+//	{"data",		QTFILE,	FsFData,		0600 },
+//	{"colormap",	QTFILE,	FsFColormap,	0400 },
+//	{"refresh",		QTFILE,	FsFRefresh,	0400 },
+//	{nil}
+//},
+//dirtab_wsys[] = {
+//	{".",			QTDIR,	FsDWsys,		0500|DMDIR },
+//	{"",			QTDIR,	FsDWsysn,	0500|DMDIR },
+//	{nil}
+//},
+//dirtab_wsysn = dirtab_root
 };
 
-const char* rread(Ixp9Req*, char*);
+static IxpDirtab* dirtab[] = {
+	[FsRoot] = dirtab_root,
+//	[FsDDraw] = dirtab_draw,
+//	[FsDDrawn] = dirtab_drawn,
+//	[FsDWsys] = dirtab_wsys,
+//	[FsDWsysn] = dirtab_wsysn,
+};
 
-void
-fs_attach(Ixp9Req *r)
+typedef char* (*MsgFunc)(void*, IxpMsg*);
+typedef char* (*BufFunc)(void*);
+
+static void
+dostat(IxpStat *s, IxpFileId *f) {
+	s->type = 0;
+	s->dev = 0;
+	s->qid.path = QID(f->tab.type, f->id);
+	s->qid.version = 0;
+	s->qid.type = f->tab.qtype;
+	s->mode = f->tab.perm;
+	// s->atime = time(nil);
+	// s->mtime = s->atime;
+	s->length = 0;
+	s->name = f->tab.name;
+	s->uid = s->gid = s->muid = "";
+}
+
+/*
+ * All lookups and directory organization should be performed through
+ * lookup_file, mostly through the dirtab[] tree.
+ */
+static IxpFileId*
+lookup_file(IxpFileId *parent, char *name)
 {
+	IxpFileId *ret, *file, **last;
+	IxpDirtab *dir;
+
+	if(!(parent->tab.perm & DMDIR))
+		return nil;
+	dir = dirtab[parent->tab.type];
+	last = &ret;
+	ret = nil;
+	for(; dir->name; dir++) {
+#               define push_file(nam, id_, vol) \
+			file = ixp_srv_getfile(); \
+			file->id = id_; \
+			file->volatil = vol; \
+			*last = file; \
+			last = &file->next; \
+			file->tab = *dir; \
+			file->tab.name = strdup(nam); \
+			if(!file->tab.name) fatal("no mem");
+		/* Dynamic dirs */
+		if(dir->name[0] == '\0') {
+			// TODO: wmii/cmd/wmii/fs.c:259
+
+		}else /* Static dirs */
+		if(!name || name && !strcmp(name, dir->name)) {
+			push_file(file->tab.name, 0, 0);
+			file->p.ref = parent->p.ref;
+			file->index = parent->index;
+			if(name)
+				goto LastItem;
+		}
+#		undef push_file
+	}
+LastItem:
+	*last = nil;
+	return ret;
+}
+
+/* Service Functions */
+void
+fs_attach(Ixp9Req *r) {
+	IxpFileId *f;
 	Wsysmsg m;
 	Window *w = nil;
 
 	debug("fs_attach(%p)\n", r);
 
-	r->fid->qid.type = file[QROOT].type;
-	r->fid->qid.path = QROOT;
+	f = ixp_srv_getfile();
+	f->tab = dirtab[FsRoot][0];
+	f->tab.name = strdup("/");
+	if(!f->tab.name)
+		ixp_respond(r, Enomem);
+	r->fid->aux = f;
+	r->fid->qid.type = f->tab.qtype;
+	r->fid->qid.path = QID(f->tab.type, 0);
 	r->ofcall.rattach.qid = r->fid->qid;
 	m.type = Tinit;
 	m.label = nil; // pjw face
@@ -71,207 +187,215 @@ fs_attach(Ixp9Req *r)
 }
 
 void
-fs_walk(Ixp9Req *r)
-{
-	qpath cwd;
-	int i, j;
-	
-	debug("fs_walk(%p)\n", r);
-
-	cwd = r->fid->qid.path;
-	r->ofcall.rwalk.nwqid = 0;
-	for(i = 0; i < r->ifcall.twalk.nwname; ++i){
-		for(j = 0; j < QMAX; ++j){
-			if(file[j].parent == cwd && strcmp(file[j].name, r->ifcall.twalk.wname[i]) == 0)
-				break;
-		}
-		if(j >= QMAX){
-			ixp_respond(r, Enofile);
-			return;
-		}
-		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].type = file[j].type;
-		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].path = j;
-		r->ofcall.rwalk.wqid[r->ofcall.rwalk.nwqid].version = 0;
-		++r->ofcall.rwalk.nwqid;
-	}
-	r->newfid->aux = r->fid->aux;
-	ixp_respond(r, NULL);
-}
-
-void
-fs_open(Ixp9Req *r)
-{
+fs_open(Ixp9Req *r) {
+	IxpFileId *f;
 	Window *w;
 
 	debug("fs_open(%p)\n", r);
 
-	switch(r->fid->qid.path){
-		case QMOUSE: {
-			w = r->fid->aux;
-			if(w->mouseopen){
-				ixp_respond(r, Einuse);
-				return;
-			}
-			w->mouseopen = 1;
-			break;
-		}
-	}
+	f = r->fid->aux;
 
-	ixp_respond(r, NULL);
-}
-
-void
-fs_clunk(Ixp9Req *r)
-{
-	Window *w;
-
-	debug("fs_clunk(%p)\n", r);
-	
-	switch(r->fid->qid.path){
-		case QMOUSE: {
-			w = r->fid->aux;
-			w->mouseopen = 0;
-			w->mouse.wi = w->mouse.ri;
-			w->mousetags.wi = w->mousetags.ri;
-			break;
-		}
-	}
-	ixp_respond(r, NULL);
-}
-
-void
-dostat(IxpStat *st, int path)
-{
-	st->type = file[path].type;
-	st->qid.type = file[path].type;
-	st->qid.path = path;
-	st->mode = file[path].mode;
-	st->name = file[path].name;
-	st->length = 0;
-	st->uid = st->gid = st->muid = "";
-}
-
-void
-fs_stat(Ixp9Req *r)
-{
-	IxpStat st = {0};
-	IxpMsg m;
-	char buf[512];
-
-	debug("fs_stat(%p)\n", r);
-
-	dostat(&st, r->fid->qid.path);
-	st.length = 0;
-	m = ixp_message(buf, sizeof(buf), MsgPack);
-	ixp_pstat(&m, &st);
-	r->ofcall.rstat.nstat = ixp_sizeof_stat(&st);
-	if(!(r->ofcall.rstat.stat = malloc(r->ofcall.rstat.nstat))) {
-		r->ofcall.rstat.nstat = 0;
-		ixp_respond(r, Enomem);
+	if(!ixp_srv_verifyfile(f, lookup_file)) {
+		ixp_respond(r, Enofile);
 		return;
 	}
-	memcpy(r->ofcall.rstat.stat, m.data, r->ofcall.rstat.nstat);
-	ixp_respond(r, NULL);
+
+	switch(f->tab.type) {
+	case FsFMouse:
+		w = f->p.window;
+		if(w->mouseopen){
+			ixp_respond(r, Einuse);
+			return;
+		}
+		w->mouseopen = 1;
+		break;
+	}
+
+	if((r->ifcall.topen.mode&3) == OEXEC
+	|| (r->ifcall.topen.mode&3) != OREAD && !(f->tab.perm & 0200)
+	|| (r->ifcall.topen.mode&3) != OWRITE && !(f->tab.perm & 0400)
+	|| (r->ifcall.topen.mode & ~(3|OTRUNC)))
+		ixp_respond(r, Enoperm);
+	else
+		ixp_respond(r, nil);
 }
 
 void
-fs_read(Ixp9Req *r)
-{
+fs_walk(Ixp9Req *r) {
+
+	debug("fs_walk(%p)\n", r);
+
+	ixp_srv_walkandclone(r, lookup_file);
+}
+
+void
+fs_read(Ixp9Req *r) {
 	char buf[512];
+	IxpFileId *f;
 	Window *w;
 	Wsysmsg m;
 
 	debug("fs_read(%p)\n", r);
 
-	w = r->fid->aux;
+	f = r->fid->aux;
+	if(!ixp_srv_verifyfile(f, lookup_file)) {
+		ixp_respond(r, Enofile);
+		return;
+	}
+	w = f->p.window;
+	if(w->deleted){
+		ixp_respond(r, Edeleted);
+		return;
+	}
+	if(!f->tab.perm & 0400) {
+		ixp_respond(r, Enoperm);
+		return;
+	}
+
+	if(f->tab.perm & DMDIR) {
+		ixp_srv_readdir(r, lookup_file, dostat);
+		return;
+	}
+	else{
+		if(f->pending) {
+			ixp_pending_respond(r);
+			return;
+		}
+		switch(f->tab.type) {
+		case FsFCons:
+			m.type = Trdkbd;
+			m.v = r;
+			runmsg(w, &m);
+			return;
+		case FsFLabel:
+			ixp_srv_readbuf(r, w->label, strlen(w->label));
+			ixp_respond(r, nil);
+			return;
+		case FsFMouse:
+			m.type = Trdmouse;
+			m.v = r;
+			runmsg(w, &m);
+			return;
+		case FsFWinid:
+			sprint(buf, "%11d ", w->id);
+			ixp_srv_readbuf(r, buf, strlen(buf));
+			ixp_respond(r, nil);
+			return;
+		}
+	}
+	/* This should not be called if the file is not open for reading. */
+	fatal("Read called on an unreadable file");
+}
+
+void
+fs_stat(Ixp9Req *r) {
+	IxpMsg m;
+	IxpStat s;
+	int size;
+	char *buf;
+	IxpFileId *f;
+	Window *w;
+
+	debug("fs_stat(%p)\n", r);
+
+	f = r->fid->aux;
+	if(!ixp_srv_verifyfile(f, lookup_file)) {
+		ixp_respond(r, Enofile);
+		return;
+	}
+	w = f->p.window;
 	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
 	}
 
-	if(file[r->fid->qid.path].type & P9_QTDIR){
-		IxpStat st = {0};
-		IxpMsg m;
-		int i;
+	dostat(&s, f);
+	size = ixp_sizeof_stat(&s);
+	r->ofcall.rstat.nstat = size;
+	buf = malloc(size);
+	if(!buf)
+		ixp_respond(r, Enomem);
 
-		m = ixp_message(buf, sizeof(buf), MsgPack);
+	m = ixp_message(buf, size, MsgPack);
+	ixp_pstat(&m, &s);
 
-		r->ofcall.rread.count = 0;
-		if(r->ifcall.tread.offset > 0) {
-			/* hack! assuming the whole directory fits in a single Rread */
-			ixp_respond(r, NULL);
-			return;
-		}
-		for(i = 0; i < QMAX; ++i){
-			if(file[i].parent == r->fid->qid.path){
-				dostat(&st, i);
-				ixp_pstat(&m, &st);
-				r->ofcall.rread.count += ixp_sizeof_stat(&st);
-			}
-		}
-		if(!(r->ofcall.rread.data = malloc(r->ofcall.rread.count))) {
-			r->ofcall.rread.count = 0;
-			ixp_respond(r, Enomem);
-			return;
-		}
-		memcpy(r->ofcall.rread.data, m.data, r->ofcall.rread.count);
-		ixp_respond(r, NULL);
+	r->ofcall.rstat.stat = (uchar*)m.data;
+	ixp_respond(r, nil);
+}
+
+void
+fs_write(Ixp9Req *r) {
+	IxpFileId *f;
+	Window *w;
+
+	if(r->ifcall.io.count == 0) {
+		ixp_respond(r, nil);
+		return;
+	}
+	f = r->fid->aux;
+	if(!ixp_srv_verifyfile(f, lookup_file)) {
+		ixp_respond(r, Enofile);
+		return;
+	}
+	w = f->p.window;
+	if(w->deleted){
+		ixp_respond(r, Edeleted);
+		return;
+	}
+	if(!f->tab.perm & 0200) {
+		ixp_respond(r, Enoperm);
 		return;
 	}
 
-	switch(r->fid->qid.path){
-		case QCONS: {
-			m.type = Trdkbd;
-			m.v = r;
-			runmsg(w, &m);
+	switch(f->tab.type) {
+	case FsFLabel:
+		r->ofcall.io.count = r->ifcall.io.count;
+		if(!(w->label = realloc(w->label, r->ifcall.twrite.count + 1))) {
+			r->ofcall.rwrite.count = 0;
+			ixp_respond(r, Enomem);
 			return;
 		}
-		case QLABEL: {
-			ixp_respond(r, rread(r, w->label));
-			return;
-		}
-		case QMOUSE: {
-			m.type = Trdmouse;
-			m.v = r;
-			runmsg(w, &m);
-			return;
-		}
-		case QWINID: {
-			sprint(buf, "%11d ", w->id);
-			ixp_respond(r, rread(r, buf));
-			return;
-		}
+		memcpy(w->label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
+		w->label[r->ifcall.twrite.count] = 0;
+		break;
+	}
+	ixp_respond(r, NULL);
+}
+
+void
+fs_clunk(Ixp9Req *r) {
+	IxpFileId *f;
+	Window *w;
+
+	f = r->fid->aux;
+	if(!ixp_srv_verifyfile(f, lookup_file)) {
+		ixp_respond(r, nil);
+		return;
+	}
+	w = f->p.window;
+
+	switch(f->tab.type) {
+	case FsFMouse:
+		w->mouseopen = 0;
+		w->mouse.wi = w->mouse.ri;
+		w->mousetags.wi = w->mousetags.ri;
+		break;
 	}
 	ixp_respond(r, nil);
 }
 
 void
-fs_write(Ixp9Req *r)
-{
-	Window *w;
+fs_flush(Ixp9Req *r) {
+	Ixp9Req *or;
+	IxpFileId *f;
 
-	debug("fs_write(%p)\n", r);
-
-	w = r->fid->aux;
-	if(w->deleted){
-		ixp_respond(r, Edeleted);
-		return;
-	}
-
-	switch(r->fid->qid.path){
-		case QLABEL: {
-			r->ofcall.rwrite.count = r->ifcall.twrite.count;
-			if(!(w->label = realloc(w->label, r->ifcall.twrite.count + 1))) {
-				r->ofcall.rwrite.count = 0;
-				ixp_respond(r, Enomem);
-				return;
-			}
-			memcpy(w->label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
-			w->label[r->ifcall.twrite.count] = 0;
-			break;
-		}
-	}
-	ixp_respond(r, NULL);
+	or = r->oldreq;
+	f = or->fid->aux;
+	if(f->pending)
+		ixp_pending_flush(r);
+	/* else die() ? */
+	ixp_respond(r->oldreq, Einterrupted);
+	ixp_respond(r, nil);
 }
 
 void
@@ -288,29 +412,35 @@ fs_remove(Ixp9Req *r) {
 }
 
 void
-fs_wstat(Ixp9Req *r)
-{
-	debug("fs_wstat(%p)\n", r);
-	ixp_respond(r, Enoperm);
+fs_freefid(IxpFid *f) {
+	IxpFileId *id, *tid;
+
+	tid = f->aux;
+	while((id = tid)) {
+		tid = id->next;
+		ixp_srv_freefile(id);
+	}
 }
 
+/* Ixp Server */
 Ixp9Srv p9srv = {
-	.attach=fs_attach,
-	.open=fs_open,
-	.clunk=fs_clunk,
-	.walk=fs_walk,
-	.read=fs_read,
-	.stat=fs_stat,
-	.write=fs_write,
-	.create=fs_create,
-	.remove=fs_remove,
-	.wstat=fs_wstat,
+	.attach=	fs_attach,
+	.open=	fs_open,
+	.walk=	fs_walk,
+	.read=	fs_read,
+	.stat=	fs_stat,
+	.write=	fs_write,
+	.clunk=	fs_clunk,
+	.flush=	fs_flush,
+	.create=	fs_create,
+	.remove=	fs_remove,
+	.freefid=	fs_freefid
 };
 
 void
 fs_reply(Window *w, Wsysmsg *m)
 {
-	const char *error;
+	IxpFileId *f;
 	int c;
 	uchar buf[65536];
 	Ixp9Req *r;
@@ -324,7 +454,8 @@ fs_reply(Window *w, Wsysmsg *m)
 			ixp_respond(r, Enomem);
 			return;
 		}
-		r->fid->aux = w;
+		f = r->fid->aux;
+		f->p.window = w;
 		ixp_respond(r, NULL);
 		return;
 
@@ -347,30 +478,6 @@ fs_reply(Window *w, Wsysmsg *m)
 	default:
 		return;
 	}
-	if(strlen(buf) == 0)
-		return;
-	error = rread(r, buf);
-	ixp_respond(r, error);
-}
-
-const char*
-rread(Ixp9Req *r, char *s)
-{
-	int n = 0;
-
-	if(s != nil)
-		n = strlen(s);
-	if(n > 0 && r->ifcall.tread.offset < n) {
-		if(r->ifcall.tread.offset + r->ifcall.tread.count > n) {
-			r->ofcall.rread.count = n - r->ifcall.tread.offset;
-		} else {
-			r->ofcall.rread.count = r->ifcall.tread.count;
-		}
-		if(!(r->ofcall.rread.data = malloc(r->ofcall.rread.count))) {
-			r->ofcall.rread.count = 0;
-			return Enomem;
-		}
-		memcpy(r->ofcall.rread.data, s+r->ifcall.tread.offset, r->ofcall.rread.count);
-	}
-	return nil;
+	ixp_srv_readbuf(r, buf, strlen(buf));
+	ixp_respond(r, nil);
 }
