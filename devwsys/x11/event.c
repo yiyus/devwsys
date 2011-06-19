@@ -15,15 +15,11 @@ xnextevent(void) {
 	int i;
 	XEvent xev;
 
-	debug("Next event: ");
 	XNextEvent(xconn.display, &xev);
-	debug("window: %d\t", xev.xany.window);
-	debug("type: ");
 	switch(xev.type){
 	case ClientMessage:
 		i = xlookupwin(xev.xclient.window);
 		if(xev.xclient.data.l[0] == xwindow[i]->wmdelmsg) {
-			debug("Delete window msg\n");
 			XDestroyWindow(xconn.display, xev.xclient.window);
 			XSync(xconn.display, False);
 			return i;
@@ -31,34 +27,28 @@ xnextevent(void) {
 		break;
 
 	case ConfigureNotify:
-		debug("ConfigureNotify\n");
 		configevent(xev);
 		break;
 
 	case Expose:
-		debug("Expose\n");
 		//xexpose(xev);
 		break;
 	
 	case DestroyNotify:
-		debug("DestroyNotify\n");
 		/* Nop */
 		break;
 
 	case ButtonPress:
 	case ButtonRelease:
 	case MotionNotify:
-		debug("Mouse\n");
 		mouseevent(xev);
 		break;
 
 	case KeyPress:
-		debug("KeyPress\n");
 		kbdevent(xev);
 		break;
 	
 	default:
-		debug("Unknown (%d)\n", xev.type);
 		break;
 	}
 	return -1;

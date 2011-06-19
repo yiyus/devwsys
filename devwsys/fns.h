@@ -17,6 +17,7 @@ void matchmouse(int);
 
 /* Window */
 void deletewin(int);
+int lookupwin(Window*);
 Window* newwin(void);
 
 /* Ixp */
@@ -31,4 +32,5 @@ int xfd(void);
 int xinit(void);
 Rectangle xmapwin(void*, int, Rectangle);
 int xnextevent(void);
+int xsetlabel(Window*);
 Rectangle xwinrectangle(char*, char*, int*);

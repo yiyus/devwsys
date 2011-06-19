@@ -7,6 +7,18 @@
 
 static int id = 0;
 
+int
+lookupwin(Window *w)
+{
+	int i;
+
+	for(i = 0; i < nwindow; i++){
+		if(window[i] == w)
+			return i;
+	}
+	return -1;
+}
+
 Window*
 newwin(void)
 {

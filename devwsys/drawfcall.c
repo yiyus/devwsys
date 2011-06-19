@@ -5,8 +5,6 @@
 #include "dat.h"
 #include "fns.h"
 
-int lookupwin(Window*);
-
 void
 runmsg(Window *w, Wsysmsg *m)
 {
@@ -61,6 +59,14 @@ runmsg(Window *w, Wsysmsg *m)
 		matchkbd(i);
 		break;
 
+	case Tlabel:
+		w->label = strdup(m->label);
+		if(!w->label)
+			return;
+		xsetlabel(w);
+		replymsg(w, m);
+		break;
+
 /***
 	case Tmoveto:
 		_xmoveto(m->mouse.xy);
@@ -77,11 +83,6 @@ runmsg(Window *w, Wsysmsg *m)
 			
 	case Tbouncemouse:
 		_xbouncemouse(&m->mouse);
-		replymsg(m);
-		break;
-
-	case Tlabel:
-		_xsetlabel(m->label);
 		replymsg(m);
 		break;
 
@@ -138,16 +139,4 @@ replymsg(Window *w, Wsysmsg *m)
 		m->type++;
 		
 	ixpreply(w, m);
-}
-
-int
-lookupwin(Window *w)
-{
-	int i;
-
-	for(i = 0; i < nwindow; i++){
-		if(window[i] == w)
-			return i;
-	}
-	return -1;
 }

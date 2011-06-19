@@ -2,9 +2,10 @@
 #include <kern.h>
 #include <draw.h>
 #include <memdraw.h>
-
 #include "inc.h"
 #include "x.h"
+#include "dat.h"
+#include "fns.h"
 
 #define MouseMask (\
 	ButtonPressMask|\
@@ -91,7 +92,7 @@ xwinrectangle(char *label, char *winsize, int *havemin)
 	return r;
 }
 
-Xwin*
+void*
 xcreatewin(char *label, char *winsize, Rectangle r)
 {
 	char *argv[2];
@@ -283,4 +284,40 @@ xmapwin(void *x, int havemin, Rectangle r)
 
 	 */
 	return r;
+}
+
+int
+xsetlabel(Window *w)
+{
+	char *label;
+	int i;
+	XTextProperty name;
+
+	if((i = lookupwin(w)) < 0)
+		return -1;
+	/*
+	 * Label and other properties required by ICCCCM.
+	 */
+	memset(&name, 0, sizeof name);
+	label = w->label;
+	if(label == nil)
+		label = "pjw-face-here";
+	name.value = (uchar*)label;
+	name.encoding = XA_STRING;
+	name.format = 8;
+	name.nitems = strlen((char*)name.value);
+
+	XSetWMProperties(
+		xconn.display,			/* display */
+		xwindow[i]->drawable,	/* window */
+		&name,	/* XA_WM_NAME property */
+		&name,	/* XA_WM_ICON_NAME property */
+		nil,		/* XA_WM_COMMAND */
+		0,		/* argc */
+		nil,		/* XA_WM_NORMAL_HINTS */
+		nil,		/* XA_WM_HINTS */
+		nil		/* XA_WM_CLASSHINTS */
+	);
+	XFlush(xconn.display);
+	return 0;
 }

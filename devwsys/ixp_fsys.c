@@ -293,7 +293,8 @@ fs_read(Ixp9Req *r) {
 			runmsg(w, &m);
 			return;
 		case FsFLabel:
-			ixp_srv_readbuf(r, w->label, strlen(w->label));
+			if(w->label)
+				ixp_srv_readbuf(r, w->label, strlen(w->label));
 			ixp_respond(r, nil);
 			return;
 		case FsFMouse:
@@ -352,11 +353,10 @@ void
 fs_write(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
+	Wsysmsg m;
 
-	if(r->ifcall.io.count == 0) {
-		ixp_respond(r, nil);
-		return;
-	}
+	debug("fs_write(%p)\n", r);
+
 	f = r->fid->aux;
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
@@ -374,17 +374,19 @@ fs_write(Ixp9Req *r) {
 
 	switch(f->tab.type) {
 	case FsFLabel:
+		m.type = Tlabel;
 		r->ofcall.io.count = r->ifcall.io.count;
-		if(!(w->label = realloc(w->label, r->ifcall.twrite.count + 1))) {
+		if(!(m.label = malloc(r->ifcall.twrite.count + 1))) {
 			r->ofcall.rwrite.count = 0;
 			ixp_respond(r, Enomem);
 			return;
 		}
-		memcpy(w->label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
-		w->label[r->ifcall.twrite.count] = 0;
+		memcpy(m.label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
+		m.label[r->ifcall.twrite.count] = 0;
+		runmsg(w, &m);
 		break;
 	}
-	ixp_respond(r, NULL);
+	ixp_respond(r, nil);
 }
 
 void
