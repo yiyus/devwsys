@@ -1,3 +1,4 @@
+#include <time.h>
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
@@ -20,8 +21,8 @@ union IxpFileIdU {
 enum {
 	/* Dirs */
 	FsRoot,
-//	FsDDraw,
-//	FsDDrawn,
+	FsDDraw,
+	FsDDrawn,
 	FsDWsys,
 	FsDWsysn,
 	/* Files */
@@ -30,13 +31,13 @@ enum {
 	FsFLabel,
 	FsFMouse,
 	FsFWinid,
-//	/* draw/ */
-//	FsFNew,
-//	/* draw/n/ */
-//	FsFCtl,
-//	FsFData,
-//	FsFColormap,
-//	FsFRefresh,
+	/* draw/ */
+	FsFNew,
+	/* draw/n/ */
+	FsFCtl,
+	FsFData,
+	FsFColormap,
+	FsFRefresh,
 };
 
 /* Error messages */
@@ -60,7 +61,7 @@ static IxpDirtab
 	/* name		qtype	type			perm */
 dirtab_root[] = {
 	{".",			QTDIR,	FsRoot,		0500|DMDIR },
-//	{"draw",		QTDIR,	FsDDraw,		0500|DMDIR },
+	{"draw",		QTDIR,	FsDDraw,		0500|DMDIR },
 	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
 	{"cons",		QTFILE,	FsFCons,		0600 },
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
@@ -69,20 +70,20 @@ dirtab_root[] = {
 	{"winid",		QTFILE,	FsFWinid,		0400 },
 	{nil}
 },
-//dirtab_draw[] = {
-//	{".",			QTDIR,	FsDDraw,		0500|DMDIR },
-//	{"",			QTDIR,	FsDDrawn,	0500|DMDIR },
-//	{"new",		QTFILE,	FsFNew,		0600 },
-//	{nil}
-//},
-//dirtab_drawn[] = {
-//	{".",			QTDIR,	FsDDrawn,	0500|DMDIR },
-//	{"ctl",		QTFILE,	FsFCtl,		0600 },
-//	{"data",		QTFILE,	FsFData,		0600 },
-//	{"colormap",	QTFILE,	FsFColormap,	0400 },
-//	{"refresh",		QTFILE,	FsFRefresh,	0400 },
-//	{nil}
-//},
+dirtab_draw[] = {
+	{".",			QTDIR,	FsDDraw,		0500|DMDIR },
+	{"",			QTDIR,	FsDDrawn,	0500|DMDIR },
+	{"new",		QTFILE,	FsFNew,		0600 },
+	{nil}
+},
+dirtab_drawn[] = {
+	{".",			QTDIR,	FsDDrawn,	0500|DMDIR },
+	{"ctl",		QTFILE,	FsFCtl,		0600 },
+	{"data",		QTFILE,	FsFData,		0600 },
+	{"colormap",	QTFILE,	FsFColormap,	0400 },
+	{"refresh",		QTFILE,	FsFRefresh,	0400 },
+	{nil}
+},
 dirtab_wsys[] = {
 	{".",			QTDIR,	FsDWsys,		0500|DMDIR },
 	{"",			QTDIR,	FsDWsysn,	0500|DMDIR },
@@ -101,8 +102,8 @@ dirtab_wsysn[] = {
 
 static IxpDirtab* dirtab[] = {
 	[FsRoot] = dirtab_root,
-//	[FsDDraw] = dirtab_draw,
-//	[FsDDrawn] = dirtab_drawn,
+	[FsDDraw] = dirtab_draw,
+	[FsDDrawn] = dirtab_drawn,
 	[FsDWsys] = dirtab_wsys,
 	[FsDWsysn] = dirtab_wsysn,
 };
@@ -118,8 +119,8 @@ dostat(IxpStat *s, IxpFileId *f) {
 	s->qid.version = 0;
 	s->qid.type = f->tab.qtype;
 	s->mode = f->tab.perm;
-	// s->atime = time(nil);
-	// s->mtime = s->atime;
+	s->mtime = time(nil);
+	s->atime = s->mtime;
 	s->length = 0;
 	s->name = f->tab.name;
 	s->uid = s->gid = s->muid = "";
@@ -207,7 +208,7 @@ fs_attach(Ixp9Req *r) {
 	r->fid->qid.path = QID(f->tab.type, 0);
 	r->ofcall.rattach.qid = r->fid->qid;
 	m.type = Tinit;
-	m.label = nil; // pjw face
+	m.label = nil; /* pjw face */
 	m.winsize = nil;
 	m.v = r;
 	runmsg(w, &m);
@@ -498,7 +499,6 @@ fs_reply(Window *w, Wsysmsg *m)
 		if(m->resized)
 			c = 'r';
 		sprint(buf, "%c%11d %11d %11d %11ld ", c, ms.xy.x, ms.xy.y, ms.buttons, ms.msec);
-		// w->resized = 0;
 		r->ifcall.rread.offset %= strlen(buf);
 		break;
 
