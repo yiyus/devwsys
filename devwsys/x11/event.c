@@ -1,14 +1,10 @@
 #include <lib9.h>
 #include <draw.h>
+#include <memdraw.h>
 #include "inc.h"
 #include "x.h"
-#include "keyboard.h"
-#include "mouse.h"
-
-#define debug(...) if(debuglevel) fprint(2, __VA_ARGS__)
-
-extern int nwindow;
-extern int debuglevel;
+#include "dat.h"
+#include "fns.h"
 
 void configevent(XEvent);
 void kbdevent(XEvent);

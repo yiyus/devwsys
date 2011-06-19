@@ -1,11 +1,8 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-
-#include "keyboard.h"
-#include "mouse.h"
-#include "devwsys.h"
-#include "drawfcall.h"
+#include "dat.h"
+#include "fns.h"
 
 void
 addkbd(int i, Rune r)
@@ -51,7 +48,6 @@ matchkbd(int i)
 	}
 }
 
-long latin1(uchar*, int);
 int
 kbdputc(int ch)
 {

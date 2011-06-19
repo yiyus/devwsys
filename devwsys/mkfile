@@ -28,11 +28,9 @@ XHFILES=\
 	x.h\
 
 HFILES=\
-	devwsys.h\
-	drawfcall.h\
-	keyboard.h\
+	dat.h\
+	fns.h\
 	latin1.h\
-	mouse.h\
 	${XHFILES:%=x11/%}\
 
 LIBS=	9 draw kern memdraw memlayer

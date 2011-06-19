@@ -5,12 +5,9 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-
 #include <ixp.h>
-
-#include "keyboard.h"
-#include "mouse.h"
-#include "devwsys.h"
+#include "dat.h"
+#include "fns.h"
 
 extern Ixp9Srv p9srv; /* ixp_fsys.c:/p9srv */
 

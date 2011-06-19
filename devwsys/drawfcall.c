@@ -2,11 +2,8 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-
-#include "keyboard.h"
-#include "mouse.h"
-#include "devwsys.h"
-#include "drawfcall.h"
+#include "dat.h"
+#include "fns.h"
 
 int lookupwin(Window*);
 
@@ -140,7 +137,7 @@ replymsg(Window *w, Wsysmsg *m)
 	if(m->type%2 == 0)
 		m->type++;
 		
-	fs_reply(w, m);
+	ixpreply(w, m);
 }
 
 int

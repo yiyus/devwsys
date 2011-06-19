@@ -37,7 +37,10 @@ Window **window;
 /* Global Funcs */
 void deletewin(int);
 Window* newwin(void);
-int ixpserve(char*);
+
+/* Ixp Funcs */
+void 9preply(Window*, Wsysmsg*);
+int 9pserve(char*);
 
 /* Xlib Funcs */
 Memimage* xallocmemimage(void*);

@@ -2,9 +2,8 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-#include "keyboard.h"
-#include "mouse.h"
-#include "devwsys.h"
+#include "dat.h"
+#include "fns.h"
 
 static int id = 0;
 

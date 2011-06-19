@@ -2,11 +2,8 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-
-#include "keyboard.h"
-#include "mouse.h"
-#include "devwsys.h"
-#include "drawfcall.h"
+#include "dat.h"
+#include "fns.h"
 
 #include <ixp.h>
 #define bool int
@@ -466,7 +463,7 @@ Ixp9Srv p9srv = {
 };
 
 void
-fs_reply(Window *w, Wsysmsg *m)
+ixpreply(Window *w, Wsysmsg *m)
 {
 	IxpFileId *f;
 	int c;

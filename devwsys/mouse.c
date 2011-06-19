@@ -1,11 +1,8 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
-
-#include "keyboard.h"
-#include "mouse.h"
-#include "devwsys.h"
-#include "drawfcall.h"
+#include "dat.h"
+#include "fns.h"
 
 void
 addmouse(int i, Mouse m, int resized)

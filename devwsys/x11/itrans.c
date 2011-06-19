@@ -1,9 +1,10 @@
 #include <lib9.h>
 #include <draw.h>
+#include <memdraw.h>
 #include "inc.h"
 #include "x.h"
-#include "keyboard.h"
-#include "mouse.h"
+#include "dat.h"
+#include "fns.h"
 
 long keysym2ucs(KeySym);
 int
