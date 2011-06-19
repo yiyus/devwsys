@@ -6,7 +6,7 @@ copyright notice that includes the copyright notice and the other
 notices below.  It is fine (and often tidier) to do that in a separate
 file such as NOTICE, LICENCE or COPYING.
 
-	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+	Portions Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 	Portions Copyright © 1997-1999 Vita Nuova Limited
 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
 	Revisions Copyright © 2000-2009 Lucent Technologies Inc. and others
@@ -14,6 +14,10 @@ file such as NOTICE, LICENCE or COPYING.
 	Portions Copyright © 2006-2010 Kris Maglione
 	Portions Copyright © 2008-2009 Google Inc.
 	Portions Copyright © 2011 Jesus Galan
+
+Inferno, Styx, Dis and Limbo are registered trademarks of Vita Nuova
+Holdings Limited in the USA and other countries.  Plan 9 is a registered
+trademark of Lucent Technologies Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
