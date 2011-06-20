@@ -66,6 +66,9 @@ struct Kbdbuf
 	int ri;
 	int wi;
 	int stall;
+	/* Used by kbdputc */
+	uchar k[5*UTFmax];
+	int alting, nk;
 };
 
 struct  Mouse

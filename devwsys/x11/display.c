@@ -348,6 +348,5 @@ xclose(void)
 	/*
 	 * Should do a better job of cleaning up here.
 	 */
-print("XXX Closing display\n");
 	XCloseDisplay(xconn.display);
 }

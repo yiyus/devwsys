@@ -55,6 +55,11 @@ xnextevent(void) {
 		kbdevent(w, xev);
 		break;
 	
+	case LeaveNotify:
+		w->kbd.alting = 0;
+		w->kbd.nk = 0;
+		break;
+	
 	default:
 		break;
 	}
@@ -88,7 +93,7 @@ kbdevent(Window *w, XEvent xev)
 		return;
 	}
 
-	k = kbdputc(xtoplan9kbd(&xev));
+	k = kbdputc(&w->kbd, xtoplan9kbd(&xev));
 	if(k == -1)
 		return;
 	debug("Keyboard event at window %d. rune=%C (%d)\n", w->id, k, k);

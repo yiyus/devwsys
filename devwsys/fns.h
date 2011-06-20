@@ -8,7 +8,7 @@ void runmsg(Window*, Wsysmsg*);
 /* Keyboard */
 void addkbd(Window*, Rune);
 void matchkbd(Window*);
-int kbdputc(int);
+int kbdputc(Kbdbuf*, int);
 long latin1(uchar*, int);
 
 /* Mouse */
