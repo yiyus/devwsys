@@ -10,7 +10,7 @@ void configevent(Window *w, XEvent);
 void kbdevent(Window *w, XEvent);
 void mouseevent(Window *w, XEvent);
 
-int
+void
 xnextevent(void) {
 	int i;
 	Window *w;
@@ -21,19 +21,16 @@ xnextevent(void) {
 	XNextEvent(xconn.display, &xev);
 	for(i = 0; i < nwindow; i++){
 		xw = window[i]->x;
-		if(xw->drawable == xev.xany.window)
+		if(xw && xw->drawable == xev.xany.window)
 			break;
 	}
 	if(i == nwindow)
-		return -1;
+		return;
 	w = window[i];
 	switch(xev.type){
 	case ClientMessage:
-		if(xev.xclient.data.l[0] == xw->wmdelmsg) {
-			XDestroyWindow(xconn.display, xev.xclient.window);
-			XSync(xconn.display, False);
-			return i;
-		}
+		if(xev.xclient.data.l[0] == xw->wmdelmsg)
+			deletewin(w);
 		break;
 
 	case ConfigureNotify:
@@ -61,7 +58,6 @@ xnextevent(void) {
 	default:
 		break;
 	}
-	return -1;
 }
 
 void

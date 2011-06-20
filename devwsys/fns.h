@@ -16,8 +16,7 @@ void addmouse(Window*, Mouse, int);
 void matchmouse(Window*);
 
 /* Window */
-void deletewin(int);
-int lookupwin(Window*);
+void deletewin(Window*);
 Window* newwin(void);
 
 /* Ixp */
@@ -28,9 +27,10 @@ int ixpserve(char*);
 Memimage* xallocmemimage(void*);
 void xclose(void);
 void* xcreatewin(char*, char*, Rectangle);
+void xdeletewin(Window*);
 int xfd(void);
 int xinit(void);
 Rectangle xmapwin(void*, int, Rectangle);
-int xnextevent(void);
+void xnextevent(void);
 int xsetlabel(Window*);
 Rectangle xwinrectangle(char*, char*, int*);

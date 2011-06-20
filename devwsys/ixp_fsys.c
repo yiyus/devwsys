@@ -394,14 +394,21 @@ fs_clunk(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
 
+	debug("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, nil);
 		return;
 	}
 	w = f->p.window;
-
 	switch(f->tab.type) {
+	case FsRoot:
+		deletewin(w);
+		break;
+	case FsFCons:
+		w->kbd.wi = w->kbd.ri;
+		w->kbdtags.wi = w->kbdtags.ri;
+		break;
 	case FsFMouse:
 		w->mouseopen = 0;
 		w->mouse.wi = w->mouse.ri;
@@ -490,6 +497,7 @@ ixpreply(Window *w, Wsysmsg *m)
 		rune = m->rune;
 		sprint(buf, "%C", rune);
 		r->ifcall.rread.offset = 0;
+//print("XXX Rrdkbd: %C (%d)\n", rune, rune);
 		break;
 
 	case Rrdmouse:

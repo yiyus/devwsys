@@ -33,6 +33,8 @@ matchkbd(Window *w)
 	kbd = &w->kbd;
 	kbdtags = &w->kbdtags;
 
+print("XXX kbd->ri = %d, kbd->wi = %d\n", kbd->ri , kbd->wi);
+print("XXX kbdtags->ri = %d, kbdtags->wi = %d\n", kbdtags->ri , kbdtags->wi);
 	while(kbd->ri != kbd->wi && kbdtags->ri != kbdtags->wi){
 		m.type = Rrdkbd;
 		m.tag = kbdtags->t[kbdtags->ri];

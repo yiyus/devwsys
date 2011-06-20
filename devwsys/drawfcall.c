@@ -8,15 +8,10 @@
 void
 runmsg(Window *w, Wsysmsg *m)
 {
-	int i;
 	Kbdbuf *kbd;
 	Mousebuf *mouse;
 	Tagbuf *kbdtags, *mousetags;
 	int havemin;
-
-	if(m->type != Tinit)
-		if((i = lookupwin(w)) < 0)
-			return;
 
 	switch(m->type){
 	case Tinit:
@@ -41,7 +36,7 @@ runmsg(Window *w, Wsysmsg *m)
 			sysfatal("too many queued mouse reads");
 		// fprint(2, "mouse unstall\n");
 		mouse->stall = 0;
-		matchmouse(i);
+		matchmouse(w);
 		break;
 
 	case Trdkbd:
@@ -56,7 +51,7 @@ runmsg(Window *w, Wsysmsg *m)
 			sysfatal("too many queued kbd reads");
 		// fprint(2, "kbd unstall\n");
 		kbd->stall = 0;
-		matchkbd(i);
+		matchkbd(w);
 		break;
 
 	case Tlabel:

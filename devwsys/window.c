@@ -7,33 +7,19 @@
 
 static int id = 0;
 
-int
-lookupwin(Window *w)
-{
-	int i;
-
-	for(i = 0; i < nwindow; i++){
-		if(window[i] == w)
-			return i;
-	}
-	return -1;
-}
-
 Window*
 newwin(void)
 {
 	Window *w;
 
 	if(!(w = malloc(sizeof(Window))))
-		return NULL;
+		return nil;
 	if(!(window = realloc(window, ++nwindow*sizeof(Window*))))
-		return NULL;
+		return nil;
 	window[nwindow-1] = w;
 
+	memset(w, 0, sizeof(*w));
 	w->id = id++;
-	w->deleted = 0;
-	w->label = NULL;
-	w->mouseopen = 0;
 
 	return w;
 }
@@ -110,11 +96,19 @@ oops:
 }
 
 void
-deletewin(int i)
+deletewin(Window *w)
 {
-	free(window[i]->x);
-	window[i]->x = nil;
-	window[i]->deleted++;
+	int i;
+
+	for(i = 0; i < nwindow; i++){
+		if(window[i] == w)
+			break;
+	}
+	if(i == nwindow)
+		return;
+	xdeletewin(w);
+	w->x = nil;
+	w->deleted++;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
 }

@@ -53,10 +53,6 @@ endconnection(IxpConn *c)
 void
 eventfdready(IxpConn *c)
 {
-	int closedwin;
-
 	USED(c);
-	closedwin = xnextevent();
-	if(closedwin >= 0)
-		deletewin(closedwin);
+	xnextevent();
 }

@@ -269,6 +269,17 @@ xmapwin(void *x, int havemin, Rectangle r)
 	return r;
 }
 
+void
+xdeletewin(Window *w)
+{
+	Xwin *xw;
+
+	xw = w->x;
+	// TODO anything else to cleanup?
+	XDestroyWindow(xconn.display, xw->drawable);
+	XSync(xconn.display, False);
+}
+
 int
 xsetlabel(Window *w)
 {
