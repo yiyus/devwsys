@@ -497,7 +497,6 @@ ixpreply(Window *w, Wsysmsg *m)
 		rune = m->rune;
 		sprint(buf, "%C", rune);
 		r->ifcall.rread.offset = 0;
-//print("XXX Rrdkbd: %C (%d)\n", rune, rune);
 		break;
 
 	case Rrdmouse:
