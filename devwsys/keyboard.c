@@ -5,11 +5,11 @@
 #include "fns.h"
 
 void
-addkbd(int i, Rune r)
+addkbd(Window *w, Rune r)
 {
 	Kbdbuf *kbd;
 
-	kbd = &window[i]->kbd;
+	kbd = &w->kbd;
 	if(kbd->stall)
 		return;
 
@@ -24,14 +24,14 @@ addkbd(int i, Rune r)
  * Match queued keyboard reads with queued keyboard events.
  */
 void
-matchkbd(int i)
+matchkbd(Window *w)
 {
 	Kbdbuf *kbd;
 	Tagbuf *kbdtags;
 	Wsysmsg m;
 
-	kbd = &window[i]->kbd;
-	kbdtags = &window[i]->kbdtags;
+	kbd = &w->kbd;
+	kbdtags = &w->kbdtags;
 
 	while(kbd->ri != kbd->wi && kbdtags->ri != kbdtags->wi){
 		m.type = Rrdkbd;
@@ -44,7 +44,7 @@ matchkbd(int i)
 		kbd->ri++;
 		if(kbd->ri == nelem(kbd->r))
 			kbd->ri = 0;
-		replymsg(window[i], &m);
+		replymsg(w, &m);
 	}
 }
 

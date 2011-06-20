@@ -6,14 +6,14 @@ void replymsg(Window*, Wsysmsg*);
 void runmsg(Window*, Wsysmsg*);
 
 /* Keyboard */
-void addkbd(int, Rune);
-void matchkbd(int);
+void addkbd(Window*, Rune);
+void matchkbd(Window*);
 int kbdputc(int);
 long latin1(uchar*, int);
 
 /* Mouse */
-void addmouse(int, Mouse, int);
-void matchmouse(int);
+void addmouse(Window*, Mouse, int);
+void matchmouse(Window*);
 
 /* Window */
 void deletewin(int);

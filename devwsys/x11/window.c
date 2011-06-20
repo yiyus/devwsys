@@ -21,8 +21,6 @@ extern int nwindow;
 
 extern int parsewinsize(char*, Rectangle*, int*);
 
-Xwin **xwindow;
-
 Rectangle
 xwinrectangle(char *label, char *winsize, int *havemin)
 {
@@ -107,9 +105,6 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	xw = malloc(sizeof(Xwin));
 	if(xw == nil)
 		return nil;
-	if(!(xwindow = realloc(xwindow, nwindow*sizeof(Xwin*))))
-		return NULL;
-	xwindow[nwindow-1] = xw;
 
 	/* remove warnings for unitialized vars */
 	height = x = y = mask = width = 0;
@@ -206,18 +201,6 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	return xw;
 }
 
-int
-xlookupwin(XWindow w)
-{
-	int i;
-
-	for(i = 0; i < nwindow; i++){
-		if(xwindow[i]->drawable == w)
-			return i;
-	}
-	return -1;
-}
-
 Rectangle
 xmapwin(void *x, int havemin, Rectangle r)
 {
@@ -290,16 +273,12 @@ int
 xsetlabel(Window *w)
 {
 	char *label;
-	int i;
 	XTextProperty name;
+	Xwin *xw;
 
-	if((i = lookupwin(w)) < 0)
-		return -1;
-	/*
-	 * Label and other properties required by ICCCCM.
-	 */
-	memset(&name, 0, sizeof name);
+	xw = w->x;
 	label = w->label;
+	memset(&name, 0, sizeof name);
 	if(label == nil)
 		label = "pjw-face-here";
 	name.value = (uchar*)label;
@@ -309,7 +288,7 @@ xsetlabel(Window *w)
 
 	XSetWMProperties(
 		xconn.display,			/* display */
-		xwindow[i]->drawable,	/* window */
+		xw->drawable,	/* window */
 		&name,	/* XA_WM_NAME property */
 		&name,	/* XA_WM_ICON_NAME property */
 		nil,		/* XA_WM_COMMAND */

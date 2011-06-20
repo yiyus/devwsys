@@ -27,7 +27,6 @@ struct Xwin {
 };
 
 extern Xconn xconn;
-extern Xwin **xwindow;
 
 int xlookupwin(XWindow);
 int xtoplan9kbd(XEvent*);

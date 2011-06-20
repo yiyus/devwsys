@@ -6,20 +6,30 @@
 #include "dat.h"
 #include "fns.h"
 
-void configevent(XEvent);
-void kbdevent(XEvent);
-void mouseevent(XEvent);
+void configevent(Window *w, XEvent);
+void kbdevent(Window *w, XEvent);
+void mouseevent(Window *w, XEvent);
 
 int
 xnextevent(void) {
 	int i;
+	Window *w;
+	Xwin *xw;
 	XEvent xev;
 
+	xw = nil;
 	XNextEvent(xconn.display, &xev);
+	for(i = 0; i < nwindow; i++){
+		xw = window[i]->x;
+		if(xw->drawable == xev.xany.window)
+			break;
+	}
+	if(i == nwindow)
+		return -1;
+	w = window[i];
 	switch(xev.type){
 	case ClientMessage:
-		i = xlookupwin(xev.xclient.window);
-		if(xev.xclient.data.l[0] == xwindow[i]->wmdelmsg) {
+		if(xev.xclient.data.l[0] == xw->wmdelmsg) {
 			XDestroyWindow(xconn.display, xev.xclient.window);
 			XSync(xconn.display, False);
 			return i;
@@ -27,11 +37,11 @@ xnextevent(void) {
 		break;
 
 	case ConfigureNotify:
-		configevent(xev);
+		configevent(w, xev);
 		break;
 
 	case Expose:
-		//xexpose(xev);
+		//xexpose(w, xev);
 		break;
 	
 	case DestroyNotify:
@@ -41,11 +51,11 @@ xnextevent(void) {
 	case ButtonPress:
 	case ButtonRelease:
 	case MotionNotify:
-		mouseevent(xev);
+		mouseevent(w, xev);
 		break;
 
 	case KeyPress:
-		kbdevent(xev);
+		kbdevent(w, xev);
 		break;
 	
 	default:
@@ -55,33 +65,24 @@ xnextevent(void) {
 }
 
 void
-configevent(XEvent xev)
+configevent(Window *w, XEvent xev)
 {
-	int i;
 	Mouse m;
 
-	i = xlookupwin(xev.xany.window);
-	if(i < 0)
-		return;
-	debug("Configure event at window %d\n", i);
 	// TODO: plan9port/src/cmd/devdraw/x11-init.c:686
 	m.xy.x = xev.xconfigure.width;
 	m.xy.y = xev.xconfigure.height;
 	// _xreplacescreenimage();
-	debug("Configure event at window %d: w=%d h=%d\n", i, m.xy.x, m.xy.y);
-	addmouse(i, m, 1);
-	matchmouse(i);
+	debug("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
+	addmouse(w, m, 1);
+	matchmouse(w);
 }
 
 void
-kbdevent(XEvent xev)
+kbdevent(Window *w, XEvent xev)
 {
-	int i;
 	KeySym k;
 
-	i = xlookupwin(xev.xany.window);
-	if(i < 0)
-		return;
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
 	if(k == XK_F11){
 		/* TODO
@@ -94,23 +95,19 @@ kbdevent(XEvent xev)
 	k = kbdputc(xtoplan9kbd(&xev));
 	if(k == -1)
 		return;
-	debug("Keyboard event at window %d. rune=%C (%d)\n", i, k, k);
-	addkbd(i, k);
-	matchkbd(i);
+	debug("Keyboard event at window %d. rune=%C (%d)\n", w->id, k, k);
+	addkbd(w, k);
+	matchkbd(w);
 }
 
 void
-mouseevent(XEvent xev)
+mouseevent(Window *w, XEvent xev)
 {
-	int i;
 	Mouse m;
 
-	i = xlookupwin(xev.xany.window);
-	if(i < 0)
-		return;
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
-	debug("Mouse event at window %d: x=%d y=%d b=%d\n", i, m.xy.x, m.xy.y, m.buttons);
-	addmouse(i, m, 0);
-	matchmouse(i);
+	debug("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
+	addmouse(w, m, 0);
+	matchmouse(w);
 }

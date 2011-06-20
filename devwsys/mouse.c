@@ -5,19 +5,13 @@
 #include "fns.h"
 
 void
-addmouse(int i, Mouse m, int resized)
+addmouse(Window *w, Mouse m, int resized)
 {
 	Mousebuf *mouse;
 
-	/*
-	 * TODO:
-	 * The last resize event should be added
-	 * even when mouse is closed to read
-	 * after the file is opened.
-	 */
-	if(!window[i]->mouseopen)
+	if(!w->mouseopen)
 		return;
-	mouse = &window[i]->mouse;
+	mouse = &w->mouse;
 	if(mouse->stall)
 		return;
 
@@ -39,16 +33,16 @@ addmouse(int i, Mouse m, int resized)
  * Match queued mouse reads with queued mouse events.
  */
 void
-matchmouse(int i)
+matchmouse(Window *w)
 {
 	Mousebuf *mouse;
 	Tagbuf *mousetags;
 	Wsysmsg m;
 
-	if(!window[i]->mouseopen)
+	if(!w->mouseopen)
 		return;
-	mouse = &window[i]->mouse;
-	mousetags = &window[i]->mousetags;
+	mouse = &w->mouse;
+	mousetags = &w->mousetags;
 
 	while(mouse->ri != mouse->wi && mousetags->ri != mousetags->wi){
 		m.type = Rrdmouse;
@@ -67,6 +61,6 @@ matchmouse(int i)
 		mouse->ri++;
 		if(mouse->ri == nelem(mouse->m))
 			mouse->ri = 0;
-		replymsg(window[i], &m);
+		replymsg(w, &m);
 	}
 }
