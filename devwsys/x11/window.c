@@ -15,7 +15,7 @@
 	Button2MotionMask|\
 	Button3MotionMask)
 
-#define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask
+#define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
 
 extern int nwindow;
 

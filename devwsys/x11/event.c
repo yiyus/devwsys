@@ -6,6 +6,8 @@
 #include "dat.h"
 #include "fns.h"
 
+#define debugev(...) if(0) debug(__VA_ARGS__)
+
 void configevent(Window *w, XEvent);
 void kbdevent(Window *w, XEvent);
 void mouseevent(Window *w, XEvent);
@@ -55,9 +57,12 @@ xnextevent(void) {
 		kbdevent(w, xev);
 		break;
 	
-	case LeaveNotify:
-		w->kbd.alting = 0;
-		w->kbd.nk = 0;
+	case FocusOut:
+		/*
+		 * Stop alting when
+		 * window losts focus.
+		 */
+		kbdputc(&w->kbd, -1);;
 		break;
 	
 	default:
@@ -74,7 +79,7 @@ configevent(Window *w, XEvent xev)
 	m.xy.x = xev.xconfigure.width;
 	m.xy.y = xev.xconfigure.height;
 	// _xreplacescreenimage();
-	debug("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
+	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
 	addmouse(w, m, 1);
 	matchmouse(w);
 }
@@ -96,7 +101,7 @@ kbdevent(Window *w, XEvent xev)
 	k = kbdputc(&w->kbd, xtoplan9kbd(&xev));
 	if(k == -1)
 		return;
-	debug("Keyboard event at window %d. rune=%C (%d)\n", w->id, k, k);
+	debugev("Keyboard event at window %d. rune=%C (%d)\n", w->id, k, k);
 	addkbd(w, k);
 	matchkbd(w);
 }
@@ -108,7 +113,7 @@ mouseevent(Window *w, XEvent xev)
 
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
-	debug("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
+	debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
 	addmouse(w, m, 0);
 	matchmouse(w);
 }

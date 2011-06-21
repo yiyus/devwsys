@@ -56,6 +56,7 @@ kbdputc(Kbdbuf *kbd, int ch)
 
 	if(ch < 0) {
 		kbd->alting = 0;
+		kbd->nk = 0;
 		return -1;
 	}
 	r = ch;
