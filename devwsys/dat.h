@@ -54,11 +54,29 @@ enum {
 };
 
 /* Datatypes: */
+typedef struct Client Client;
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Mousebuf Mousebuf;
 typedef struct Tagbuf Tagbuf;
 typedef struct Window Window;
 typedef struct Wsysmsg Wsysmsg;
+
+struct Client
+{
+	/*Ref		r;*/
+//	DImage*		dimage[NHASH];
+//	CScreen*	cscreen;
+//	Refresh*	refresh;
+//	Rendez		refrend;
+//	uchar*		readdata;
+//	int		nreaddata;
+	int		busy;
+	int		clientid;
+	int		slot;
+//	int		refreshme;
+//	int		infoid;
+	int		op;
+};
 
 struct Kbdbuf
 {
@@ -133,3 +151,6 @@ struct Wsysmsg
 int debuglevel;
 int nwindow;
 Window **window;
+int nclient;
+Client** client;
+

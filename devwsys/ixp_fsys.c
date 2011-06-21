@@ -9,6 +9,7 @@
 #define bool int
 typedef union IxpFileIdU IxpFileIdU;
 union IxpFileIdU {
+	Client*	client;
 	Window*	window;
 	void*	ref;
 };
@@ -42,9 +43,10 @@ static char
 	Edeleted[] = "window deleted",
 	Einterrupted[] = "interrupted",
 	Einuse[] = "file in use",
-	Enoperm[] = "permission denied",
+	Enodev[] = "no free devices",
 	Enofile[] = "file not found",
-	Enomem[] = "out of memory";
+	Enomem[] = "out of memory",
+	Enoperm[] = "permission denied";
 
 /* Macros */
 #define QID(t, i) (((vlong)((t)&0xFF)<<32)|((i)&0xFFFFFFFF))
@@ -133,6 +135,7 @@ lookup_file(IxpFileId *parent, char *name)
 	int i, id;
 	IxpFileId *ret, *file, **last;
 	IxpDirtab *dir;
+	Client *cl;
 	Window *w;
 
 	if(!(parent->tab.perm & DMDIR))
@@ -153,6 +156,24 @@ lookup_file(IxpFileId *parent, char *name)
 		/* Dynamic dirs */
 		if(dir->name[0] == '\0') {
 			switch(parent->tab.type) {
+			case FsDDraw:
+				id = 0;
+				if(name) {
+					id = (int)strtol(name, &name, 10);
+					if(*name)
+						continue;
+				}
+				for(i = 0; i < nclient; i++) {
+					cl = client[i];
+					if(!name || cl->clientid == id) {
+						push_file(smprint("%d", cl->clientid), cl->clientid, 1);
+						file->p.client = cl;
+						file->index = id;
+						if(name)
+							goto LastItem;
+					}
+				}
+				break;
 			case FsDWsys:
 				id = 0;
 				if(name) {
@@ -170,6 +191,7 @@ lookup_file(IxpFileId *parent, char *name)
 							goto LastItem;
 					}
 				}
+				break;
 			}
 		}else /* Static dirs */
 		if(!name || name && !strcmp(name, dir->name)) {
@@ -191,7 +213,6 @@ void
 fs_attach(Ixp9Req *r) {
 	IxpFileId *f;
 	Wsysmsg m;
-	Window *w = nil;
 
 	debug("fs_attach(%p)\n", r);
 
@@ -208,13 +229,14 @@ fs_attach(Ixp9Req *r) {
 	m.label = nil; /* pjw face */
 	m.winsize = nil;
 	m.v = r;
-	runmsg(w, &m);
+	runmsg(nil, &m);
 }
 
 void
 fs_open(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
+	Client *cl;
 
 	debug("fs_open(%p)\n", r);
 
@@ -225,7 +247,27 @@ fs_open(Ixp9Req *r) {
 		return;
 	}
 
+	if(f->tab.type == FsFNew){
+		cl = drawnewclient();
+		if(cl == 0)
+			ixp_respond(r, Enodev);
+		f->p.client = cl;
+		f->tab.type = FsFCtl;
+	}
 	switch(f->tab.type) {
+	case FsFNew:
+		break;
+	case FsFCtl:
+		cl = f->p.client;
+		if(cl->busy){
+			ixp_respond(r, Einuse);
+			return;
+		}
+		cl->busy = 1;
+		// flushrect = Rect(10000, 10000, -10000, -10000);
+		// drawinstall(cl, 0, screenimage, 0);
+		// incref(&cl->r);
+		break;
 	case FsFMouse:
 		w = f->p.window;
 		if(w->mouseopen){
@@ -267,47 +309,56 @@ fs_read(Ixp9Req *r) {
 		ixp_respond(r, Enofile);
 		return;
 	}
+	if(!f->tab.perm & 0400) {
+		ixp_respond(r, Enoperm);
+		return;
+	}
+	if(f->tab.perm & DMDIR) {
+		ixp_srv_readdir(r, lookup_file, dostat);
+		return;
+	}
+	if(f->pending) {
+		ixp_pending_respond(r);
+		return;
+	}
+	switch(f->tab.type) {
+	case FsFData:
+		sprint(buf, "%d", f->p.client->clientid);
+		ixp_srv_readbuf(r, buf, strlen(buf));
+		ixp_respond(r, nil);
+		return;
+	case FsFNew:
+	case FsFCtl:
+	case FsFColormap:
+	case FsFRefresh:
+		return;
+	}
 	w = f->p.window;
 	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
 	}
-	if(!f->tab.perm & 0400) {
-		ixp_respond(r, Enoperm);
+	switch(f->tab.type) {
+	case FsFCons:
+		m.type = Trdkbd;
+		m.v = r;
+		runmsg(w, &m);
 		return;
-	}
-
-	if(f->tab.perm & DMDIR) {
-		ixp_srv_readdir(r, lookup_file, dostat);
+	case FsFLabel:
+		if(w->label)
+			ixp_srv_readbuf(r, w->label, strlen(w->label));
+		ixp_respond(r, nil);
 		return;
-	}
-	else{
-		if(f->pending) {
-			ixp_pending_respond(r);
-			return;
-		}
-		switch(f->tab.type) {
-		case FsFCons:
-			m.type = Trdkbd;
-			m.v = r;
-			runmsg(w, &m);
-			return;
-		case FsFLabel:
-			if(w->label)
-				ixp_srv_readbuf(r, w->label, strlen(w->label));
-			ixp_respond(r, nil);
-			return;
-		case FsFMouse:
-			m.type = Trdmouse;
-			m.v = r;
-			runmsg(w, &m);
-			return;
-		case FsFWinid:
-			sprint(buf, "%11d ", w->id);
-			ixp_srv_readbuf(r, buf, strlen(buf));
-			ixp_respond(r, nil);
-			return;
-		}
+	case FsFMouse:
+		m.type = Trdmouse;
+		m.v = r;
+		runmsg(w, &m);
+		return;
+	case FsFWinid:
+		sprint(buf, "%11d ", w->id);
+		ixp_srv_readbuf(r, buf, strlen(buf));
+		ixp_respond(r, nil);
+		return;
 	}
 	/* This should not be called if the file is not open for reading. */
 	fatal("Read called on an unreadable file");
@@ -329,10 +380,12 @@ fs_stat(Ixp9Req *r) {
 		ixp_respond(r, Enofile);
 		return;
 	}
-	w = f->p.window;
-	if(w->deleted){
-		ixp_respond(r, Edeleted);
-		return;
+	if(f->tab.type > FsDDrawn && f->tab.type < FsFNew) {
+		w = f->p.window;
+		if(w->deleted){
+			ixp_respond(r, Edeleted);
+			return;
+		}
 	}
 
 	dostat(&s, f);
@@ -362,16 +415,24 @@ fs_write(Ixp9Req *r) {
 		ixp_respond(r, Enofile);
 		return;
 	}
-	w = f->p.window;
-	if(w->deleted){
-		ixp_respond(r, Edeleted);
-		return;
-	}
 	if(!f->tab.perm & 0200) {
 		ixp_respond(r, Enoperm);
 		return;
 	}
 
+	switch(f->tab.type) {
+	case FsFNew:
+	case FsFCtl:
+	case FsFData:
+	case FsFColormap:
+	case FsFRefresh:
+		return;
+	}
+	w = f->p.window;
+	if(w->deleted){
+		ixp_respond(r, Edeleted);
+		return;
+	}
 	switch(f->tab.type) {
 	case FsFLabel:
 		m.type = Tlabel;
@@ -402,9 +463,6 @@ fs_clunk(Ixp9Req *r) {
 	}
 	w = f->p.window;
 	switch(f->tab.type) {
-	case FsRoot:
-		deletewin(w);
-		break;
 	case FsFCons:
 		w->kbd.wi = w->kbd.ri;
 		w->kbdtags.wi = w->kbdtags.ri;

@@ -11,6 +11,7 @@ XFILES=\
 	window.$O\
 
 OFILES=\
+	devdraw.$O\
 	drawfcall.$O\
 	ixp_fsys.$O\
 	ixp_srv.$O\

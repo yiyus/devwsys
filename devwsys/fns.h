@@ -1,6 +1,9 @@
 #define fatal(...) sysfatal("devwsys: fatal: " __VA_ARGS__)
 #define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
+/* Devdraw */
+Client* drawnewclient(void);
+
 /* Drawfcall messages */
 void replymsg(Window*, Wsysmsg*);
 void runmsg(Window*, Wsysmsg*);

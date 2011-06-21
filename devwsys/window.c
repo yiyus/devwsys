@@ -5,11 +5,12 @@
 #include "dat.h"
 #include "fns.h"
 
-static int id = 0;
+int nwindow = 0;
 
 Window*
 newwin(void)
 {
+	static int id = 0;
 	Window *w;
 
 	if(!(w = malloc(sizeof(Window))))
