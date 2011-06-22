@@ -229,6 +229,8 @@ fs_attach(Ixp9Req *r) {
 	m.type = Tinit;
 	m.label = nil; /* pjw face */
 	m.winsize = nil;
+	if(!strncmp(r->ifcall.tattach.aname, "new ", 4))
+		m.winsize = &r->ifcall.tattach.aname[4];
 	m.v = r;
 	runmsg(nil, &m);
 }
@@ -246,6 +248,13 @@ fs_open(Ixp9Req *r) {
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
+	}
+	if(f->tab.type < FsFCtl) {
+		w = f->p.window;
+		if(w->deleted) {
+			ixp_respond(r, Edeleted);
+			return;
+		}
 	}
 
 	if(f->tab.type == FsFNew){
