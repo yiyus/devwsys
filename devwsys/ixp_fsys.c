@@ -221,6 +221,7 @@ fs_attach(Ixp9Req *r) {
 	f->tab.name = strdup("/");
 	if(!f->tab.name)
 		ixp_respond(r, Enomem);
+	f->nref = 0;
 	r->fid->aux = f;
 	r->fid->qid.type = f->tab.qtype;
 	r->fid->qid.path = QID(f->tab.type, 0);
@@ -508,6 +509,8 @@ fs_freefid(IxpFid *f) {
 	IxpFileId *id, *tid;
 
 	tid = f->aux;
+	if(tid->nref == 0)
+		deletewin(tid->p.window);
 	while((id = tid)) {
 		tid = id->next;
 		ixp_srv_freefile(id);
