@@ -54,20 +54,34 @@ enum {
 };
 
 /* Datatypes: */
+typedef struct Draw Draw;
 typedef struct Client Client;
+typedef struct FChar FChar;
+typedef struct DImage DImage;
+typedef struct DScreen DScreen;
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Mousebuf Mousebuf;
 typedef struct Tagbuf Tagbuf;
 typedef struct Window Window;
 typedef struct Wsysmsg Wsysmsg;
 
+/* Drawing device */
+#define	NHASH		(1<<5)
+#define	HASHMASK	(NHASH-1)
+
+struct Draw
+{
+	Rectangle	flushrect;
+};
+
 struct Client
 {
 	/*Ref		r;*/
-//	DImage*		dimage[NHASH];
+	DImage*		dimage[NHASH];
 //	CScreen*	cscreen;
 //	Refresh*	refresh;
 //	Rendez		refrend;
+	Window	*window;
 //	uchar*		readdata;
 //	int		nreaddata;
 	int		busy;
@@ -78,6 +92,44 @@ struct Client
 	int		op;
 };
 
+struct FChar
+{
+	int		minx;	/* left edge of bits */
+	int		maxx;	/* right edge of bits */
+	uchar		miny;	/* first non-zero scan-line */
+	uchar		maxy;	/* last non-zero scan-line + 1 */
+	schar		left;	/* offset of baseline */
+	uchar		width;	/* width of baseline */
+};
+
+struct DImage
+{
+	int		id;
+	int		ref;
+	char		*name;
+	int		vers;
+	Memimage*	image;
+	int		ascent;
+	int		nfchar;
+	FChar*		fchar;
+	DScreen*	dscreen;	/* 0 if not a window */
+	DImage*	fromname;	/* image this one is derived from, by name */
+	DImage*		next;
+};
+
+struct DScreen
+{
+	int		id;
+	int		public;
+	int		ref;
+	DImage	*dimage;
+	DImage	*dfill;
+	Memscreen*	screen;
+	Client*		owner;
+	DScreen*	next;
+};
+
+/* Events */
 struct Kbdbuf
 {
 	Rune r[32];
@@ -113,12 +165,14 @@ struct Tagbuf
 	int wi;
 };
 
+/* Window system */
 struct Window
 {
 	int id;
 	int deleted;
 	int mouseopen;
 	char *label;
+	Draw draw;
 	Kbdbuf kbd;
 	Memimage *img;
 	Mousebuf mouse;

@@ -2,6 +2,7 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
+#include <memlayer.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -240,6 +241,7 @@ fs_open(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
 	Client *cl;
+	Draw *d;
 
 	debug("fs_open(%p)\n", r);
 
@@ -258,7 +260,8 @@ fs_open(Ixp9Req *r) {
 	}
 
 	if(f->tab.type == FsFNew){
-		cl = drawnewclient();
+		w = f->p.window;
+		cl = drawnewclient(w);
 		if(cl == 0)
 			ixp_respond(r, Enodev);
 		f->p.client = cl;
@@ -274,7 +277,8 @@ fs_open(Ixp9Req *r) {
 			return;
 		}
 		cl->busy = 1;
-		// flushrect = Rect(10000, 10000, -10000, -10000);
+		d = &cl->window->draw;
+		d->flushrect = Rect(10000, 10000, -10000, -10000);
 		// drawinstall(cl, 0, screenimage, 0);
 		// incref(&cl->r);
 		break;

@@ -1,6 +1,7 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
+#include <memlayer.h>
 #include "inc.h"
 #include "x.h"
 #include "dat.h"

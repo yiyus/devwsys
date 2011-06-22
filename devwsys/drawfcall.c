@@ -2,6 +2,7 @@
 #include <lib9.h>
 #include <draw.h>
 #include <memdraw.h>
+#include <memlayer.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -20,6 +21,7 @@ runmsg(Window *w, Wsysmsg *m)
 			w->x = xcreatewin(m->label, m->winsize, w->r);
 			w->r = xmapwin(w->x, havemin, w->r);
 			w->img = xallocmemimage(w->x);
+			initscreenimage(w->img);
 		}
 		replymsg(w, m);
 		break;

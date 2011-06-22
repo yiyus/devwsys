@@ -2,7 +2,9 @@
 #define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Devdraw */
-Client* drawnewclient(void);
+Client* drawnewclient(Window*);
+Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
+int initscreenimage(Memimage*);
 
 /* Drawfcall messages */
 void replymsg(Window*, Wsysmsg*);
