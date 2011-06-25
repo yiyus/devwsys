@@ -479,12 +479,12 @@ fs_clunk(Ixp9Req *r) {
 	switch(f->tab.type) {
 	case FsFCons:
 		w->kbd.wi = w->kbd.ri;
-		w->kbdtags.wi = w->kbdtags.ri;
+		w->kbdreqs.wi = w->kbdreqs.ri;
 		break;
 	case FsFMouse:
 		w->mouseopen = 0;
 		w->mouse.wi = w->mouse.ri;
-		w->mousetags.wi = w->mousetags.ri;
+		w->mousereqs.wi = w->mousereqs.ri;
 		break;
 	}
 	ixp_respond(r, nil);

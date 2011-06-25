@@ -28,19 +28,18 @@ void
 matchkbd(Window *w)
 {
 	Kbdbuf *kbd;
-	Tagbuf *kbdtags;
+	Reqbuf *kbdreqs;
 	Wsysmsg m;
 
 	kbd = &w->kbd;
-	kbdtags = &w->kbdtags;
+	kbdreqs = &w->kbdreqs;
 
-	while(kbd->ri != kbd->wi && kbdtags->ri != kbdtags->wi){
+	while(kbd->ri != kbd->wi && kbdreqs->ri != kbdreqs->wi){
 		m.type = Rrdkbd;
-		m.tag = kbdtags->t[kbdtags->ri];
-		m.v = kbdtags->r[kbdtags->ri];
-		kbdtags->ri++;
-		if(kbdtags->ri == nelem(kbdtags->t))
-			kbdtags->ri = 0;
+		m.v = kbdreqs->r[kbdreqs->ri];
+		kbdreqs->ri++;
+		if(kbdreqs->ri == nelem(kbdreqs->r))
+			kbdreqs->ri = 0;
 		m.rune = kbd->r[kbd->ri];
 		kbd->ri++;
 		if(kbd->ri == nelem(kbd->r))

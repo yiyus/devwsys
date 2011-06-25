@@ -67,7 +67,7 @@ typedef struct DImage DImage;
 typedef struct DScreen DScreen;
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Mousebuf Mousebuf;
-typedef struct Tagbuf Tagbuf;
+typedef struct Reqbuf Reqbuf;
 typedef struct Window Window;
 typedef struct Wsysmsg Wsysmsg;
 
@@ -163,9 +163,8 @@ struct Mousebuf
 	int resized;
 };
 
-struct Tagbuf
+struct Reqbuf
 {
-	int t[32];
 	void *r[32];
 	int ri;
 	int wi;
@@ -182,8 +181,8 @@ struct Window
 	Kbdbuf kbd;
 	Memimage *screenimage;
 	Mousebuf mouse;
-	Tagbuf kbdtags;
-	Tagbuf mousetags;
+	Reqbuf kbdreqs;
+	Reqbuf mousereqs;
 	Rectangle r;
 	void *x;
 };

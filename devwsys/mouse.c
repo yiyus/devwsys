@@ -37,21 +37,20 @@ void
 matchmouse(Window *w)
 {
 	Mousebuf *mouse;
-	Tagbuf *mousetags;
+	Reqbuf *mousereqs;
 	Wsysmsg m;
 
 	if(!w->mouseopen)
 		return;
 	mouse = &w->mouse;
-	mousetags = &w->mousetags;
+	mousereqs = &w->mousereqs;
 
-	while(mouse->ri != mouse->wi && mousetags->ri != mousetags->wi){
+	while(mouse->ri != mouse->wi && mousereqs->ri != mousereqs->wi){
 		m.type = Rrdmouse;
-		m.tag = mousetags->t[mousetags->ri];
-		m.v = mousetags->r[mousetags->ri];
-		mousetags->ri++;
-		if(mousetags->ri == nelem(mousetags->t))
-			mousetags->ri = 0;
+		m.v = mousereqs->r[mousereqs->ri];
+		mousereqs->ri++;
+		if(mousereqs->ri == nelem(mousereqs->r))
+			mousereqs->ri = 0;
 		m.mouse = mouse->m[mouse->ri];
 		m.resized = mouse->resized;
 		/*

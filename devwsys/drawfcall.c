@@ -11,7 +11,7 @@ runmsg(Window *w, Wsysmsg *m)
 {
 	Kbdbuf *kbd;
 	Mousebuf *mouse;
-	Tagbuf *kbdtags, *mousetags;
+	Reqbuf *kbdreqs, *mousereqs;
 	int havemin;
 
 	switch(m->type){
@@ -28,13 +28,12 @@ runmsg(Window *w, Wsysmsg *m)
 
 	case Trdmouse:
 		mouse = &w->mouse;
-		mousetags = &w->mousetags;
-		mousetags->t[mousetags->wi] = m->tag;
-		mousetags->r[mousetags->wi] = m->v;
-		mousetags->wi++;
-		if(mousetags->wi == nelem(mousetags->t))
-			mousetags->wi = 0;
-		if(mousetags->wi == mousetags->ri)
+		mousereqs = &w->mousereqs;
+		mousereqs->r[mousereqs->wi] = m->v;
+		mousereqs->wi++;
+		if(mousereqs->wi == nelem(mousereqs->r))
+			mousereqs->wi = 0;
+		if(mousereqs->wi == mousereqs->ri)
 			sysfatal("too many queued mouse reads");
 		// fprint(2, "mouse unstall\n");
 		mouse->stall = 0;
@@ -43,13 +42,12 @@ runmsg(Window *w, Wsysmsg *m)
 
 	case Trdkbd:
 		kbd = &w->kbd;
-		kbdtags = &w->kbdtags;
-		kbdtags->t[kbdtags->wi] = m->tag;
-		kbdtags->r[kbdtags->wi] = m->v;
-		kbdtags->wi++;
-		if(kbdtags->wi == nelem(kbdtags->t))
-			kbdtags->wi = 0;
-		if(kbdtags->wi == kbdtags->ri)
+		kbdreqs = &w->kbdreqs;
+		kbdreqs->r[kbdreqs->wi] = m->v;
+		kbdreqs->wi++;
+		if(kbdreqs->wi == nelem(kbdreqs->r))
+			kbdreqs->wi = 0;
+		if(kbdreqs->wi == kbdreqs->ri)
 			sysfatal("too many queued kbd reads");
 		// fprint(2, "kbd unstall\n");
 		kbd->stall = 0;
