@@ -153,7 +153,7 @@ lookup_file(IxpFileId *parent, char *name)
 			last = &file->next; \
 			file->tab = *dir; \
 			file->tab.name = nam; \
-			if(!file->tab.name) fatal("no mem");
+			assert(file->tab.name);
 		/* Dynamic dirs */
 		if(dir->name[0] == '\0') {
 			switch(parent->tab.type) {

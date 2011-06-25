@@ -48,3 +48,9 @@ main(int argc, char **argv)
 	/* Start the 9p server */
 	return ixpserve(address);
 }
+
+void
+_assert(char *fmt)
+{
+	fatal("assert failed: %s", fmt);
+}

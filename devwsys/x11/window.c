@@ -3,10 +3,10 @@
 #include <draw.h>
 #include <memdraw.h>
 #include <memlayer.h>
-#include "inc.h"
-#include "x.h"
 #include "dat.h"
 #include "fns.h"
+#include "inc.h"
+#include "x.h"
 
 #define MouseMask (\
 	ButtonPressMask|\
@@ -279,6 +279,12 @@ xdeletewin(Window *w)
 	// TODO anything else to cleanup?
 	XDestroyWindow(xconn.display, xw->drawable);
 	XSync(xconn.display, False);
+}
+
+int
+xscreenpm(Window *w)
+{
+	return ((Xwin*)w->x)->screenpm;
 }
 
 int

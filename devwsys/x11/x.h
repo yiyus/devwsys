@@ -1,12 +1,13 @@
 typedef struct Xconn Xconn;
+typedef struct Xmem Xmem;
 typedef struct Xwin Xwin;
 
 struct Xconn {
-	u32int		chan;
+	ulong		chan;
 	XColormap	cmap;
 	XDisplay		*display;
-	int			fd;	/* of display */
-	int			depth;				/* of screen */
+	int			fd;		/* of display */
+	int			depth;	/* of screen */
 	XColor		map[256];
 	XColor		map7[128];
 	uchar		map7to8[128][2];
@@ -17,6 +18,15 @@ struct Xconn {
 	XScreen		*screen;
 	XVisual		*vis;
 	XWindow		root;
+};
+
+struct Xmem
+{
+	int		pixmap;	/* pixmap id */
+	XImage	*xi;		/* local image */
+	int		dirty;	/* is the X server ahead of us?  */
+	Rectangle	dirtyr;	/* which pixels? */
+	Rectangle	r;		/* size of image */
 };
 
 struct Xwin {

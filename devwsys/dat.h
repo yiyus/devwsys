@@ -30,6 +30,12 @@ enum {
 	Tmax,
 };
 
+/* Pixmap undefined */
+enum
+{
+	PMundef = ~0
+};
+
 /* Runes */
 enum {
 	KF=	0xF000,	/* Beginning of private space */
@@ -174,7 +180,7 @@ struct Window
 	char *label;
 	Draw draw;
 	Kbdbuf kbd;
-	Memimage *img;
+	Memimage *screenimage;
 	Mousebuf mouse;
 	Tagbuf kbdtags;
 	Tagbuf mousetags;

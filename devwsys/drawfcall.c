@@ -20,8 +20,8 @@ runmsg(Window *w, Wsysmsg *m)
 			w->r = xwinrectangle(m->label, m->winsize, &havemin);
 			w->x = xcreatewin(m->label, m->winsize, w->r);
 			w->r = xmapwin(w->x, havemin, w->r);
-			w->img = xallocmemimage(w->x);
-			initscreenimage(w->img);
+			w->screenimage = xallocmemimage(w, w->r, xchan(), xscreenpm(w));
+			initscreenimage(w->screenimage);
 		}
 		replymsg(w, m);
 		break;

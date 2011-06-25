@@ -29,7 +29,8 @@ void ixpreply(Window*, Wsysmsg*);
 int ixpserve(char*);
 
 /* Xlib */
-Memimage* xallocmemimage(void*);
+Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+ulong xchan(void);
 void xclose(void);
 void* xcreatewin(char*, char*, Rectangle);
 void xdeletewin(Window*);
@@ -37,5 +38,6 @@ int xfd(void);
 int xinit(void);
 Rectangle xmapwin(void*, int, Rectangle);
 void xnextevent(void);
+int xscreenpm(Window*);
 int xsetlabel(Window*);
 Rectangle xwinrectangle(char*, char*, int*);

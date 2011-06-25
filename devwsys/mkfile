@@ -11,6 +11,7 @@ XFILES=\
 	window.$O\
 
 OFILES=\
+	alloc.$O\
 	devdraw.$O\
 	drawfcall.$O\
 	ixp_fsys.$O\
@@ -34,7 +35,7 @@ HFILES=\
 	latin1.h\
 	${XHFILES:%=x11/%}\
 
-LIBS=	9 draw kern memdraw memlayer
+LIBS=	memlayer memdraw draw kern 9
 
 BIN=$ROOT/$OBJDIR/bin
 
