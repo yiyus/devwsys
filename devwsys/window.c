@@ -9,7 +9,7 @@
 int nwindow = 0;
 
 Window*
-newwin(void)
+newwin(char *label)
 {
 	static int id = 0;
 	Window *w;
@@ -22,6 +22,7 @@ newwin(void)
 
 	memset(w, 0, sizeof(*w));
 	w->id = id++;
+	w->label = label;
 
 	return w;
 }
@@ -113,4 +114,13 @@ deletewin(Window *w)
 	w->deleted++;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
+}
+
+void
+setlabel(Window *w, char *label)
+{
+	if(w->label)
+		free(w->label);
+	w->label = label;
+	xsetlabel(w);
 }

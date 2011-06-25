@@ -1,35 +1,3 @@
-/* Drawfcall message types */
-enum {
-	Rerror = 1,
-	Trdmouse = 2,
-	Rrdmouse,
-	Tmoveto = 4,
-	Rmoveto,
-	Tcursor = 6,
-	Rcursor,
-	Tbouncemouse = 8,
-	Rbouncemouse,
-	Trdkbd = 10,
-	Rrdkbd,
-	Tlabel = 12,
-	Rlabel,
-	Tinit = 14,
-	Rinit,
-	Trdsnarf = 16,
-	Rrdsnarf,
-	Twrsnarf = 18,
-	Rwrsnarf,
-	Trddraw = 20,
-	Rrddraw,
-	Twrdraw = 22,
-	Rwrdraw,
-	Ttop = 24,
-	Rtop,
-	Tresize = 26,
-	Rresize,
-	Tmax,
-};
-
 /* Pixmap undefined */
 enum
 {
@@ -185,25 +153,6 @@ struct Window
 	Reqbuf mousereqs;
 	Rectangle r;
 	void *x;
-};
-
-struct Wsysmsg
-{
-	uchar type;
-	uchar tag;
-	Mouse mouse;
-	int resized;
-//	Cursor cursor;
-//	int arrowcursor;
-	Rune rune;
-	char *winsize;
-	char *label;
-//	char *snarf;
-//	char *error;
-//	uchar *data;
-//	uint count;
-//	Rectangle rect;
-	void *v;
 };
 
 /* Global Vars */

@@ -5,14 +5,21 @@
 #include "dat.h"
 #include "fns.h"
 
+int kbdputc(Kbdbuf*, int);
+long latin1(uchar*, int);
+void replykbd(Kbdbuf*, void*);
+
 void
-addkbd(Window *w, Rune r)
+addkbd(Window *w, int ch)
 {
 	Kbdbuf *kbd;
+	Rune r;
 
 	kbd = &w->kbd;
-	if(kbd->stall)
+	ch = kbdputc(kbd, ch);
+	if(kbd->stall || ch == -1)
 		return;
+	r = ch;
 
 	kbd->r[kbd->wi++] = r;
 	if(kbd->wi == nelem(kbd->r))
@@ -29,23 +36,55 @@ matchkbd(Window *w)
 {
 	Kbdbuf *kbd;
 	Reqbuf *kbdreqs;
-	Wsysmsg m;
+	void *r;
 
 	kbd = &w->kbd;
 	kbdreqs = &w->kbdreqs;
 
 	while(kbd->ri != kbd->wi && kbdreqs->ri != kbdreqs->wi){
-		m.type = Rrdkbd;
-		m.v = kbdreqs->r[kbdreqs->ri];
+		r = kbdreqs->r[kbdreqs->ri];
 		kbdreqs->ri++;
 		if(kbdreqs->ri == nelem(kbdreqs->r))
 			kbdreqs->ri = 0;
-		m.rune = kbd->r[kbd->ri];
+		replykbd(kbd, r);
 		kbd->ri++;
 		if(kbd->ri == nelem(kbd->r))
 			kbd->ri = 0;
-		replymsg(w, &m);
 	}
+}
+
+/*
+ * Read one keyboard event
+ */
+void
+readkbd(Window *w, void* r)
+{
+	Kbdbuf *kbd;
+	Reqbuf *kbdreqs;
+
+	kbd = &w->kbd;
+	kbdreqs = &w->kbdreqs;
+
+	kbdreqs->r[kbdreqs->wi] = r;
+	kbdreqs->wi++;
+	if(kbdreqs->wi == nelem(kbdreqs->r))
+		kbdreqs->wi = 0;
+	if(kbdreqs->wi == kbdreqs->ri)
+		sysfatal("too many queued kbd reads");
+	// fprint(2, "kbd unstall\n");
+	kbd->stall = 0;
+	matchkbd(w);
+}
+
+void
+replykbd(Kbdbuf *kbd, void *r)
+{
+	char buf[5];
+	Rune rune;
+
+	rune = kbd->r[kbd->ri];
+	sprint(buf, "%C", rune);
+	ixpread(r, buf);
 }
 
 int

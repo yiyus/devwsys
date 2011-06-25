@@ -6,30 +6,29 @@ Client* drawnewclient(Window*);
 Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
 int initscreenimage(Memimage*);
 
-/* Drawfcall messages */
-void replymsg(Window*, Wsysmsg*);
-void runmsg(Window*, Wsysmsg*);
-
 /* Keyboard */
-void addkbd(Window*, Rune);
+void addkbd(Window*, int);
 void matchkbd(Window*);
-int kbdputc(Kbdbuf*, int);
-long latin1(uchar*, int);
+void readkbd(Window*, void*);
 
 /* Mouse */
 void addmouse(Window*, Mouse, int);
 void matchmouse(Window*);
+void readmouse(Window*, void*);
 
 /* Window */
 void deletewin(Window*);
-Window* newwin(void);
+Window* newwin(char*);
+int parsewinsize(char*, Rectangle*, int*);
+void setlabel(Window*, char*);
 
 /* Ixp */
-void ixpreply(Window*, Wsysmsg*);
+void ixpread(void*, char*);
 int ixpserve(char*);
 
 /* Xlib */
 Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+void xattach(Window*, char*);
 ulong xchan(void);
 void xclose(void);
 void* xcreatewin(char*, char*, Rectangle);

@@ -13,7 +13,6 @@ XFILES=\
 OFILES=\
 	alloc.$O\
 	devdraw.$O\
-	drawfcall.$O\
 	ixp_fsys.$O\
 	ixp_srv.$O\
 	keyboard.$O\

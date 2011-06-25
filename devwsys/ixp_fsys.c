@@ -212,8 +212,9 @@ LastItem:
 /* Service Functions */
 void
 fs_attach(Ixp9Req *r) {
+	char *label, *winsize;
 	IxpFileId *f;
-	Wsysmsg m;
+	Window *w;
 
 	debug("fs_attach(%p)\n", r);
 
@@ -227,13 +228,17 @@ fs_attach(Ixp9Req *r) {
 	r->fid->qid.type = f->tab.qtype;
 	r->fid->qid.path = QID(f->tab.type, 0);
 	r->ofcall.rattach.qid = r->fid->qid;
-	m.type = Tinit;
-	m.label = nil; /* pjw face */
-	m.winsize = nil;
+	label = nil; /* pjw face */
+	winsize = nil;
 	if(!strncmp(r->ifcall.tattach.aname, "new ", 4))
-		m.winsize = &r->ifcall.tattach.aname[4];
-	m.v = r;
-	runmsg(nil, &m);
+		winsize = &r->ifcall.tattach.aname[4];
+	if(!(w = newwin(label))) {
+		ixp_respond(r, Enomem);
+		return;
+	}
+	xattach(w, winsize);
+	f->p.window = w;
+	ixp_respond(r, NULL);
 }
 
 void
@@ -314,7 +319,6 @@ fs_read(Ixp9Req *r) {
 	char buf[512];
 	IxpFileId *f;
 	Window *w;
-	Wsysmsg m;
 
 	debug("fs_read(%p)\n", r);
 
@@ -354,9 +358,7 @@ fs_read(Ixp9Req *r) {
 	}
 	switch(f->tab.type) {
 	case FsFCons:
-		m.type = Trdkbd;
-		m.v = r;
-		runmsg(w, &m);
+		readkbd(w, r);
 		return;
 	case FsFLabel:
 		if(w->label)
@@ -364,9 +366,7 @@ fs_read(Ixp9Req *r) {
 		ixp_respond(r, nil);
 		return;
 	case FsFMouse:
-		m.type = Trdmouse;
-		m.v = r;
-		runmsg(w, &m);
+		readmouse(w, r);
 		return;
 	case FsFWinid:
 		sprint(buf, "%11d ", w->id);
@@ -418,9 +418,9 @@ fs_stat(Ixp9Req *r) {
 
 void
 fs_write(Ixp9Req *r) {
+	char *label;
 	IxpFileId *f;
 	Window *w;
-	Wsysmsg m;
 
 	debug("fs_write(%p)\n", r);
 
@@ -449,16 +449,15 @@ fs_write(Ixp9Req *r) {
 	}
 	switch(f->tab.type) {
 	case FsFLabel:
-		m.type = Tlabel;
 		r->ofcall.io.count = r->ifcall.io.count;
-		if(!(m.label = malloc(r->ifcall.twrite.count + 1))) {
+		if(!(label = malloc(r->ifcall.twrite.count + 1))) {
 			r->ofcall.rwrite.count = 0;
 			ixp_respond(r, Enomem);
 			return;
 		}
-		memcpy(m.label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
-		m.label[r->ifcall.twrite.count] = 0;
-		runmsg(w, &m);
+		memcpy(label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
+		label[r->ifcall.twrite.count] = 0;
+		setlabel(w, label);
 		break;
 	}
 	ixp_respond(r, nil);
@@ -546,45 +545,12 @@ Ixp9Srv p9srv = {
 };
 
 void
-ixpreply(Window *w, Wsysmsg *m)
+ixpread(void *v, char *buf)
 {
-	IxpFileId *f;
-	int c;
-	uchar buf[65536];
 	Ixp9Req *r;
-	Mouse ms;
-	Rune rune;
 
-	r = m->v;
-	switch(m->type){
-	case Rinit:
-		if(w == nil) {
-			ixp_respond(r, Enomem);
-			return;
-		}
-		f = r->fid->aux;
-		f->p.window = w;
-		ixp_respond(r, NULL);
-		return;
-
-	case Rrdkbd:
-		rune = m->rune;
-		sprint(buf, "%C", rune);
-		r->ifcall.rread.offset = 0;
-		break;
-
-	case Rrdmouse:
-		ms = m->mouse;
-		c = 'm';
-		if(m->resized)
-			c = 'r';
-		sprint(buf, "%c%11d %11d %11d %11ld ", c, ms.xy.x, ms.xy.y, ms.buttons, ms.msec);
-		r->ifcall.rread.offset %= strlen(buf);
-		break;
-
-	default:
-		return;
-	}
+	r = v;
+	r->ifcall.rread.offset = 0;
 	ixp_srv_readbuf(r, buf, strlen(buf));
 	ixp_respond(r, nil);
 }

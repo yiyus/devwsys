@@ -18,9 +18,17 @@
 
 #define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
 
-extern int nwindow;
+void
+xattach(Window *w, char *winsize)
+{
+	int havemin;
 
-extern int parsewinsize(char*, Rectangle*, int*);
+	w->r = xwinrectangle(w->label, winsize, &havemin);
+	w->x = xcreatewin(w->label, winsize, w->r);
+	w->r = xmapwin(w->x, havemin, w->r);
+	w->screenimage = xallocmemimage(w, w->r, xchan(), xscreenpm(w));
+	initscreenimage(w->screenimage);
+}
 
 Rectangle
 xwinrectangle(char *label, char *winsize, int *havemin)

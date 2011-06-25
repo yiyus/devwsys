@@ -5,6 +5,8 @@
 #include "dat.h"
 #include "fns.h"
 
+void replymouse(Mousebuf*, void*);
+
 void
 addmouse(Window *w, Mouse m, int resized)
 {
@@ -38,7 +40,7 @@ matchmouse(Window *w)
 {
 	Mousebuf *mouse;
 	Reqbuf *mousereqs;
-	Wsysmsg m;
+	void *r;
 
 	if(!w->mouseopen)
 		return;
@@ -46,21 +48,50 @@ matchmouse(Window *w)
 	mousereqs = &w->mousereqs;
 
 	while(mouse->ri != mouse->wi && mousereqs->ri != mousereqs->wi){
-		m.type = Rrdmouse;
-		m.v = mousereqs->r[mousereqs->ri];
+		r = mousereqs->r[mousereqs->ri];
 		mousereqs->ri++;
 		if(mousereqs->ri == nelem(mousereqs->r))
 			mousereqs->ri = 0;
-		m.mouse = mouse->m[mouse->ri];
-		m.resized = mouse->resized;
-		/*
-		if(m.resized)
-			fprint(2, "sending resize\n");
-		*/
-		mouse->resized = 0;
+		replymouse(mouse, r);
 		mouse->ri++;
 		if(mouse->ri == nelem(mouse->m))
 			mouse->ri = 0;
-		replymsg(w, &m);
 	}
+}
+
+void
+readmouse(Window *w, void* r)
+{
+	Mousebuf *mouse;
+	Reqbuf *mousereqs;
+
+	mouse = &w->mouse;
+	mousereqs = &w->mousereqs;
+
+	mousereqs->r[mousereqs->wi] = r;
+	mousereqs->wi++;
+	if(mousereqs->wi == nelem(mousereqs->r))
+		mousereqs->wi = 0;
+	if(mousereqs->wi == mousereqs->ri)
+		sysfatal("too many queued mouse reads");
+	// fprint(2, "mouse unstall\n");
+	mouse->stall = 0;
+	matchmouse(w);
+}
+
+void
+replymouse(Mousebuf *mouse, void *r)
+{
+	int resized;
+	char buf[48], c;
+	Mouse m;
+
+	m = mouse->m[mouse->ri];
+	resized = mouse->resized;
+	c = 'm';
+	if(mouse->resized)
+		c = 'r';
+	sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
+	ixpread(r, buf);
+	mouse->resized = 0;
 }

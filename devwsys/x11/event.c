@@ -7,7 +7,7 @@
 #include "dat.h"
 #include "fns.h"
 
-#define debugev(...) if(0) debug(__VA_ARGS__)
+#define debugev(...) if(1) debug(__VA_ARGS__)
 
 void configevent(Window *w, XEvent);
 void kbdevent(Window *w, XEvent);
@@ -63,7 +63,7 @@ xnextevent(void) {
 		 * Stop alting when
 		 * window losts focus.
 		 */
-		kbdputc(&w->kbd, -1);;
+		addkbd(w, -1);;
 		break;
 	
 	default:
@@ -99,9 +99,7 @@ kbdevent(Window *w, XEvent xev)
 		return;
 	}
 
-	k = kbdputc(&w->kbd, xtoplan9kbd(&xev));
-	if(k == -1)
-		return;
+	k = xtoplan9kbd(&xev);
 	debugev("Keyboard event at window %d. rune=%C (%d)\n", w->id, k, k);
 	addkbd(w, k);
 	matchkbd(w);
