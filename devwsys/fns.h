@@ -4,7 +4,9 @@
 /* Devdraw */
 Client* drawnewclient(Window*);
 Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
-int initscreenimage(Memimage*);
+void readdrawctl(char*, Client*);
+void drawmesg(Client*, void*, int);
+char* drawerr(void);
 
 /* Keyboard */
 void writekbd(Window*, int);

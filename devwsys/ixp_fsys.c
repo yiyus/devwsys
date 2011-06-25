@@ -16,6 +16,9 @@ union IxpFileIdU {
 };
 #include <ixp_srvutil.h>
 
+#define incref(r)	((*r) = ++(*r))
+#define decref(r)	((*r) = --(*r))
+
 /* Constants */
 enum {
 	/* Dirs */
@@ -281,10 +284,11 @@ fs_open(Ixp9Req *r) {
 			return;
 		}
 		cl->busy = 1;
-		d = &cl->window->draw;
+		w = cl->window;
+		d = &w->draw;
 		d->flushrect = Rect(10000, 10000, -10000, -10000);
-		// drawinstall(cl, 0, screenimage, 0);
-		// incref(&cl->r);
+		drawinstall(cl, 0, w->screenimage, 0);
+		incref(&cl->r);
 		break;
 	case FsFMouse:
 		w = f->p.window;
@@ -315,8 +319,9 @@ fs_walk(Ixp9Req *r) {
 
 void
 fs_read(Ixp9Req *r) {
-	char buf[512];
+	char buf[512], *err;
 	IxpFileId *f;
+	Client *cl;
 	Window *w;
 
 	debug("fs_read(%p)\n", r);
@@ -338,14 +343,28 @@ fs_read(Ixp9Req *r) {
 		ixp_pending_respond(r);
 		return;
 	}
+	cl = f->p.client;
 	switch(f->tab.type) {
-	case FsFData:
-		sprint(buf, "%d", f->p.client->clientid);
+	case FsFCtl:
+		readdrawctl(buf, cl);
+		err = drawerr();
+		if(err != nil) {
+			ixp_respond(r, err);
+			return;
+		}
 		ixp_srv_readbuf(r, buf, strlen(buf));
+		return;
+	case FsFData:
+		if(cl->readdata == nil) {
+			ixp_respond(r, "no draw data");
+			return;
+		}
+		ixp_srv_readbuf(r, cl->readdata, cl->nreaddata);
 		ixp_respond(r, nil);
+		free(cl->readdata);
+		cl->readdata = nil;
 		return;
 	case FsFNew:
-	case FsFCtl:
 	case FsFColormap:
 	case FsFRefresh:
 		return;
@@ -420,6 +439,7 @@ fs_write(Ixp9Req *r) {
 	char *label;
 	IxpFileId *f;
 	Window *w;
+	Client *cl;
 
 	debug("fs_write(%p)\n", r);
 
@@ -433,10 +453,22 @@ fs_write(Ixp9Req *r) {
 		return;
 	}
 
+	cl = f->p.client;
 	switch(f->tab.type) {
+	case FsFData:
+		r->ofcall.io.count = r->ifcall.io.count;
+		drawmesg(cl, r->ifcall.twrite.data, r->ofcall.rwrite.count);
+		// drawwakeall();
+		ixp_respond(r, nil);
+		return;
 	case FsFNew:
 	case FsFCtl:
-	case FsFData:
+		r->ofcall.io.count = r->ifcall.io.count;
+		if(r->ofcall.io.count != 4)
+			ixp_respond(r, "unknown draw control request");
+		cl->infoid = BGLONG((uchar*)r->ifcall.twrite.data);
+		ixp_respond(r, nil);
+		return;
 	case FsFColormap:
 	case FsFRefresh:
 		return;

@@ -14,13 +14,12 @@ newwin(char *label, char *winsize)
 	static int id = 0;
 	Window *w;
 
-	if(!(w = malloc(sizeof(Window))))
+	if(!(w = mallocz(sizeof(Window), 1)))
 		return nil;
 	if(!(window = realloc(window, ++nwindow*sizeof(Window*))))
 		return nil;
 	window[nwindow-1] = w;
 
-	memset(w, 0, sizeof(*w));
 	w->id = id++;
 	w->label = label;
 

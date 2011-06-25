@@ -32,12 +32,12 @@ typedef struct Draw Draw;
 typedef struct Client Client;
 typedef struct FChar FChar;
 typedef struct DImage DImage;
+typedef struct DName DName;
 typedef struct DScreen DScreen;
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Mousebuf Mousebuf;
 typedef struct Reqbuf Reqbuf;
 typedef struct Window Window;
-typedef struct Wsysmsg Wsysmsg;
 
 /* Drawing device */
 #define	NHASH		(1<<5)
@@ -45,24 +45,26 @@ typedef struct Wsysmsg Wsysmsg;
 
 struct Draw
 {
+	int		nname;
+	DName*	name;
 	Rectangle	flushrect;
 };
 
 struct Client
 {
-	/*Ref		r;*/
-	DImage*		dimage[NHASH];
+	int		r;	// Ref
+	DImage*	dimage[NHASH];
 //	CScreen*	cscreen;
 //	Refresh*	refresh;
-//	Rendez		refrend;
+//	Rendez	refrend;
 	Window	*window;
-//	uchar*		readdata;
-//	int		nreaddata;
+	uchar*	readdata;
+	int		nreaddata;
 	int		busy;
 	int		clientid;
 	int		slot;
 //	int		refreshme;
-//	int		infoid;
+	int		infoid;
 	int		op;
 };
 
@@ -70,10 +72,10 @@ struct FChar
 {
 	int		minx;	/* left edge of bits */
 	int		maxx;	/* right edge of bits */
-	uchar		miny;	/* first non-zero scan-line */
-	uchar		maxy;	/* last non-zero scan-line + 1 */
-	schar		left;	/* offset of baseline */
-	uchar		width;	/* width of baseline */
+	uchar	miny;	/* first non-zero scan-line */
+	uchar	maxy;	/* last non-zero scan-line + 1 */
+	schar	left;		/* offset of baseline */
+	uchar	width;	/* width of baseline */
 };
 
 struct DImage
@@ -85,10 +87,18 @@ struct DImage
 	Memimage*	image;
 	int		ascent;
 	int		nfchar;
-	FChar*		fchar;
-	DScreen*	dscreen;	/* 0 if not a window */
+	FChar*	fchar;
+	DScreen*	dscreen;		/* 0 if not a window */
 	DImage*	fromname;	/* image this one is derived from, by name */
-	DImage*		next;
+	DImage*	next;
+};
+
+struct DName
+{
+	char		*name;
+	Client	*client;
+	DImage*	dimage;
+	int		vers;
 };
 
 struct DScreen
@@ -99,20 +109,20 @@ struct DScreen
 	DImage	*dimage;
 	DImage	*dfill;
 	Memscreen*	screen;
-	Client*		owner;
+	Client*	owner;
 	DScreen*	next;
 };
 
 /* Events */
 struct Kbdbuf
 {
-	Rune r[32];
-	int ri;
-	int wi;
-	int stall;
+	Rune	r[32];
+	int	ri;
+	int	wi;
+	int	stall;
 	/* Used by kbdputc */
 	uchar k[5*UTFmax];
-	int alting, nk;
+	int	alting, nk;
 };
 
 struct  Mouse
@@ -142,23 +152,24 @@ struct Reqbuf
 /* Window system */
 struct Window
 {
-	int id;
-	int deleted;
-	char *label;
-	Draw draw;
-	Kbdbuf kbd;
+	int		id;
+	int		deleted;
+	char		*label;
+	Draw	draw;
+	Kbdbuf	kbd;
 	Memimage *screenimage;
-	Mousebuf mouse;
-	Reqbuf kbdreqs;
-	Reqbuf mousereqs;
-	Rectangle r;
-	void *x;
+	Memdata	screendata;
+	Mousebuf	mouse;
+	Reqbuf	kbdreqs;
+	Reqbuf	mousereqs;
+	Rectangle	r;
+	void		*x;
 };
 
 /* Global Vars */
-int debuglevel;
-int nwindow;
-Window **window;
-int nclient;
-Client** client;
+int		debuglevel;
+int		nwindow;
+Window	**window;
+int		nclient;
+Client	**client;
 

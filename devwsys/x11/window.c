@@ -34,7 +34,7 @@ xattach(Window *w, char *winsize)
 	w->r = xmapwin(xw, havemin, w->r);
 	w->x = xw;
 	w->screenimage = xallocmemimage(w, w->r, xconn.chan, xw->screenpm);
-	initscreenimage(w->screenimage);
+	// initscreenimage(w);
 }
 
 Rectangle
