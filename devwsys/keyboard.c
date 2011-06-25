@@ -5,57 +5,25 @@
 #include "dat.h"
 #include "fns.h"
 
+void addkbd(Kbdbuf*, int);
+void matchkbd(Kbdbuf*, Reqbuf*);
 int kbdputc(Kbdbuf*, int);
 long latin1(uchar*, int);
 void replykbd(Kbdbuf*, void*);
 
 void
-addkbd(Window *w, int ch)
-{
-	Kbdbuf *kbd;
-	Rune r;
-
-	kbd = &w->kbd;
-	ch = kbdputc(kbd, ch);
-	if(kbd->stall || ch == -1)
-		return;
-	r = ch;
-
-	kbd->r[kbd->wi++] = r;
-	if(kbd->wi == nelem(kbd->r))
-		kbd->wi = 0;
-	if(kbd->ri == kbd->wi)
-		kbd->stall = 1;
-}
-
-/*
- * Match queued keyboard reads with queued keyboard events.
- */
-void
-matchkbd(Window *w)
+writekbd(Window *w, int ch)
 {
 	Kbdbuf *kbd;
 	Reqbuf *kbdreqs;
-	void *r;
 
 	kbd = &w->kbd;
 	kbdreqs = &w->kbdreqs;
 
-	while(kbd->ri != kbd->wi && kbdreqs->ri != kbdreqs->wi){
-		r = kbdreqs->r[kbdreqs->ri];
-		kbdreqs->ri++;
-		if(kbdreqs->ri == nelem(kbdreqs->r))
-			kbdreqs->ri = 0;
-		replykbd(kbd, r);
-		kbd->ri++;
-		if(kbd->ri == nelem(kbd->r))
-			kbd->ri = 0;
-	}
+	addkbd(kbd, ch);
+	matchkbd(kbd, kbdreqs);
 }
 
-/*
- * Read one keyboard event
- */
 void
 readkbd(Window *w, void* r)
 {
@@ -65,15 +33,40 @@ readkbd(Window *w, void* r)
 	kbd = &w->kbd;
 	kbdreqs = &w->kbdreqs;
 
-	kbdreqs->r[kbdreqs->wi] = r;
-	kbdreqs->wi++;
-	if(kbdreqs->wi == nelem(kbdreqs->r))
-		kbdreqs->wi = 0;
-	if(kbdreqs->wi == kbdreqs->ri)
-		sysfatal("too many queued kbd reads");
+	addreq(kbdreqs, r);
 	// fprint(2, "kbd unstall\n");
 	kbd->stall = 0;
-	matchkbd(w);
+	matchkbd(kbd, kbdreqs);
+}
+
+void
+addkbd(Kbdbuf *kbd, int ch)
+{
+	Rune r;
+
+	ch = kbdputc(kbd, ch);
+	if(kbd->stall || ch == -1)
+		return;
+	r = ch;
+
+	kbd->r[kbd->wi++] = r;
+	if(kbd->wi == nelem(kbd->r))
+		kbd->wi = 0;
+	if(kbd->ri == kbd->wi){
+		kbd->stall = 1;
+		/* fprint(2, "kbd stall\n"); */
+	}
+}
+
+void
+matchkbd(Kbdbuf *kbd, Reqbuf *kbdreqs)
+{
+	while(kbd->ri != kbd->wi && kbdreqs->ri != kbdreqs->wi){
+		replykbd(kbd, nextreq(kbdreqs));
+		kbd->ri++;
+		if(kbd->ri == nelem(kbd->r))
+			kbd->ri = 0;
+	}
 }
 
 void
@@ -84,7 +77,7 @@ replykbd(Kbdbuf *kbd, void *r)
 
 	rune = kbd->r[kbd->ri];
 	sprint(buf, "%C", rune);
-	ixpread(r, buf);
+	ixprread(r, buf);
 }
 
 int

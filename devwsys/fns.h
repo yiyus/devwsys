@@ -7,30 +7,34 @@ Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
 int initscreenimage(Memimage*);
 
 /* Keyboard */
-void addkbd(Window*, int);
-void matchkbd(Window*);
+void writekbd(Window*, int);
 void readkbd(Window*, void*);
 
 /* Mouse */
-void addmouse(Window*, Mouse, int);
-void matchmouse(Window*);
+void writemouse(Window*, Mouse, int);
 void readmouse(Window*, void*);
+
+/* Reqbuf */
+void addreq(Reqbuf*, void*);
+void* nextreq(Reqbuf *reqs);
 
 /* Window */
 void deletewin(Window*);
-Window* newwin(char*);
+Window* newwin(char*, char*);
 int parsewinsize(char*, Rectangle*, int*);
 void setlabel(Window*, char*);
 
 /* Ixp */
-void ixpread(void*, char*);
+void ixprread(void*, char*);
 int ixpserve(char*);
 
-/* Xlib */
-void xattach(Window*, char*);
-void xclose(void);
-void xdeletewin(Window*);
-int xfd(void);
+/* X connection */
 int xinit(void);
+int xfd(void);
 void xnextevent(void);
-int xsetlabel(Window*);
+void xclose(void);
+
+/* X window */
+void xattach(Window*, char*);
+void xdeletewin(Window*);
+int xupdatelabel(Window*);

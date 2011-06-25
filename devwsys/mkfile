@@ -19,6 +19,7 @@ OFILES=\
 	latin1.$O\
 	main.$O\
 	mouse.$O\
+	reqbuf.$O\
 	window.$O\
 	$LIBIXP\
 	${XFILES:%=x11/%}\

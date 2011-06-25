@@ -9,7 +9,7 @@
 int nwindow = 0;
 
 Window*
-newwin(char *label)
+newwin(char *label, char *winsize)
 {
 	static int id = 0;
 	Window *w;
@@ -23,6 +23,8 @@ newwin(char *label)
 	memset(w, 0, sizeof(*w));
 	w->id = id++;
 	w->label = label;
+
+	xattach(w, winsize);
 
 	return w;
 }
@@ -122,5 +124,5 @@ setlabel(Window *w, char *label)
 	if(w->label)
 		free(w->label);
 	w->label = label;
-	xsetlabel(w);
+	xupdatelabel(w);
 }

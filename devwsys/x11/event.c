@@ -7,7 +7,7 @@
 #include "dat.h"
 #include "fns.h"
 
-#define debugev(...) if(1) debug(__VA_ARGS__)
+#define debugev(...) if(0) debug(__VA_ARGS__)
 
 void configevent(Window *w, XEvent);
 void kbdevent(Window *w, XEvent);
@@ -63,7 +63,7 @@ xnextevent(void) {
 		 * Stop alting when
 		 * window losts focus.
 		 */
-		addkbd(w, -1);;
+		writekbd(w, -1);;
 		break;
 	
 	default:
@@ -81,8 +81,7 @@ configevent(Window *w, XEvent xev)
 	m.xy.y = xev.xconfigure.height;
 	// _xreplacescreenimage();
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
-	addmouse(w, m, 1);
-	matchmouse(w);
+	writemouse(w, m, 1);
 }
 
 void
@@ -101,8 +100,7 @@ kbdevent(Window *w, XEvent xev)
 
 	k = xtoplan9kbd(&xev);
 	debugev("Keyboard event at window %d. rune=%C (%d)\n", w->id, k, k);
-	addkbd(w, k);
-	matchkbd(w);
+	writekbd(w, k);
 }
 
 void
@@ -113,6 +111,5 @@ mouseevent(Window *w, XEvent xev)
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
 	debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
-	addmouse(w, m, 0);
-	matchmouse(w);
+	writemouse(w, m, 0);
 }

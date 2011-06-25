@@ -232,13 +232,12 @@ fs_attach(Ixp9Req *r) {
 	winsize = nil;
 	if(!strncmp(r->ifcall.tattach.aname, "new ", 4))
 		winsize = &r->ifcall.tattach.aname[4];
-	if(!(w = newwin(label))) {
+	if(!(w = newwin(label, winsize))) {
 		ixp_respond(r, Enomem);
 		return;
 	}
-	xattach(w, winsize);
 	f->p.window = w;
-	ixp_respond(r, NULL);
+	ixp_respond(r, nil);
 }
 
 void
@@ -289,11 +288,11 @@ fs_open(Ixp9Req *r) {
 		break;
 	case FsFMouse:
 		w = f->p.window;
-		if(w->mouseopen){
+		if(w->mouse.open){
 			ixp_respond(r, Einuse);
 			return;
 		}
-		w->mouseopen = 1;
+		w->mouse.open = 1;
 		break;
 	}
 
@@ -481,7 +480,7 @@ fs_clunk(Ixp9Req *r) {
 		w->kbdreqs.wi = w->kbdreqs.ri;
 		break;
 	case FsFMouse:
-		w->mouseopen = 0;
+		w->mouse.open = 0;
 		w->mouse.wi = w->mouse.ri;
 		w->mousereqs.wi = w->mousereqs.ri;
 		break;
@@ -544,8 +543,9 @@ Ixp9Srv p9srv = {
 	.freefid=	fs_freefid
 };
 
+/* Reply a read request */
 void
-ixpread(void *v, char *buf)
+ixprread(void *v, char *buf)
 {
 	Ixp9Req *r;
 

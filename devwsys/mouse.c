@@ -5,17 +5,42 @@
 #include "dat.h"
 #include "fns.h"
 
+void addmouse(Mousebuf*, Mouse, int);
+void matchmouse(Mousebuf*, Reqbuf*);
 void replymouse(Mousebuf*, void*);
 
 void
-addmouse(Window *w, Mouse m, int resized)
+writemouse(Window *w, Mouse m, int resized)
 {
 	Mousebuf *mouse;
+	Reqbuf *mousereqs;
 
-	if(!w->mouseopen)
-		return;
 	mouse = &w->mouse;
-	if(mouse->stall)
+	mousereqs = &w->mousereqs;
+
+	addmouse(mouse, m, resized);
+	matchmouse(mouse, mousereqs);
+}
+
+void
+readmouse(Window *w, void* r)
+{
+	Mousebuf *mouse;
+	Reqbuf *mousereqs;
+
+	mouse = &w->mouse;
+	mousereqs = &w->mousereqs;
+
+	addreq(mousereqs, r);
+	// fprint(2, "mouse unstall\n");
+	mouse->stall = 0;
+	matchmouse(mouse, mousereqs);
+}
+
+void
+addmouse(Mousebuf *mouse, Mouse m, int resized)
+{
+	if(!mouse->open || mouse->stall)
 		return;
 
 	mouse->m[mouse->wi] = m;
@@ -32,51 +57,15 @@ addmouse(Window *w, Mouse m, int resized)
 	mouse->resized = resized;
 }
 
-/*
- * Match queued mouse reads with queued mouse events.
- */
 void
-matchmouse(Window *w)
+matchmouse(Mousebuf *mouse, Reqbuf *mousereqs)
 {
-	Mousebuf *mouse;
-	Reqbuf *mousereqs;
-	void *r;
-
-	if(!w->mouseopen)
-		return;
-	mouse = &w->mouse;
-	mousereqs = &w->mousereqs;
-
 	while(mouse->ri != mouse->wi && mousereqs->ri != mousereqs->wi){
-		r = mousereqs->r[mousereqs->ri];
-		mousereqs->ri++;
-		if(mousereqs->ri == nelem(mousereqs->r))
-			mousereqs->ri = 0;
-		replymouse(mouse, r);
+		replymouse(mouse, nextreq(mousereqs));
 		mouse->ri++;
 		if(mouse->ri == nelem(mouse->m))
 			mouse->ri = 0;
 	}
-}
-
-void
-readmouse(Window *w, void* r)
-{
-	Mousebuf *mouse;
-	Reqbuf *mousereqs;
-
-	mouse = &w->mouse;
-	mousereqs = &w->mousereqs;
-
-	mousereqs->r[mousereqs->wi] = r;
-	mousereqs->wi++;
-	if(mousereqs->wi == nelem(mousereqs->r))
-		mousereqs->wi = 0;
-	if(mousereqs->wi == mousereqs->ri)
-		sysfatal("too many queued mouse reads");
-	// fprint(2, "mouse unstall\n");
-	mouse->stall = 0;
-	matchmouse(w);
 }
 
 void
@@ -92,6 +81,6 @@ replymouse(Mousebuf *mouse, void *r)
 	if(mouse->resized)
 		c = 'r';
 	sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
-	ixpread(r, buf);
+	ixprread(r, buf);
 	mouse->resized = 0;
 }

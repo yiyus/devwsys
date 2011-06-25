@@ -297,7 +297,7 @@ xdeletewin(Window *w)
 }
 
 int
-xsetlabel(Window *w)
+xupdatelabel(Window *w)
 {
 	char *label;
 	XTextProperty name;

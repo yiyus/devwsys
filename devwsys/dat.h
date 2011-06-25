@@ -124,6 +124,7 @@ struct  Mouse
 
 struct Mousebuf
 {
+	int open;
 	Mouse m[32];
 	int ri;
 	int wi;
@@ -143,7 +144,6 @@ struct Window
 {
 	int id;
 	int deleted;
-	int mouseopen;
 	char *label;
 	Draw draw;
 	Kbdbuf kbd;
