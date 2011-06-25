@@ -18,15 +18,22 @@
 
 #define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
 
+Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+void* xcreatewin(char*, char*, Rectangle);
+Rectangle xmapwin(void*, int, Rectangle);
+Rectangle xwinrectangle(char*, char*, int*);
+
 void
 xattach(Window *w, char *winsize)
 {
 	int havemin;
+	Xwin *xw;
 
 	w->r = xwinrectangle(w->label, winsize, &havemin);
-	w->x = xcreatewin(w->label, winsize, w->r);
-	w->r = xmapwin(w->x, havemin, w->r);
-	w->screenimage = xallocmemimage(w, w->r, xchan(), xscreenpm(w));
+	xw = xcreatewin(w->label, winsize, w->r);
+	w->r = xmapwin(xw, havemin, w->r);
+	w->x = xw;
+	w->screenimage = xallocmemimage(w, w->r, xconn.chan, xw->screenpm);
 	initscreenimage(w->screenimage);
 }
 
@@ -287,12 +294,6 @@ xdeletewin(Window *w)
 	// TODO anything else to cleanup?
 	XDestroyWindow(xconn.display, xw->drawable);
 	XSync(xconn.display, False);
-}
-
-int
-xscreenpm(Window *w)
-{
-	return ((Xwin*)w->x)->screenpm;
 }
 
 int

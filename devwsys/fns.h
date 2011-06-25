@@ -27,16 +27,10 @@ void ixpread(void*, char*);
 int ixpserve(char*);
 
 /* Xlib */
-Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
 void xattach(Window*, char*);
-ulong xchan(void);
 void xclose(void);
-void* xcreatewin(char*, char*, Rectangle);
 void xdeletewin(Window*);
 int xfd(void);
 int xinit(void);
-Rectangle xmapwin(void*, int, Rectangle);
 void xnextevent(void);
-int xscreenpm(Window*);
 int xsetlabel(Window*);
-Rectangle xwinrectangle(char*, char*, int*);

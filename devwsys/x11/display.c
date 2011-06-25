@@ -44,12 +44,6 @@ xioerror(XDisplay *d)
 	return -1;
 }
 
-ulong
-xchan(void)
-{
-	return xconn.chan;
-}
-
 int
 xfd(void)
 {
