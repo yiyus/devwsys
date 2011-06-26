@@ -29,11 +29,11 @@ xattach(Window *w, char *winsize)
 	int havemin;
 	Xwin *xw;
 
-	w->r = xwinrectangle(w->label, winsize, &havemin);
-	xw = xcreatewin(w->label, winsize, w->r);
-	w->r = xmapwin(xw, havemin, w->r);
+	w->screenr = xwinrectangle(w->label, winsize, &havemin);
+	xw = xcreatewin(w->label, winsize, w->screenr);
+	w->screenr = xmapwin(xw, havemin, w->screenr);
 	w->x = xw;
-	w->draw.screenimage = xallocmemimage(w, w->r, xconn.chan, xw->screenpm);
+	w->draw.screenimage = xallocmemimage(w, w->screenr, xconn.chan, xw->screenpm);
 	// initscreenimage(w);
 }
 
@@ -46,6 +46,27 @@ xdeletewin(Window *w)
 	// TODO anything else to cleanup?
 	XDestroyWindow(xconn.display, xw->drawable);
 	XSync(xconn.display, False);
+}
+
+int
+xreplacescreenimage(Window *w)
+{
+	Memimage *m;
+	XDrawable pixmap;
+	Rectangle r;
+	Xwin *xw;
+
+	xw = w->x;
+	r = w->newscreenr;
+
+	pixmap = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), xconn.depth);
+	m = xallocmemimage(w, r, xconn.chan, pixmap);
+	if(xw->nextscreenpm != xw->screenpm)
+		XFreePixmap(xconn.display, xw->nextscreenpm);
+	xw->nextscreenpm = pixmap;
+	w->screenr = r;
+	drawreplacescreenimage(w, m);
+	return 1;
 }
 
 int

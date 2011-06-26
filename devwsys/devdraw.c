@@ -52,6 +52,35 @@ drawnewclient(Draw *draw)
 	return cl;
 }
 
+void
+drawreplacescreenimage(Client *cl, Memimage *m)
+{
+	/*
+	 * Replace the screen image because the screen
+	 * was resized.
+	 * 
+	 * In theory there should only be one reference
+	 * to the current screen image, and that's through
+	 * client0's image 0, installed a few lines above.
+	 * Once the client drops the image, the underlying backing 
+	 * store freed properly.  The client is being notified
+	 * about the resize through external means, so all we
+	 * need to do is this assignment.
+	 */
+	Memimage *om;
+	Memimage *screenimage;
+
+	screenimage = cl->draw->screenimage;
+	// qlock(&sdraw.lk);
+	om = screenimage;
+	cl->draw->screenimage = m;
+	// m->screenref = 1;
+	// if(om && --om->screenref == 0){
+	//	freememimage(om);
+	// }
+	// qunlock(&sdraw.lk);
+}
+
 static
 void
 drawrefreshscreen(DImage *l, Client *client)
@@ -266,7 +295,7 @@ drawfreedimage(Draw *draw, DImage *dimage)
 		return;
 
 	/* any names? */
-	for(i=0; i<draw->nname; )
+	for(i=0; draw && i<draw->nname; )
 		if(draw->name[i].dimage == dimage)
 			drawdelname(draw, draw->name+i);
 		else
@@ -463,7 +492,7 @@ drawfree(Client *cl)
 		free(r);
 	}
 	/* free names */
-	for(i=0; i<draw->nname; )
+	for(i=0; draw && i<draw->nname; )
 		if(draw->name[i].client == cl)
 			drawdelname(draw, draw->name+i);
 		else
@@ -727,18 +756,19 @@ drawmesg(Client *client, void *av, int n)
 	Rectangle clipr, r;
 	Refreshfn reffn;
 	Refx *refx;
+	Window *w;
 
 	// qlock(&sdraw.lk);
 	a = av;
 	m = 0;
 	oldn = n;
 	draw = client->draw;
+	w = draw->window;
 
 	while((n-=m) > 0){
 		a += m;
-/*fprint(2, "msgwrite %d(%d)...", n, *a); */
+/*fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); */
 		switch(*a){
-		default:
 /*fprint(2, "bad command %d\n", *a); */
 			err = "bad draw command";
 			goto error;
@@ -810,7 +840,7 @@ drawmesg(Client *client, void *av, int n)
 				}
 				continue;
 			}
-			i = allocmemimage(r, chan);
+			i = xallocmemimage(w, r, chan, PMundef);
 			if(i == 0)
 				goto Edrawmem;
 			if(repl)

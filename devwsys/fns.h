@@ -43,4 +43,6 @@ Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
 void xattach(Window*, char*);
 void xdeletewin(Window*);
 void xflushmemscreen(Window*, Rectangle);
+int xreplacescreenimage(Window*);
 int xupdatelabel(Window*);
+void xmovewindow(Window*, Rectangle);

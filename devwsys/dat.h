@@ -181,6 +181,7 @@ struct Reqbuf
 struct Window
 {
 	int		id;
+	int		fullscreen;
 	int		deleted;
 	char		*label;
 	Draw	draw;
@@ -188,7 +189,8 @@ struct Window
 	Mousebuf	mouse;
 	Reqbuf	kbdreqs;
 	Reqbuf	mousereqs;
-	Rectangle	r;
+	Rectangle	screenr;
+	Rectangle	newscreenr;
 	void		*x;
 };
 

@@ -9,6 +9,7 @@ XFILES=\
 	itrans.$O\
 	keysym2ucs.$O\
 	window.$O\
+	wsys.$O\
 
 OFILES=\
 	alloc.$O\

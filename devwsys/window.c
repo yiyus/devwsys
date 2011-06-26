@@ -22,6 +22,7 @@ newwin(char *label, char *winsize)
 
 	w->id = id++;
 	w->label = label;
+	w->draw.window = w;
 	xattach(w, winsize);
 
 	return w;

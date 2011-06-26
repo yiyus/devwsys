@@ -9,9 +9,10 @@
 
 #define debugev(...) if(0) debug(__VA_ARGS__)
 
-void configevent(Window *w, XEvent);
-void kbdevent(Window *w, XEvent);
-void mouseevent(Window *w, XEvent);
+void configevent(Window*, XEvent);
+void exposeevent(Window*, XEvent);
+void kbdevent(Window*, XEvent);
+void mouseevent(Window*, XEvent);
 
 void
 xnextevent(void) {
@@ -41,7 +42,7 @@ xnextevent(void) {
 		break;
 
 	case Expose:
-		//xexpose(w, xev);
+		exposeevent(w, xev);
 		break;
 	
 	case DestroyNotify:
@@ -75,13 +76,61 @@ void
 configevent(Window *w, XEvent xev)
 {
 	Mouse m;
+	Rectangle r;
+	Xwin *xw;
+	XConfigureEvent *xe;
 
-	// TODO: plan9port/src/cmd/devdraw/x11-init.c:686
-	m.xy.x = xev.xconfigure.width;
-	m.xy.y = xev.xconfigure.height;
-	// _xreplacescreenimage();
+	xe = (XConfigureEvent*)&xev;
+	xw = w->x;
+	if(!w->fullscreen){
+		int rx, ry;
+		XWindow xwin;
+		if(XTranslateCoordinates(xconn.display, xw->drawable, DefaultRootWindow(xconn.display), 0, 0, &rx, &ry, &xwin))
+			w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
+	}
+
+	if(xe->width == Dx(w->screenr) && xe->height == Dy(w->screenr))
+		return;
+	r = Rect(0, 0, xe->width, xe->height);
+
+	// qlock(&_x.screenlock);
+	if(xw->screenpm != xw->nextscreenpm){
+		XCopyArea(xconn.display, xw->screenpm, xw->drawable, xw->gccopy, r.min.x, r.min.y,
+			Dx(r), Dy(r), r.min.x, r.min.y);
+		XSync(xconn.display, False);
+	}
+	// qunlock(&_x.screenlock);
+	w->newscreenr = r;
+
+	m.xy.x = xe->width;
+	m.xy.y = xe->height;
+	xreplacescreenimage(w);
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
 	writemouse(w, m, 1);
+}
+
+void
+exposeevent(Window *w, XEvent xev)
+{
+	XExposeEvent *xe;
+	Rectangle r;
+	Xwin *xw;
+
+	xw = w->x;
+	// qlock(&_x.screenlock);
+	if(xw->screenpm != xw->nextscreenpm){
+		// qunlock(&_x.screenlock);
+		return;
+	}
+	xe = (XExposeEvent*)&xev;
+	r.min.x = xe->x;
+	r.min.y = xe->y;
+	r.max.x = xe->x+xe->width;
+	r.max.y = xe->y+xe->height;
+	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xw->gccopy, r.min.x, r.min.y,
+		Dx(r), Dy(r), r.min.x, r.min.y);
+	XSync(xconn.display, False);
+	// qunlock(&_x.screenlock);
 }
 
 void
@@ -91,10 +140,8 @@ kbdevent(Window *w, XEvent xev)
 
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
 	if(k == XK_F11){
-		/* TODO
-		fullscreen = !fullscreen;
-		_xmovewindow(fullscreen ? screenrect : windowrect);
-		*/
+		w->fullscreen = !w->fullscreen;
+		xmovewindow(w, w->fullscreen ? xconn.screenrect : w->screenr);
 		return;
 	}
 
