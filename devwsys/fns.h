@@ -6,7 +6,8 @@ Client* drawnewclient(Draw*);
 Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
 void drawfree(Client*);
 void readdrawctl(char*, Client*);
-void drawmesg(Client*, void*, int);
+void readrefresh(char*, long, Client*);
+int drawmesg(Client*, void*, int);
 char* drawerr(void);
 
 /* Keyboard */

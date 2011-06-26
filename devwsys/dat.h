@@ -72,7 +72,7 @@ struct Client
 	int		busy;
 	int		clientid;
 	int		slot;
-//	int		refreshme;
+	int		refreshme;
 	int		infoid;
 	int		op;
 };

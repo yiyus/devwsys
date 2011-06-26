@@ -42,15 +42,19 @@ enum {
 	FsFRefresh,
 };
 
+#define iswindow(t) ((t) == FsRoot || (t) > FsDDrawn && (t) < FsFCtl)
+
 /* Error messages */
 static char
+	Ebadarg[] = "bad arg in system call",
 	Edeleted[] = "window deleted",
 	Einterrupted[] = "interrupted",
 	Einuse[] = "file in use",
 	Enodev[] = "no free devices",
 	Enofile[] = "file not found",
 	Enomem[] = "out of memory",
-	Enoperm[] = "permission denied";
+	Enoperm[] = "permission denied",
+	Eshortread[] =	"draw read too short";
 
 /* Macros */
 #define QID(t, i) (((vlong)((t)&0xFF)<<32)|((i)&0xFFFFFFFF))
@@ -259,7 +263,7 @@ fs_open(Ixp9Req *r) {
 		ixp_respond(r, Enofile);
 		return;
 	}
-	if(f->tab.type < FsFCtl) {
+	if(iswindow(f->tab.type)) {
 		w = f->p.window;
 		if(w->deleted) {
 			ixp_respond(r, Edeleted);
@@ -352,6 +356,10 @@ fs_read(Ixp9Req *r) {
 	cl = f->p.client;
 	switch(f->tab.type) {
 	case FsFCtl:
+		if(r->ifcall.io.count < 12*12) {
+			ixp_respond(r, Eshortread);
+			return;
+		}
 		readdrawctl(buf, cl);
 		err = drawerr();
 		if(err != nil) {
@@ -359,10 +367,15 @@ fs_read(Ixp9Req *r) {
 			return;
 		}
 		ixp_srv_readbuf(r, buf, strlen(buf));
+		ixp_respond(r, nil);
 		return;
 	case FsFData:
 		if(cl->readdata == nil) {
 			ixp_respond(r, "no draw data");
+			return;
+		}
+		if(r->ifcall.io.count < cl->nreaddata) {
+			ixp_respond(r, Eshortread);
 			return;
 		}
 		ixp_srv_readbuf(r, cl->readdata, cl->nreaddata);
@@ -375,7 +388,12 @@ fs_read(Ixp9Req *r) {
 		ixp_respond(r, nil);
 		return;
 	case FsFRefresh:
-		// XXX TODO
+		if(r->ifcall.io.count < 5*4) {
+			ixp_respond(r, Ebadarg);
+			return;
+		}
+		readrefresh(buf, r->ifcall.io.count, cl);
+		ixp_respond(r, nil);
 		return;
 	}
 	w = f->p.window;
@@ -569,9 +587,9 @@ fs_freefid(IxpFid *f) {
 	IxpFileId *id, *tid;
 
 	tid = f->aux;
-	if(tid->nref == 0)
-		deletewin(tid->p.window);
 	while((id = tid)) {
+		if(iswindow(tid->tab.type) && tid->nref == 0)
+			deletewin(tid->p.window);
 		tid = id->next;
 		ixp_srv_freefile(id);
 	}
