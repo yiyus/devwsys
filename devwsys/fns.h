@@ -26,6 +26,7 @@ void* nextreq(Reqbuf *reqs);
 void deletewin(Window*);
 Window* newwin(char*, char*);
 int parsewinsize(char*, Rectangle*, int*);
+void drawreplacescreenimage(Window*, Memimage*);
 void setlabel(Window*, char*);
 
 /* Ixp */
@@ -40,6 +41,7 @@ void xclose(void);
 
 /* X window */
 Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+void xfreememimage(Memimage*);
 void xattach(Window*, char*);
 void xdeletewin(Window*);
 void xflushmemscreen(Window*, Rectangle);

@@ -36,7 +36,7 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 
 	xm = mallocz(sizeof(Xmem), 1);
 	if(xm == nil){
-		freememimage(m);
+		xfreememimage(m);
 		return nil;
 	}
 
@@ -71,7 +71,7 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 		ZPixmap, 0, (char*)m->data->bdata, Dx(r), Dy(r),
 		32, m->width*sizeof(u32int));
 	if(xi == nil){
-		freememimage(m);
+		xfreememimage(m);
 		if(xm->pixmap != pixmap)
 			XFreePixmap(xconn.display, xm->pixmap);
 		return nil;
@@ -96,4 +96,25 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 
 	// XXX! TODO m->X = xm;
 	return m;
+}
+
+void
+xfreememimage(Memimage *m)
+{
+	Xmem *xm;
+
+	if(m == nil)
+		return;
+
+	xm = nil; // m->X;
+	if(xm && m->data->ref == 1){
+		if(xm->xi){
+			xm->xi->data = nil;
+			XFree(xm->xi);
+		}
+		XFreePixmap(xconn.display, xm->pixmap);
+		free(xm);
+		// m->X = nil;
+	}
+	freememimage(m);
 }

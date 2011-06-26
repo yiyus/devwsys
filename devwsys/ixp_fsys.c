@@ -393,6 +393,7 @@ fs_read(Ixp9Req *r) {
 			return;
 		}
 		readrefresh(buf, r->ifcall.io.count, cl);
+		ixp_srv_readbuf(r, buf, strlen(buf));
 		ixp_respond(r, nil);
 		return;
 	}

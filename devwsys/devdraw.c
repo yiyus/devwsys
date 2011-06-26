@@ -53,7 +53,7 @@ drawnewclient(Draw *draw)
 }
 
 void
-drawreplacescreenimage(Client *cl, Memimage *m)
+drawreplacescreenimage(Window *w, Memimage *m)
 {
 	/*
 	 * Replace the screen image because the screen
@@ -70,10 +70,10 @@ drawreplacescreenimage(Client *cl, Memimage *m)
 	Memimage *om;
 	Memimage *screenimage;
 
-	screenimage = cl->draw->screenimage;
+	screenimage = w->draw.screenimage;
 	// qlock(&sdraw.lk);
 	om = screenimage;
-	cl->draw->screenimage = m;
+	w->draw.screenimage = m;
 	// m->screenref = 1;
 	// if(om && --om->screenref == 0){
 	//	freememimage(om);
@@ -288,6 +288,10 @@ drawfreedimage(Draw *draw, DImage *dimage)
 	Memimage *l;
 	DScreen *ds;
 
+if(!dimage){
+print("XXX drawfreedimage on nil dimage\n");
+return;
+}	
 	dimage->ref--;
 	if(dimage->ref < 0)
 		fprint(2, "negative ref in drawfreedimage\n");
@@ -319,8 +323,12 @@ drawfreedimage(Draw *draw, DImage *dimage)
 		else
 			memlfree(l);
 		drawfreedscreen(draw, ds);
-	}else
-		freememimage(dimage->image);
+	}else{
+		// if(l->screenref==0)
+			xfreememimage(l);
+		// else if(--l->screenref==0)
+		//	freememimage(l);
+	}
     Return:
 	free(dimage->fchar);
 	free(dimage);
@@ -849,7 +857,7 @@ drawmesg(Client *client, void *av, int n)
 			if(!repl)
 				rectclip(&i->clipr, r);
 			if(drawinstall(client, dstid, i, 0) == 0){
-				freememimage(i);
+				xfreememimage(i);
 				goto Edrawmem;
 			}
 			memfillcolor(i, value);
