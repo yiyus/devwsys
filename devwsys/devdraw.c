@@ -11,13 +11,16 @@ static char
 	Enodrawimage[] = "unknown id for draw image",
 	Eoldname[] = "named image no longer valid";
 
-DImage* drawlookup(Client*, int, int);
+static DImage* drawlookup(Client*, int, int);
+static void drawfreedimage(Draw*, DImage*);
+static int drawgoodname(Draw*, DImage*);
+static void drawflush(Draw*);
 
 int nclient = 0;
 char *error = nil;
 
 Client*
-drawnewclient(Window *w)
+drawnewclient(Draw *draw)
 {
 	static int clientid = 0;
 	Client *cl, **cp;
@@ -44,9 +47,202 @@ drawnewclient(Window *w)
 	cl->slot = i;
 	cl->clientid = ++clientid;
 	cl->op = SoverD;
-	cl->window = w;
+	cl->draw = draw;
 	client[i] = cl;
 	return cl;
+}
+
+static
+void
+drawrefresh(Memimage *m, Rectangle r, void *v)
+{
+	Refx *x;
+	DImage *d;
+	Client *c;
+	Refresh *ref;
+
+	USED(m);
+
+	if(v == 0)
+		return;
+	x = v;
+	c = x->client;
+	d = x->dimage;
+	for(ref=c->refresh; ref; ref=ref->next)
+		if(ref->dimage == d){
+			combinerect(&ref->r, r);
+			return;
+		}
+	ref = mallocz(sizeof(Refresh), 1);
+	if(ref){
+		ref->dimage = d;
+		ref->r = r;
+		ref->next = c->refresh;
+		c->refresh = ref;
+	}
+}
+
+static
+void
+addflush(Draw *draw, Rectangle r)
+{
+	int abb, ar, anbb;
+	Rectangle nbb;
+
+	if(draw->softscreen==0 || !rectclip(&r, draw->screenimage->r))
+		return;
+
+	if(draw->flushrect.min.x >= draw->flushrect.max.x){
+		draw->flushrect = r;
+		draw->waste = 0;
+		return;
+	}
+	nbb = draw->flushrect;
+	combinerect(&nbb, r);
+	ar = Dx(r)*Dy(r);
+	abb = Dx(draw->flushrect)*Dy(draw->flushrect);
+	anbb = Dx(nbb)*Dy(nbb);
+	/*
+	 * Area of new waste is area of new bb minus area of old bb,
+	 * less the area of the new segment, which we assume is not waste.
+	 * This could be negative, but that's OK.
+	 */
+	draw->waste += anbb-abb - ar;
+	if(draw->waste < 0)
+		draw->waste = 0;
+	/*
+	 * absorb if:
+	 *	total area is small
+	 *	waste is less than half total area
+	 * 	rectangles touch
+	 */
+	if(anbb<=1024 || draw->waste*2<anbb || rectXrect(draw->flushrect, r)){
+		draw->flushrect = nbb;
+		return;
+	}
+	/* emit current state */
+	if(draw->flushrect.min.x < draw->flushrect.max.x)
+		xflushmemscreen(draw->window, draw->flushrect);
+	draw->flushrect = r;
+	draw->waste = 0;
+}
+
+static
+void
+drawfreedscreen(Draw *draw, DScreen *this)
+{
+	DScreen *ds, *next;
+
+	this->ref--;
+	if(this->ref < 0)
+		fprint(2, "negative ref in drawfreedscreen\n");
+	if(this->ref > 0)
+		return;
+	ds = draw->dscreen;
+	if(ds == this){
+		draw->dscreen = this->next;
+		goto Found;
+	}
+	while(next = ds->next){	/* assign = */
+		if(next == this){
+			ds->next = this->next;
+			goto Found;
+		}
+		ds = next;
+	}
+	/*
+	 * Should signal Enodrawimage, but too hard.
+	 */
+	return;
+
+    Found:
+	if(this->dimage)
+		drawfreedimage(draw, this->dimage);
+	if(this->dfill)
+		drawfreedimage(draw, this->dfill);
+	free(this->screen);
+	free(this);
+}
+
+static
+void
+drawdelname(Draw *draw, DName *name)
+{
+	int i;
+
+	i = name-draw->name;
+	memmove(name, name+1, (draw->nname-(i+1))*sizeof(DName));
+	draw->nname--;
+}
+
+static
+void
+drawfreedimage(Draw *draw, DImage *dimage)
+{
+	int i;
+	Memimage *l;
+	DScreen *ds;
+
+	dimage->ref--;
+	if(dimage->ref < 0)
+		fprint(2, "negative ref in drawfreedimage\n");
+	if(dimage->ref > 0)
+		return;
+
+	/* any names? */
+	for(i=0; i<draw->nname; )
+		if(draw->name[i].dimage == dimage)
+			drawdelname(draw, draw->name+i);
+		else
+			i++;
+	if(dimage->fromname){	/* acquired by name; owned by someone else*/
+		drawfreedimage(draw, dimage->fromname);
+		goto Return;
+	}
+	ds = dimage->dscreen;
+	l = dimage->image;
+	dimage->dscreen = nil;	/* paranoia */
+	dimage->image = nil;
+	if(ds){
+		if(l->data == draw->screenimage->data)
+			addflush(draw, l->layer->screenr);
+		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
+			free(l->layer->refreshptr);
+		l->layer->refreshptr = nil;
+		if(drawgoodname(draw, dimage))
+			memldelete(l);
+		else
+			memlfree(l);
+		drawfreedscreen(draw, ds);
+	}else
+		freememimage(dimage->image);
+    Return:
+	free(dimage->fchar);
+	free(dimage);
+}
+
+static
+void
+drawuninstallscreen(Client *client, CScreen *this)
+{
+	CScreen *cs, *next;
+
+	cs = client->cscreen;
+	if(cs == this){
+		client->cscreen = this->next;
+		drawfreedscreen(client->draw, this->dscreen);
+		free(this);
+		return;
+	}
+	while(next = cs->next){	/* assign = */
+		if(next == this){
+			cs->next = this->next;
+			drawfreedscreen(client->draw, this->dscreen);
+			free(this);
+			return;
+		}
+		cs = next;
+	}
 }
 
 Memimage*
@@ -81,7 +277,7 @@ readdrawctl(char *buf, Client *cl)
 	if(cl->infoid < 0)
 		error = Enodrawimage;
 	if(cl->infoid == 0){
-		i = cl->window->screenimage;
+		i = cl->draw->screenimage;
 		if(i == nil)
 			error = Enodrawimage;
 	}else{
@@ -102,6 +298,50 @@ drawmesg(Client *client, void *av, int n)
 {
 }
 
+void
+drawfree(Client *cl)
+{
+	int i;
+	Draw *draw;
+	DImage *d, **dp;
+	Refresh *r;
+
+	draw = cl->draw;
+	while(r = cl->refresh){	/* assign = */
+		cl->refresh = r->next;
+		free(r);
+	}
+	/* free names */
+	for(i=0; i<draw->nname; )
+		if(draw->name[i].client == cl)
+			drawdelname(draw, draw->name+i);
+		else
+			i++;
+	while(cl->cscreen)
+		drawuninstallscreen(cl, cl->cscreen);
+	/* all screens are freed, so now we can free images */
+	dp = cl->dimage;
+	for(i=0; i<NHASH; i++){
+		while((d = *dp) != nil){
+			*dp = d->next;
+			drawfreedimage(draw, d);
+		}
+		dp++;
+	}
+	client[cl->slot] = 0;
+	drawflush(draw);	/* to erase visible, now dead windows */
+	free(cl);
+}
+
+static
+void
+drawflush(Draw *draw)
+{
+	if(draw->flushrect.min.x < draw->flushrect.max.x)
+		xflushmemscreen(draw->window, draw->flushrect);
+	draw->flushrect = Rect(10000, 10000, -10000, -10000);
+}
+
 static
 int
 drawcmp(char *a, char *b, int n)
@@ -111,6 +351,7 @@ drawcmp(char *a, char *b, int n)
 	return memcmp(a, b, n);
 }
 
+static
 DName*
 drawlookupname(Draw *draw, int n, char *str)
 {
@@ -124,6 +365,7 @@ drawlookupname(Draw *draw, int n, char *str)
 	return 0;
 }
 
+static
 int
 drawgoodname(Draw *draw, DImage *d)
 {
@@ -142,6 +384,7 @@ drawgoodname(Draw *draw, DImage *d)
 	return 1;
 }
 
+static
 DImage*
 drawlookup(Client *client, int id, int checkname)
 {
@@ -151,7 +394,7 @@ drawlookup(Client *client, int id, int checkname)
 	d = client->dimage[id&HASHMASK];
 	while(d){
 		if(d->id == id){
-			draw = &client->window->draw;
+			draw = client->draw;
 			if(checkname && !drawgoodname(draw, d))
 				error = Eoldname;
 			return d;

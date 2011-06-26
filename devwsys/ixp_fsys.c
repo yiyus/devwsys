@@ -168,7 +168,8 @@ lookup_file(IxpFileId *parent, char *name)
 						continue;
 				}
 				for(i = 0; i < nclient; i++) {
-					cl = client[i];
+					if(!(cl = client[i]))
+						continue;
 					if(!name || cl->clientid == id) {
 						push_file(smprint("%d", cl->clientid), cl->clientid, 1);
 						file->p.client = cl;
@@ -268,7 +269,7 @@ fs_open(Ixp9Req *r) {
 
 	if(f->tab.type == FsFNew){
 		w = f->p.window;
-		cl = drawnewclient(w);
+		cl = drawnewclient(&w->draw);
 		if(cl == 0)
 			ixp_respond(r, Enodev);
 		f->p.client = cl;
@@ -284,10 +285,15 @@ fs_open(Ixp9Req *r) {
 			return;
 		}
 		cl->busy = 1;
-		w = cl->window;
-		d = &w->draw;
+		d = cl->draw;
 		d->flushrect = Rect(10000, 10000, -10000, -10000);
-		drawinstall(cl, 0, w->screenimage, 0);
+		drawinstall(cl, 0, d->screenimage, 0);
+		incref(&cl->r);
+		break;
+	case FsFColormap:
+	case FsFData:
+	case FsFRefresh:
+		cl = f->p.client;
 		incref(&cl->r);
 		break;
 	case FsFMouse:
@@ -364,9 +370,12 @@ fs_read(Ixp9Req *r) {
 		free(cl->readdata);
 		cl->readdata = nil;
 		return;
-	case FsFNew:
 	case FsFColormap:
+		r->ofcall.io.count = 0;
+		ixp_respond(r, nil);
+		return;
 	case FsFRefresh:
+		// XXX TODO
 		return;
 	}
 	w = f->p.window;
@@ -461,7 +470,6 @@ fs_write(Ixp9Req *r) {
 		// drawwakeall();
 		ixp_respond(r, nil);
 		return;
-	case FsFNew:
 	case FsFCtl:
 		r->ofcall.io.count = r->ifcall.io.count;
 		if(r->ofcall.io.count != 4)
@@ -470,6 +478,9 @@ fs_write(Ixp9Req *r) {
 		ixp_respond(r, nil);
 		return;
 	case FsFColormap:
+		r->ofcall.io.count = 0;
+		ixp_respond(r, nil);
+		return;
 	case FsFRefresh:
 		return;
 	}
@@ -498,6 +509,7 @@ void
 fs_clunk(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
+	Client *cl;
 
 	debug("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
@@ -517,6 +529,11 @@ fs_clunk(Ixp9Req *r) {
 		w->mousereqs.wi = w->mousereqs.ri;
 		break;
 	}
+	cl = f->p.client;
+	if(f->tab.type == FsFCtl)
+		cl->busy = 0;
+	if(f->tab.type >= FsFNew && f->tab.type <= FsFColormap && (decref(&cl->r)==0))
+		drawfree(cl);
 	ixp_respond(r, nil);
 }
 

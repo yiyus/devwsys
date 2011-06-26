@@ -28,14 +28,17 @@ enum {
 };
 
 /* Datatypes: */
-typedef struct Draw Draw;
 typedef struct Client Client;
-typedef struct FChar FChar;
 typedef struct DImage DImage;
 typedef struct DName DName;
+typedef struct Draw Draw;
+typedef struct CScreen CScreen;
 typedef struct DScreen DScreen;
+typedef struct FChar FChar;
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Mousebuf Mousebuf;
+typedef struct Refresh Refresh;
+typedef struct Refx Refx;
 typedef struct Reqbuf Reqbuf;
 typedef struct Window Window;
 
@@ -47,17 +50,23 @@ struct Draw
 {
 	int		nname;
 	DName*	name;
+	DScreen*	dscreen;
+	Memimage *screenimage;
+	Memdata	screendata;
 	Rectangle	flushrect;
+	int		softscreen;
+	int		waste;
+	Window	*window;
 };
 
 struct Client
 {
 	int		r;	// Ref
 	DImage*	dimage[NHASH];
-//	CScreen*	cscreen;
-//	Refresh*	refresh;
+	CScreen*	cscreen;
+	Refresh*	refresh;
 //	Rendez	refrend;
-	Window	*window;
+	Draw	*draw;
 	uchar*	readdata;
 	int		nreaddata;
 	int		busy;
@@ -66,6 +75,19 @@ struct Client
 //	int		refreshme;
 	int		infoid;
 	int		op;
+};
+
+struct Refresh
+{
+	DImage*		dimage;
+	Rectangle	r;
+	Refresh*	next;
+};
+
+struct Refx
+{
+	Client*		client;
+	DImage*		dimage;
 };
 
 struct FChar
@@ -99,6 +121,12 @@ struct DName
 	Client	*client;
 	DImage*	dimage;
 	int		vers;
+};
+
+struct CScreen
+{
+	DScreen*	dscreen;
+	CScreen*	next;
 };
 
 struct DScreen
@@ -157,8 +185,6 @@ struct Window
 	char		*label;
 	Draw	draw;
 	Kbdbuf	kbd;
-	Memimage *screenimage;
-	Memdata	screendata;
 	Mousebuf	mouse;
 	Reqbuf	kbdreqs;
 	Reqbuf	mousereqs;

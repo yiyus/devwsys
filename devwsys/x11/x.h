@@ -34,6 +34,26 @@ struct Xwin {
 	XDrawable	drawable;
 	XDrawable	screenpm;
 	XDrawable	nextscreenpm;
+	XGC			gccopy;
+	XGC			gccopy0;
+	XGC			gcfill;
+	ulong		gcfillcolor;
+	XGC			gcfill0;
+	ulong		gcfill0color;
+	XGC			gcreplsrc;
+	ulong		gcreplsrctile;
+	XGC			gcreplsrc0;
+	ulong		gcreplsrc0tile;
+	XGC			gcsimplesrc;
+	ulong		gcsimplesrccolor;
+	ulong		gcsimplesrcpixmap;
+	XGC			gcsimplesrc0;
+	ulong		gcsimplesrc0color;
+	ulong		gcsimplesrc0pixmap;
+	XGC			gczero;
+	ulong		gczeropixmap;
+	XGC			gczero0;
+	ulong		gczero0pixmap;
 };
 
 extern Xconn xconn;

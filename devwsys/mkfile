@@ -21,6 +21,7 @@ OFILES=\
 	mouse.$O\
 	reqbuf.$O\
 	window.$O\
+	$SYSHOST-$OBJTYPE.$O\
 	$LIBIXP\
 	${XFILES:%=x11/%}\
 
@@ -35,7 +36,7 @@ HFILES=\
 	latin1.h\
 	${XHFILES:%=x11/%}\
 
-LIBS=	memlayer memdraw draw kern 9
+LIBS=	memlayer memdraw kern draw 9
 
 BIN=$ROOT/$OBJDIR/bin
 

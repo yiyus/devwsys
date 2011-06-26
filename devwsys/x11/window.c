@@ -18,10 +18,10 @@
 
 #define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
 
-Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
-void* xcreatewin(char*, char*, Rectangle);
-Rectangle xmapwin(void*, int, Rectangle);
-Rectangle xwinrectangle(char*, char*, int*);
+static void* xcreatewin(char*, char*, Rectangle);
+static Rectangle xmapwin(void*, int, Rectangle);
+static Rectangle xwinrectangle(char*, char*, int*);
+static XGC	xgc(XDrawable, int, int);
 
 void
 xattach(Window *w, char *winsize)
@@ -33,10 +33,54 @@ xattach(Window *w, char *winsize)
 	xw = xcreatewin(w->label, winsize, w->r);
 	w->r = xmapwin(xw, havemin, w->r);
 	w->x = xw;
-	w->screenimage = xallocmemimage(w, w->r, xconn.chan, xw->screenpm);
+	w->draw.screenimage = xallocmemimage(w, w->r, xconn.chan, xw->screenpm);
 	// initscreenimage(w);
 }
 
+void
+xdeletewin(Window *w)
+{
+	Xwin *xw;
+
+	xw = w->x;
+	// TODO anything else to cleanup?
+	XDestroyWindow(xconn.display, xw->drawable);
+	XSync(xconn.display, False);
+}
+
+int
+xupdatelabel(Window *w)
+{
+	char *label;
+	XTextProperty name;
+	Xwin *xw;
+
+	xw = w->x;
+	label = w->label;
+	memset(&name, 0, sizeof name);
+	if(label == nil)
+		label = "pjw-face-here";
+	name.value = (uchar*)label;
+	name.encoding = XA_STRING;
+	name.format = 8;
+	name.nitems = strlen((char*)name.value);
+
+	XSetWMProperties(
+		xconn.display,			/* display */
+		xw->drawable,	/* window */
+		&name,	/* XA_WM_NAME property */
+		&name,	/* XA_WM_ICON_NAME property */
+		nil,		/* XA_WM_COMMAND */
+		0,		/* argc */
+		nil,		/* XA_WM_NORMAL_HINTS */
+		nil,		/* XA_WM_HINTS */
+		nil		/* XA_WM_CLASSHINTS */
+	);
+	XFlush(xconn.display);
+	return 0;
+}
+
+static
 Rectangle
 xwinrectangle(char *label, char *winsize, int *havemin)
 {
@@ -106,6 +150,7 @@ xwinrectangle(char *label, char *winsize, int *havemin)
 	return r;
 }
 
+static
 void*
 xcreatewin(char *label, char *winsize, Rectangle r)
 {
@@ -217,9 +262,11 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	return xw;
 }
 
+static
 Rectangle
 xmapwin(void *x, int havemin, Rectangle r)
 {
+	XDrawable pmid;
 	Xwin *xw;
 	XWindowAttributes wattr;
 
@@ -266,64 +313,62 @@ xmapwin(void *x, int havemin, Rectangle r)
 
 	/*
 	 * Allocate some useful graphics contexts for the future.
-	 *TODO/
-	_x.gcfill	= xgc(_x.screenpm, FillSolid, -1);
-	_x.gccopy	= xgc(_x.screenpm, -1, -1);
-	_x.gcsimplesrc 	= xgc(_x.screenpm, FillStippled, -1);
-	_x.gczero	= xgc(_x.screenpm, -1, -1);
-	_x.gcreplsrc	= xgc(_x.screenpm, FillTiled, -1);
-
-	pmid = XCreatePixmap(_x.display, _x.drawable, 1, 1, 1);
-	_x.gcfill0	= xgc(pmid, FillSolid, 0);
-	_x.gccopy0	= xgc(pmid, -1, -1);
-	_x.gcsimplesrc0	= xgc(pmid, FillStippled, -1);
-	_x.gczero0	= xgc(pmid, -1, -1);
-	_x.gcreplsrc0	= xgc(pmid, FillTiled, -1);
-	XFreePixmap(_x.display, pmid);
-
 	 */
+	xw->gcfill	= xgc(xw->screenpm, FillSolid, -1);
+	xw->gccopy	= xgc(xw->screenpm, -1, -1);
+	xw->gcsimplesrc 	= xgc(xw->screenpm, FillStippled, -1);
+	xw->gczero	= xgc(xw->screenpm, -1, -1);
+	xw->gcreplsrc	= xgc(xw->screenpm, FillTiled, -1);
+
+	pmid = XCreatePixmap(xconn.display, xw->drawable, 1, 1, 1);
+	xw->gcfill0	= xgc(pmid, FillSolid, 0);
+	xw->gccopy0	= xgc(pmid, -1, -1);
+	xw->gcsimplesrc0	= xgc(pmid, FillStippled, -1);
+	xw->gczero0	= xgc(pmid, -1, -1);
+	xw->gcreplsrc0	= xgc(pmid, FillTiled, -1);
+	XFreePixmap(xconn.display, pmid);
+
 	return r;
 }
 
 void
-xdeletewin(Window *w)
+xflushmemscreen(Window *w, Rectangle r)
 {
 	Xwin *xw;
 
 	xw = w->x;
-	// TODO anything else to cleanup?
-	XDestroyWindow(xconn.display, xw->drawable);
-	XSync(xconn.display, False);
+	if(xw->nextscreenpm != xw->screenpm){
+		// qlock(&xw->screenlock);
+		XSync(xconn.display, False);
+		XFreePixmap(xconn.display, xw->screenpm);
+		xw->screenpm = xw->nextscreenpm;
+		// qunlock(&xw->screenlock);
+	}
+
+	if(r.min.x >= r.max.x || r.min.y >= r.max.y)
+		return;
+	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xw->gccopy, r.min.x, r.min.y,
+		Dx(r), Dy(r), r.min.x, r.min.y);
+	XFlush(xconn.display);
 }
 
-int
-xupdatelabel(Window *w)
+/*
+ * Create a GC with a particular fill style and XXX.
+ * Disable generation of GraphicsExpose/NoExpose events in the GC.
+ */
+static XGC
+xgc(XDrawable d, int fillstyle, int foreground)
 {
-	char *label;
-	XTextProperty name;
-	Xwin *xw;
+	XGC gc;
+	XGCValues v;
 
-	xw = w->x;
-	label = w->label;
-	memset(&name, 0, sizeof name);
-	if(label == nil)
-		label = "pjw-face-here";
-	name.value = (uchar*)label;
-	name.encoding = XA_STRING;
-	name.format = 8;
-	name.nitems = strlen((char*)name.value);
-
-	XSetWMProperties(
-		xconn.display,			/* display */
-		xw->drawable,	/* window */
-		&name,	/* XA_WM_NAME property */
-		&name,	/* XA_WM_ICON_NAME property */
-		nil,		/* XA_WM_COMMAND */
-		0,		/* argc */
-		nil,		/* XA_WM_NORMAL_HINTS */
-		nil,		/* XA_WM_HINTS */
-		nil		/* XA_WM_CLASSHINTS */
-	);
-	XFlush(xconn.display);
-	return 0;
+	memset(&v, 0, sizeof v);
+	v.function = GXcopy;
+	v.graphics_exposures = False;
+	gc = XCreateGC(xconn.display, d, GCFunction|GCGraphicsExposures, &v);
+	if(fillstyle != -1)
+		XSetFillStyle(xconn.display, gc, fillstyle);
+	if(foreground != -1)
+		XSetForeground(xconn.display, gc, 0);
+	return gc;
 }

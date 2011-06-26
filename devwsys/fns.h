@@ -2,8 +2,9 @@
 #define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Devdraw */
-Client* drawnewclient(Window*);
+Client* drawnewclient(Draw*);
 Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
+void drawfree(Client*);
 void readdrawctl(char*, Client*);
 void drawmesg(Client*, void*, int);
 char* drawerr(void);
@@ -37,6 +38,8 @@ void xnextevent(void);
 void xclose(void);
 
 /* X window */
+Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
 void xattach(Window*, char*);
 void xdeletewin(Window*);
+void xflushmemscreen(Window*, Rectangle);
 int xupdatelabel(Window*);

@@ -22,7 +22,6 @@ newwin(char *label, char *winsize)
 
 	w->id = id++;
 	w->label = label;
-
 	xattach(w, winsize);
 
 	return w;
