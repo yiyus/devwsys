@@ -11,7 +11,7 @@
  * Allocate a Memimage with an optional pixmap backing on the X server.
  */
 Memimage*
-xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
+xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap, void** v)
 {
 	int d, offset;
 	Memimage *m;
@@ -94,7 +94,7 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 	XInitImage(xi);
 	XFlush(xconn.display);
 
-	// XXX! TODO m->X = xm;
+	*v = xm; // m->X = xm;
 	return m;
 }
 

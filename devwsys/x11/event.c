@@ -102,8 +102,8 @@ configevent(Window *w, XEvent xev)
 	// qunlock(&_x.screenlock);
 	w->newscreenr = r;
 
-	m.xy.x = xe->width;
-	m.xy.y = xe->height;
+	m.xy.x = Dx(r);
+	m.xy.y = Dy(r);
 	xreplacescreenimage(w);
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
 	writemouse(w, m, 1);

@@ -430,6 +430,7 @@ readdrawctl(char *buf, Client *cl)
 	DImage *di;
 	Memimage *i;
 
+	i = nil;
 	if(cl->infoid < 0)
 		error = Enodrawimage;
 	if(cl->infoid == 0){
@@ -440,7 +441,8 @@ readdrawctl(char *buf, Client *cl)
 		di = drawlookup(cl, cl->infoid, 1);
 		if(di == nil)
 			error = Enodrawimage;
-		i = di->image;
+		else
+			i = di->image;
 	}
 	n = sprint(buf, "%11d %11d %11s %11d %11d %11d %11d %11d %11d %11d %11d %11d ",
 		cl->clientid, cl->infoid, chantostr(buf, i->chan), (i->flags&Frepl)==Frepl,
@@ -775,7 +777,7 @@ drawmesg(Client *client, void *av, int n)
 
 	while((n-=m) > 0){
 		a += m;
-/*fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); */
+fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 		switch(*a){
 /*fprint(2, "bad command %d\n", *a); */
 			err = "bad draw command";
@@ -848,7 +850,8 @@ drawmesg(Client *client, void *av, int n)
 				}
 				continue;
 			}
-			i = xallocmemimage(w, r, chan, PMundef);
+			// i = xallocmemimage(w, r, chan, PMundef, &x);
+			i = allocmemimage(r, chan);
 			if(i == 0)
 				goto Edrawmem;
 			if(repl)

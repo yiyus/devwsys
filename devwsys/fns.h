@@ -40,7 +40,8 @@ void xnextevent(void);
 void xclose(void);
 
 /* X window */
-Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+// Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+Memimage* xallocmemimage(Window*, Rectangle, ulong, int, void**);
 void xfreememimage(Memimage*);
 void xattach(Window*, char*);
 void xdeletewin(Window*);

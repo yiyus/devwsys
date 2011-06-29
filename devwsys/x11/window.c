@@ -28,12 +28,13 @@ xattach(Window *w, char *winsize)
 {
 	int havemin;
 	Xwin *xw;
+	void *x;
 
 	w->screenr = xwinrectangle(w->label, winsize, &havemin);
 	xw = xcreatewin(w->label, winsize, w->screenr);
 	w->screenr = xmapwin(xw, havemin, w->screenr);
 	w->x = xw;
-	w->draw.screenimage = xallocmemimage(w, w->screenr, xconn.chan, xw->screenpm);
+	w->draw.screenimage = xallocmemimage(w, w->screenr, xconn.chan, xw->screenpm, &x);
 	// initscreenimage(w);
 }
 
@@ -55,12 +56,13 @@ xreplacescreenimage(Window *w)
 	XDrawable pixmap;
 	Rectangle r;
 	Xwin *xw;
+	void *x;
 
 	xw = w->x;
 	r = w->newscreenr;
 
 	pixmap = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), xconn.depth);
-	m = xallocmemimage(w, r, xconn.chan, pixmap);
+	m = xallocmemimage(w, r, xconn.chan, pixmap, &x);
 	if(xw->nextscreenpm != xw->screenpm)
 		XFreePixmap(xconn.display, xw->nextscreenpm);
 	xw->nextscreenpm = pixmap;
