@@ -27,16 +27,21 @@ enum {
 	FsDDrawn,
 	FsDWsys,
 	FsDWsysn,
+
 	/* Files */
+	/*	Keyboard */
 	FsFCons,
 	FsFConsctl,
-	FsFLabel,
+	/*	Mouse */
+	FsFCursor,
 	FsFMouse,
+	/*	Window */
+	FsFLabel,
 	FsFWinid,
 	FsFWinname,
-	/* draw/ */
+	/*	draw/ */
 	FsFNew,
-	/* draw/n/ */
+	/*	draw/n/ */
 	FsFCtl,
 	FsFData,
 	FsFColormap,
@@ -74,8 +79,9 @@ dirtab_root[] = {
 	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
 	{"cons",		QTFILE,	FsFCons,		0600 },
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
+	{"cursor",		QTFILE,	FsFCursor,	0600 },
+	{"mouse",		QTFILE,	FsFMouse,	0600 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
-	{"mouse",		QTFILE,	FsFMouse,	0400 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
 	{"winname",	QTFILE,	FsFWinname,	0400 },
 	{nil}
