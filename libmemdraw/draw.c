@@ -85,11 +85,10 @@ memimageinit(void)
 
 static ulong imgtorgba(Memimage*, ulong);
 static ulong rgbatoimg(Memimage*, ulong);
-static ulong pixelbits(Memimage*, Point);
 
 #define DBG if(0)
 void
-memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
+_memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
 {
 	Memdrawparam par;
 
@@ -1857,8 +1856,8 @@ convfn(Memimage *dst, Param *dpar, Memimage *src, Param *spar, int *ndrawbuf)
 	return genconv;
 }
 
-static ulong
-pixelbits(Memimage *i, Point pt)
+ulong
+_pixelbits(Memimage *i, Point pt)
 {
 	uchar *p;
 	ulong val;
@@ -2475,7 +2474,7 @@ membyteval(Memimage *src)
  */
 
 void
-memfillcolor(Memimage *i, ulong val)
+_memfillcolor(Memimage *i, ulong val)
 {
 	ulong bits;
 	int d, y;

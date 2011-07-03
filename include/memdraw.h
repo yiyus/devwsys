@@ -49,6 +49,7 @@ struct Memimage
 	ulong	width;	/* width in words of a single scan line */
 	Memlayer	*layer;	/* nil if not a layer*/
 	ulong	flags;
+	void		*X;		/* used by devwsys */
 
 	int		shift[NChan];
 	int		mask[NChan];
@@ -149,6 +150,7 @@ extern Rectangle	memlinebbox(Point, Point, int, int, int);
 extern int	memlineendsize(int);
 extern void	_memmkcmap(void);
 extern void	memimageinit(void);
+extern ulong	pixelbits(Memimage*, Point);
 
 /*
  * Subfont management
@@ -191,4 +193,15 @@ extern int		drawdebug;
 #pragma varargck type "lb" ulong
 #pragma varargck type "b" int
 #pragma varargck type "b" uint
+
+/*
+ * For other implementations, like devwsys.
+ */
+extern Memimage* _allocmemimage(Rectangle, ulong);
+extern void	_freememimage(Memimage*);
+extern int		_cloadmemimage(Memimage*, Rectangle, uchar*, int);
+extern void	_memimagedraw(Memimage*, Rectangle, Memimage*, Point, Memimage*, Point, int);
+extern ulong	_pixelbits(Memimage*, Point);
+extern int		_loadmemimage(Memimage*, Rectangle, uchar*, int);
+extern int		_unloadmemimage(Memimage*, Rectangle, uchar*, int);
 

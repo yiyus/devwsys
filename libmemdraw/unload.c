@@ -3,7 +3,7 @@
 #include "memdraw.h"
 
 int
-unloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
+_unloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
 {
 	int y, l;
 	uchar *q;

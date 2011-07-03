@@ -61,7 +61,7 @@ allocmemimaged(Rectangle r, ulong chan, Memdata *md)
 }
 
 Memimage*
-allocmemimage(Rectangle r, ulong chan)
+_allocmemimage(Rectangle r, ulong chan)
 {
 	int d;
 	ulong l, nw;
@@ -105,7 +105,7 @@ allocmemimage(Rectangle r, ulong chan)
 }
 
 void
-freememimage(Memimage *i)
+_freememimage(Memimage *i)
 {
 	if(i == nil)
 		return;
