@@ -23,7 +23,7 @@ static Rectangle xmapwin(void*, int, Rectangle);
 static Rectangle xwinrectangle(char*, char*, int*);
 static XGC	xgc(XDrawable, int, int);
 
-void
+int
 xattach(Window *w, char *winsize)
 {
 	int havemin;
@@ -32,10 +32,20 @@ xattach(Window *w, char *winsize)
 
 	w->screenr = xwinrectangle(w->label, winsize, &havemin);
 	xw = xcreatewin(w->label, winsize, w->screenr);
+	if(xw == nil)
+		goto Error;
 	w->screenr = xmapwin(xw, havemin, w->screenr);
 	w->x = xw;
 	w->draw.screenimage = xallocmemimage(w, w->screenr, xconn.chan, xw->screenpm, &x);
-	// initscreenimage(w);
+	// print("XXX xattach screenimage %d to window %d (draw %d)\n", w->draw.screenimage, w, &w->draw);
+	if(w->draw.screenimage == nil)
+		goto Error;
+	w->draw.X = x;
+	return 1;
+
+Error:
+	/* BUG: detach screen */
+	return 0;
 }
 
 void
@@ -359,6 +369,7 @@ xflushmemscreen(Window *w, Rectangle r)
 {
 	Xwin *xw;
 
+	// print("XXX xflushmemscreen\n");
 	xw = w->x;
 	if(xw->nextscreenpm != xw->screenpm){
 		// qlock(&xw->screenlock);

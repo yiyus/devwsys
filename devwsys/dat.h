@@ -48,15 +48,14 @@ typedef struct Window Window;
 
 struct Draw
 {
-	int		nname;
-	DName*	name;
-	DScreen*	dscreen;
-	Memimage *screenimage;
-	Memdata	screendata;
-	Rectangle	flushrect;
-	int		softscreen;
-	int		waste;
-	Window	*window;
+	Window*	window;
+	Memimage*	screenimage;
+	DImage*		screendimage;
+	char*		screenname;
+	Rectangle		flushrect;
+	int			waste;
+	DScreen*		dscreen;
+	void*		X;
 };
 
 struct Client

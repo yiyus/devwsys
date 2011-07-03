@@ -33,6 +33,7 @@ enum {
 	FsFLabel,
 	FsFMouse,
 	FsFWinid,
+	FsFWinname,
 	/* draw/ */
 	FsFNew,
 	/* draw/n/ */
@@ -52,6 +53,7 @@ static char
 	Einuse[] = "file in use",
 	Enodev[] = "no free devices",
 	Enofile[] = "file not found",
+	Enodrawimage[] = "unknown id for draw image",
 	Enomem[] = "out of memory",
 	Enoperm[] = "permission denied",
 	Eshortread[] =	"draw read too short";
@@ -75,6 +77,7 @@ dirtab_root[] = {
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
+	{"winname",	QTFILE,	FsFWinname,	0400 },
 	{nil}
 },
 dirtab_draw[] = {
@@ -104,6 +107,7 @@ dirtab_wsysn[] = {
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
+	{"winname",	QTFILE,	FsFWinname,	0400 },
 	{nil}
 };
 
@@ -258,7 +262,7 @@ fs_open(Ixp9Req *r) {
 	debug("fs_open(%p)\n", r);
 
 	f = r->fid->aux;
-
+	// print("XXX open %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
@@ -291,6 +295,7 @@ fs_open(Ixp9Req *r) {
 		cl->busy = 1;
 		d = cl->draw;
 		d->flushrect = Rect(10000, 10000, -10000, -10000);
+		// print("XXX drawinstall %d (draw %d)\n", d->screenimage, d);
 		drawinstall(cl, 0, d->screenimage, 0);
 		incref(&cl->r);
 		break;
@@ -329,7 +334,8 @@ fs_walk(Ixp9Req *r) {
 
 void
 fs_read(Ixp9Req *r) {
-	char buf[512], *err;
+	char buf[512];
+	int n;
 	IxpFileId *f;
 	Client *cl;
 	Window *w;
@@ -337,6 +343,7 @@ fs_read(Ixp9Req *r) {
 	debug("fs_read(%p)\n", r);
 
 	f = r->fid->aux;
+	// print("XXX read %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
@@ -360,10 +367,9 @@ fs_read(Ixp9Req *r) {
 			ixp_respond(r, Eshortread);
 			return;
 		}
-		readdrawctl(buf, cl);
-		err = drawerr();
-		if(err != nil) {
-			ixp_respond(r, err);
+		n = readdrawctl(buf, cl);
+		if(n == 0) {
+			ixp_respond(r, Enodrawimage);
 			return;
 		}
 		ixp_srv_readbuf(r, buf, strlen(buf));
@@ -392,9 +398,11 @@ fs_read(Ixp9Req *r) {
 			ixp_respond(r, Ebadarg);
 			return;
 		}
-		readrefresh(buf, r->ifcall.io.count, cl);
-		ixp_srv_readbuf(r, buf, strlen(buf));
-		ixp_respond(r, nil);
+		n = readrefresh(buf, r->ifcall.io.count, cl);
+		if(n > 0) {
+			ixp_srv_readbuf(r, buf, n);
+			ixp_respond(r, nil);
+		}
 		return;
 	}
 	w = f->p.window;
@@ -419,6 +427,10 @@ fs_read(Ixp9Req *r) {
 		ixp_srv_readbuf(r, buf, strlen(buf));
 		ixp_respond(r, nil);
 		return;
+	case FsFWinname:
+		ixp_srv_readbuf(r, w->draw.screenname, strlen(w->draw.screenname));
+		ixp_respond(r, nil);
+		return;
 	}
 	/* This should not be called if the file is not open for reading. */
 	fatal("Read called on an unreadable file");
@@ -440,7 +452,7 @@ fs_stat(Ixp9Req *r) {
 		ixp_respond(r, Enofile);
 		return;
 	}
-	if(f->tab.type > FsDDrawn && f->tab.type < FsFNew) {
+	if(iswindow(f->tab.type)) {
 		w = f->p.window;
 		if(w->deleted){
 			ixp_respond(r, Edeleted);
@@ -472,6 +484,7 @@ fs_write(Ixp9Req *r) {
 	debug("fs_write(%p)\n", r);
 
 	f = r->fid->aux;
+	// print("XXX write %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
@@ -532,6 +545,7 @@ fs_clunk(Ixp9Req *r) {
 
 	debug("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
+	// print("XXX fs_clunk %s)\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, nil);
 		return;
@@ -549,10 +563,11 @@ fs_clunk(Ixp9Req *r) {
 		break;
 	}
 	cl = f->p.client;
+	// TODO: inferno-os/emu/port/devdraw.c:971
 	if(f->tab.type == FsFCtl)
 		cl->busy = 0;
 	if(f->tab.type >= FsFNew && f->tab.type <= FsFColormap && (decref(&cl->r)==0))
-		drawfree(cl);
+		; // XXX TODO: drawfree(cl);
 	ixp_respond(r, nil);
 }
 

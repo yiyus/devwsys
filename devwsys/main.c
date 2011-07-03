@@ -43,8 +43,10 @@ main(int argc, char **argv)
 	if(xinit() != 0)
 		fatal("unable to connect to X server");
 
-	// /* TODO: we'll need this for drawing. */
-	//memimageinit();
+	/*
+	 * Not needed, we do not use pools.
+	 * memimageinit();
+	 */
 	/* Start the 9p server */
 	return ixpserve(address);
 }

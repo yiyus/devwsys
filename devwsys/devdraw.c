@@ -6,80 +6,15 @@
 #include "dat.h"
 #include "fns.h"
 
-/* Error messages */
-static char
-	Enodrawimage[] = "unknown id for draw image",
-	Eoldname[] = "named image no longer valid";
-
 static DImage* drawlookup(Client*, int, int);
 static void drawfreedimage(Draw*, DImage*);
-static int drawgoodname(Draw*, DImage*);
+static int drawgoodname(DImage*);
 static void drawflush(Draw*);
 
-int nclient = 0;
-char *error = nil;
-
-Client*
-drawnewclient(Draw *draw)
-{
-	static int clientid = 0;
-	Client *cl, **cp;
-	int i;
-
-	for(i=0; i<nclient; i++){
-		cl = client[i];
-		if(cl == 0)
-			break;
-	}
-	if(i == nclient){
-		cp = malloc((nclient+1)*sizeof(Client*));
-		if(cp == 0)
-			return 0;
-		memmove(cp, client, nclient*sizeof(Client*));
-		free(client);
-		client = cp;
-		nclient++;
-		cp[i] = 0;
-	}
-	cl = mallocz(sizeof(Client), 1);
-	if(cl == 0)
-		return 0;
-	cl->slot = i;
-	cl->clientid = ++clientid;
-	cl->op = SoverD;
-	cl->draw = draw;
-	client[i] = cl;
-	return cl;
-}
-
-void
-drawreplacescreenimage(Window *w, Memimage *m)
-{
-	/*
-	 * Replace the screen image because the screen
-	 * was resized.
-	 * 
-	 * In theory there should only be one reference
-	 * to the current screen image, and that's through
-	 * client0's image 0, installed a few lines above.
-	 * Once the client drops the image, the underlying backing 
-	 * store freed properly.  The client is being notified
-	 * about the resize through external means, so all we
-	 * need to do is this assignment.
-	 */
-	Memimage *om;
-	Memimage *screenimage;
-
-	screenimage = w->draw.screenimage;
-	// qlock(&sdraw.lk);
-	om = screenimage;
-	w->draw.screenimage = m;
-	// m->screenref = 1;
-	// if(om && --om->screenref == 0){
-	//	freememimage(om);
-	// }
-	// qunlock(&sdraw.lk);
-}
+int		nclient = 0;
+int		ndname = 0;
+DName*	dname = nil;
+int		vers = 0;
 
 static
 void
@@ -93,15 +28,14 @@ drawrefreshscreen(DImage *l, Client *client)
 
 static
 void
-drawrefresh(Memimage *m, Rectangle r, void *v)
+drawrefresh(Memimage *l, Rectangle r, void *v)
 {
 	Refx *x;
 	DImage *d;
 	Client *c;
 	Refresh *ref;
 
-	USED(m);
-
+	USED(l);
 	if(v == 0)
 		return;
 	x = v;
@@ -123,55 +57,226 @@ drawrefresh(Memimage *m, Rectangle r, void *v)
 
 static
 void
-addflush(Draw *draw, Rectangle r)
+addflush(Draw *d, Rectangle r)
 {
 	int abb, ar, anbb;
 	Rectangle nbb;
 
-	if(draw->softscreen==0 || !rectclip(&r, draw->screenimage->r))
+	// print("XXX addflush: %d %d %d %d \n", r.min.x, r.min.y, r.max.x, r.max.y);
+	if(!rectclip(&r, d->screenimage->r))
 		return;
 
-	if(draw->flushrect.min.x >= draw->flushrect.max.x){
-		draw->flushrect = r;
-		draw->waste = 0;
+	if(d->flushrect.min.x >= d->flushrect.max.x){
+		d->flushrect = r;
+		d->waste = 0;
 		return;
 	}
-	nbb = draw->flushrect;
+	nbb = d->flushrect;
 	combinerect(&nbb, r);
 	ar = Dx(r)*Dy(r);
-	abb = Dx(draw->flushrect)*Dy(draw->flushrect);
+	abb = Dx(d->flushrect)*Dy(d->flushrect);
 	anbb = Dx(nbb)*Dy(nbb);
 	/*
 	 * Area of new waste is area of new bb minus area of old bb,
 	 * less the area of the new segment, which we assume is not waste.
 	 * This could be negative, but that's OK.
 	 */
-	draw->waste += anbb-abb - ar;
-	if(draw->waste < 0)
-		draw->waste = 0;
+	d->waste += anbb-abb - ar;
+	if(d->waste < 0)
+		d->waste = 0;
 	/*
 	 * absorb if:
 	 *	total area is small
 	 *	waste is less than half total area
 	 * 	rectangles touch
 	 */
-	if(anbb<=1024 || draw->waste*2<anbb || rectXrect(draw->flushrect, r)){
-		draw->flushrect = nbb;
+	if(anbb<=1024 || d->waste*2<anbb || rectXrect(d->flushrect, r)){
+		d->flushrect = nbb;
 		return;
 	}
 	/* emit current state */
-	if(draw->flushrect.min.x < draw->flushrect.max.x)
-		xflushmemscreen(draw->window, draw->flushrect);
-	draw->flushrect = r;
-	draw->waste = 0;
+	if(d->flushrect.min.x < d->flushrect.max.x)
+		xflushmemscreen(d->window, d->flushrect);
+	d->flushrect = r;
+	d->waste = 0;
 }
 
+static
+void
+dstflush(Draw *d, Memimage *dst, Rectangle r)
+{
+	Memlayer *l;
+
+	// print("XXX dstflush: %d %d %d %d \n", r.min.x, r.min.y, r.max.x, r.max.y);
+	if(dst == d->screenimage){
+		combinerect(&d->flushrect, r);
+		return;
+	}
+	/* how can this happen? -rsc, dec 12 2002 */
+	if(dst == 0){
+		fprint(2, "nil dstflush\n");
+		return;
+	}
+	l = dst->layer;
+	if(l == nil)
+		return;
+	do{
+		if(l->screen->image->data != d->screenimage->data)
+			return;
+		r = rectaddpt(r, l->delta);
+		l = l->screen->image->layer;
+	}while(l);
+	addflush(d, r);
+}
+
+static
+void
+drawflush(Draw *d)
+{
+	// Rectangle r = d->flushrect;
+	// print("XXX drawflush: %d %d %d %d \n", r.min.x, r.min.y, r.max.x, r.max.y);
+	if(d->flushrect.min.x < d->flushrect.max.x)
+		xflushmemscreen(d->window, d->flushrect);
+	d->flushrect = Rect(10000, 10000, -10000, -10000);
+}
+
+static
+int
+drawcmp(char *a, char *b, int n)
+{
+	if(strlen(a) != n)
+		return 1;
+	return memcmp(a, b, n);
+}
+
+static
+DName*
+drawlookupname(int n, char *str)
+{
+	DName *name, *ename;
+
+	name = dname;
+	ename = &name[ndname];
+	for(; name<ename; name++)
+		if(drawcmp(name->name, str, n) == 0)
+			return name;
+	return 0;
+}
+
+static
+int
+drawgoodname(DImage *d)
+{
+	DName *n;
+
+	/* if window, validate the screen's own images */
+	if(d->dscreen)
+		if(drawgoodname(d->dscreen->dimage) == 0
+		|| drawgoodname(d->dscreen->dfill) == 0)
+			return 0;
+	if(d->name == nil)
+		return 1;
+	n = drawlookupname(strlen(d->name), d->name);
+	if(n==nil || n->vers!=vers)
+		return 0;
+	return 1;
+}
+
+static
+DImage*
+drawlookup(Client *client, int id, int checkname)
+{
+	DImage *d;
+
+	d = client->dimage[id&HASHMASK];
+	while(d){
+		if(d->id == id){
+			if(checkname && !drawgoodname(d))
+				return 0; /* BUG: error(Eoldname); */
+			return d;
+		}
+		d = d->next;
+	}
+	return 0;
+}
+
+static
+DScreen*
+drawlookupdscreen(Draw *draw, int id)
+{
+	DScreen *s;
+
+	s = draw->dscreen;
+	while(s){
+		if(s->id == id)
+			return s;
+		s = s->next;
+	}
+	return 0;
+}
+
+static
+DScreen*
+drawlookupscreen(Client *client, int id, CScreen **cs)
+{
+	CScreen *s;
+
+	s = client->cscreen;
+	while(s){
+		if(s->dscreen->id == id){
+			*cs = s;
+			return s->dscreen;
+		}
+		s = s->next;
+	}
+	/* caller must check! */
+	/* BUG: error(Enodrawscreen); */
+	return 0;
+}
+
+static
+DImage*
+allocdimage(Memimage *i)
+{
+	DImage *d;
+
+	d = malloc(sizeof(DImage));
+	if(d == 0)
+		return 0;
+	d->ref = 1;
+	d->name = 0;
+	d->vers = 0;
+	d->image = i;
+	d->nfchar = 0;
+	d->fchar = 0;
+	d->fromname = 0;
+	return d;
+}
+
+Memimage*
+drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
+{
+	DImage *d;
+
+	// print("XXX installing %d with id %d\n", i, id);
+	d = allocdimage(i);
+	if(d == 0)
+		return 0;
+	d->id = id;
+	d->dscreen = dscreen;
+	d->next = client->dimage[id&HASHMASK];
+	client->dimage[id&HASHMASK] = d;
+	return i;
+}
+
+static
 Memscreen*
 drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *dfill, int public)
 {
 	Memscreen *s;
 	CScreen *c;
 
+	// print("XXX drawinstallscreen\n");
 	c = malloc(sizeof(CScreen));
 	if(dimage && dimage->image && dimage->image->chan == 0)
 		fatal("bad image %p in drawinstallscreen", dimage->image);
@@ -219,7 +324,18 @@ drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *df
 
 static
 void
-drawfreedscreen(Draw *draw, DScreen *this)
+drawdelname(DName *name)
+{
+	int i;
+
+	i = name-dname;
+	memmove(name, name+1, (ndname-(i+1))*sizeof(DName));
+	ndname--;
+}
+
+static
+void
+drawfreedscreen(Draw *d, DScreen *this)
 {
 	DScreen *ds, *next;
 
@@ -228,9 +344,9 @@ drawfreedscreen(Draw *draw, DScreen *this)
 		fprint(2, "negative ref in drawfreedscreen\n");
 	if(this->ref > 0)
 		return;
-	ds = draw->dscreen;
+	ds = d->dscreen;
 	if(ds == this){
-		draw->dscreen = this->next;
+		d->dscreen = this->next;
 		goto Found;
 	}
 	while(next = ds->next){	/* assign = */
@@ -240,58 +356,26 @@ drawfreedscreen(Draw *draw, DScreen *this)
 		}
 		ds = next;
 	}
-	/*
-	 * Should signal Enodrawimage, but too hard.
-	 */
+	/* BUG: error(Enodrawimage); */
 	return;
 
     Found:
 	if(this->dimage)
-		drawfreedimage(draw, this->dimage);
+		drawfreedimage(d, this->dimage);
 	if(this->dfill)
-		drawfreedimage(draw, this->dfill);
+		drawfreedimage(d, this->dfill);
 	free(this->screen);
 	free(this);
 }
 
 static
-DScreen*
-drawlookupdscreen(Draw *draw, int id)
-{
-	DScreen *s;
-
-	s = draw->dscreen;
-	while(s){
-		if(s->id == id)
-			return s;
-		s = s->next;
-	}
-	return 0;
-}
-
-static
 void
-drawdelname(Draw *draw, DName *name)
-{
-	int i;
-
-	i = name-draw->name;
-	memmove(name, name+1, (draw->nname-(i+1))*sizeof(DName));
-	draw->nname--;
-}
-
-static
-void
-drawfreedimage(Draw *draw, DImage *dimage)
+drawfreedimage(Draw *d, DImage *dimage)
 {
 	int i;
 	Memimage *l;
 	DScreen *ds;
 
-if(!dimage){
-print("XXX drawfreedimage on nil dimage\n");
-return;
-}	
 	dimage->ref--;
 	if(dimage->ref < 0)
 		fprint(2, "negative ref in drawfreedimage\n");
@@ -299,35 +383,33 @@ return;
 		return;
 
 	/* any names? */
-	for(i=0; draw && i<draw->nname; )
-		if(draw->name[i].dimage == dimage)
-			drawdelname(draw, draw->name+i);
+	for(i=0; i<ndname; )
+		if(dname[i].dimage == dimage)
+			drawdelname(dname+i);
 		else
 			i++;
 	if(dimage->fromname){	/* acquired by name; owned by someone else*/
-		drawfreedimage(draw, dimage->fromname);
+		drawfreedimage(d, dimage->fromname);
 		goto Return;
 	}
 	ds = dimage->dscreen;
-	l = dimage->image;
-	dimage->dscreen = nil;	/* paranoia */
-	dimage->image = nil;
 	if(ds){
-		if(l->data == draw->screenimage->data)
-			addflush(draw, l->layer->screenr);
+		l = dimage->image;
+		if(l->data == d->screenimage->data)
+			dstflush(d, l->layer->screen->image, l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
 			free(l->layer->refreshptr);
 		l->layer->refreshptr = nil;
-		if(drawgoodname(draw, dimage))
+		if(drawgoodname(dimage))
 			memldelete(l);
 		else
 			memlfree(l);
-		drawfreedscreen(draw, ds);
+		drawfreedscreen(d, ds);
 	}else{
-		// if(l->screenref==0)
-			xfreememimage(l);
-		// else if(--l->screenref==0)
-		//	freememimage(l);
+		// XXX TODO
+		// inferno-os/emu/port/devdraw.c:652
+		// plan9port/src/cmd/devdraw/devdraw.c:566,569
+		freememimage(dimage->image);
 	}
     Return:
 	free(dimage->fchar);
@@ -362,264 +444,25 @@ static
 int
 drawuninstall(Client *client, int id)
 {
-	DImage *d, **l;
-
-	for(l=&client->dimage[id&HASHMASK]; (d=*l) != nil; l=&d->next){
-		if(d->id == id){
-			*l = d->next;
-			drawfreedimage(client->draw, d);
-			return 0;
-		}
-	}
-	return -1;
-}
-
-Memimage*
-drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
-{
-	DImage *d;
-
-	d = malloc(sizeof(DImage));
-	if(d == 0)
-		return 0;
-	d->id = id;
-	d->ref = 1;
-	d->name = 0;
-	d->vers = 0;
-	d->image = i;
-	d->nfchar = 0;
-	d->fchar = 0;
-	d->fromname = 0;
-	d->dscreen = dscreen;
-	d->next = client->dimage[id&HASHMASK];
-	client->dimage[id&HASHMASK] = d;
-	return i;
-}
-
-static
-void
-dstflush(Draw *draw, int dstid, Memimage *dst, Rectangle r)
-{
-	Memlayer *l;
-
-	if(dstid == 0){
-		combinerect(&draw->flushrect, r);
-		return;
-	}
-	/* how can this happen? -rsc, dec 12 2002 */
-	if(dst == 0){
-		fprint(2, "nil dstflush\n");
-		return;
-	}
-	l = dst->layer;
-	if(l == nil)
-		return;
-	do{
-		if(l->screen->image->data != draw->screenimage->data)
-			return;
-		r = rectaddpt(r, l->delta);
-		l = l->screen->image->layer;
-	}while(l);
-	addflush(draw, r);
-}
-
-void
-readdrawctl(char *buf, Client *cl)
-{
-	int n;
-	DImage *di;
-	Memimage *i;
-
-	i = nil;
-	if(cl->infoid < 0)
-		error = Enodrawimage;
-	if(cl->infoid == 0){
-		i = cl->draw->screenimage;
-		if(i == nil)
-			error = Enodrawimage;
-	}else{
-		di = drawlookup(cl, cl->infoid, 1);
-		if(di == nil)
-			error = Enodrawimage;
-		else
-			i = di->image;
-	}
-	n = sprint(buf, "%11d %11d %11s %11d %11d %11d %11d %11d %11d %11d %11d %11d ",
-		cl->clientid, cl->infoid, chantostr(buf, i->chan), (i->flags&Frepl)==Frepl,
-		i->r.min.x, i->r.min.y, i->r.max.x, i->r.max.y,
-		i->clipr.min.x, i->clipr.min.y, i->clipr.max.x, i->clipr.max.y);
-	cl->infoid = -1;
-}
-
-void
-readrefresh(char *buf, long n, Client *cl)
-{
-	Refresh *r;
-	uchar *p;
-
-/***
-	for(;;){
-		if(cl->refreshme || cl->refresh)
-			break;
-		qunlock(&sdraw.q);
-		f(waserror()){
-			qlock(&sdraw.q);	/* restore lock for waserror() above * /
-			nexterror();
-		}
-		Sleep(&cl->refrend, drawrefactive, cl);
-		poperror();
-		qlock(&sdraw.q);
-	}
-***/
-	p = buf;
-	while(cl->refresh && n>=5*4){
-		r = cl->refresh;
-		BPLONG(p+0*4, r->dimage->id);
-		BPLONG(p+1*4, r->r.min.x);
-		BPLONG(p+2*4, r->r.min.y);
-		BPLONG(p+3*4, r->r.max.x);
-		BPLONG(p+4*4, r->r.max.y);
-		cl->refresh = r->next;
-		free(r);
-		p += 5*4;
-		n -= 5*4;
-	}
-	cl->refreshme = 0;
-	n = p-(uchar*)buf;
-}
-
-void
-drawfree(Client *cl)
-{
-	int i;
-	Draw *draw;
-	DImage *d, **dp;
-	Refresh *r;
-
-	draw = cl->draw;
-	while(r = cl->refresh){	/* assign = */
-		cl->refresh = r->next;
-		free(r);
-	}
-	/* free names */
-	for(i=0; draw && i<draw->nname; )
-		if(draw->name[i].client == cl)
-			drawdelname(draw, draw->name+i);
-		else
-			i++;
-	while(cl->cscreen)
-		drawuninstallscreen(cl, cl->cscreen);
-	/* all screens are freed, so now we can free images */
-	dp = cl->dimage;
-	for(i=0; i<NHASH; i++){
-		while((d = *dp) != nil){
-			*dp = d->next;
-			drawfreedimage(draw, d);
-		}
-		dp++;
-	}
-	client[cl->slot] = 0;
-	drawflush(draw);	/* to erase visible, now dead windows */
-	free(cl);
-}
-
-static
-void
-drawflush(Draw *draw)
-{
-	if(draw->flushrect.min.x < draw->flushrect.max.x)
-		xflushmemscreen(draw->window, draw->flushrect);
-	draw->flushrect = Rect(10000, 10000, -10000, -10000);
-}
-
-static
-int
-drawcmp(char *a, char *b, int n)
-{
-	if(strlen(a) != n)
-		return 1;
-	return memcmp(a, b, n);
-}
-
-static
-DName*
-drawlookupname(Draw *draw, int n, char *str)
-{
-	DName *name, *ename;
-
-	name = draw->name;
-	ename = &name[draw->nname];
-	for(; name<ename; name++)
-		if(drawcmp(name->name, str, n) == 0)
-			return name;
-	return 0;
-}
-
-static
-int
-drawgoodname(Draw *draw, DImage *d)
-{
-	DName *n;
-
-	/* if window, validate the screen's own images */
-	if(d->dscreen)
-		if(drawgoodname(draw, d->dscreen->dimage) == 0
-		|| drawgoodname(draw, d->dscreen->dfill) == 0)
-			return 0;
-	if(d->name == nil)
-		return 1;
-	n = drawlookupname(draw, strlen(d->name), d->name);
-	if(n==nil || n->vers!=d->vers)
-		return 0;
-	return 1;
-}
-
-static
-DImage*
-drawlookup(Client *client, int id, int checkname)
-{
-	DImage *d;
-	Draw *draw;
+	DImage *d, *next;
 
 	d = client->dimage[id&HASHMASK];
-	while(d){
-		if(d->id == id){
-			draw = client->draw;
-			if(checkname && !drawgoodname(draw, d))
-				error = Eoldname;
-			return d;
-		}
-		d = d->next;
+	if(d == 0)
+		return -1; /* BUG: error(Enodrawimage); */
+	if(d->id == id){
+		client->dimage[id&HASHMASK] = d->next;
+		drawfreedimage(client->draw, d);
+		return 0;
 	}
-	return 0;
-}
-
-char*
-drawerr(void)
-{
-	char *err;
-
-	err = error;
-	error = nil;
-	return err;
-}
-
-static
-DScreen*
-drawlookupscreen(Client *client, int id, CScreen **cs)
-{
-	CScreen *s;
-
-	s = client->cscreen;
-	while(s){
-		if(s->dscreen->id == id){
-			*cs = s;
-			return s->dscreen;
+	while(next = d->next){	/* assign = */
+		if(next->id == id){
+			d->next = next->next;
+			drawfreedimage(client->draw, next);
+			return 0;
 		}
-		s = s->next;
+		d = next;
 	}
-	/* caller must check! */
-	return 0;
+	return -1; /* BUG: error(Enodrawimage); */
 }
 
 static
@@ -627,18 +470,18 @@ int
 drawaddname(Client *client, DImage *di, int n, char *str, char **err)
 {
 	DName *name, *ename, *new, *t;
-	Draw *draw;
 	char *ns;
 
-	draw = client->draw;
-	name = draw->name;
-	ename = &name[draw->nname];
+	name = dname;
+	ename = &name[ndname];
 	for(; name<ename; name++)
 		if(drawcmp(name->name, str, n) == 0){
+			/* error(Enameused); */
 			*err = "image name in use";
 			return -1;
 		}
-	t = mallocz((draw->nname+1)*sizeof(DName), 1);
+	/* t = smalloc((ndname+1)*sizeof(DName)); */
+	t = mallocz((ndname+1)*sizeof(DName), 1);
 	ns = malloc(n+1);
 	if(t == nil || ns == nil){
 		free(t);
@@ -646,17 +489,51 @@ drawaddname(Client *client, DImage *di, int n, char *str, char **err)
 		*err = "out of memory";
 		return -1;
 	}
-	memmove(t, draw->name, draw->nname*sizeof(DName));
-	free(draw->name);
-	draw->name = t;
-	new = &draw->name[draw->nname++];
+	memmove(t, dname, ndname*sizeof(DName));
+	free(dname);
+	dname = t;
+	new = &dname[ndname++];
+	/* new->name = smalloc(n+1); */
 	new->name = ns;
 	memmove(new->name, str, n);
 	new->name[n] = 0;
 	new->dimage = di;
 	new->client = client;
-	// new->vers = ++draw->vers;
+	new->vers = ++vers;
 	return 0;
+}
+
+Client*
+drawnewclient(Draw *draw)
+{
+	static int clientid = 0;
+	Client *cl, **cp;
+	int i;
+
+	for(i=0; i<nclient; i++){
+		cl = client[i];
+		if(cl == 0)
+			break;
+	}
+	if(i == nclient){
+		cp = malloc((nclient+1)*sizeof(Client*));
+		if(cp == 0)
+			return 0;
+		memmove(cp, client, nclient*sizeof(Client*));
+		free(client);
+		client = cp;
+		nclient++;
+		cp[i] = 0;
+	}
+	cl = mallocz(sizeof(Client), 1);
+	if(cl == 0)
+		return 0;
+	cl->slot = i;
+	cl->clientid = ++clientid;
+	cl->op = SoverD;
+	cl->draw = draw;
+	client[i] = cl;
+	return cl;
 }
 
 static int
@@ -668,6 +545,12 @@ drawclientop(Client *cl)
 	cl->op = SoverD;
 	return op;
 }
+
+/*
+ * NOT DONE:
+ * drawhasclients, drawclientofpath,
+ * drawclient
+ */
 
 static
 Memimage*
@@ -720,6 +603,98 @@ drawchar(Memimage *dst, Point p, Memimage *src, Point *sp, DImage *font, int ind
 	return p;
 }
 
+/*
+ * NOT DONE:
+ * initscreenimage, deletescreenimage
+ */
+
+int
+drawattach(Window *w, char *winsize)
+{
+	Draw *d;
+	DImage *di;
+	char *name, *err;
+
+	d = &w->draw;
+	d->window = w;
+	if(!xattach(w, winsize))
+		return 0;
+	di = allocdimage(d->screenimage);
+	name = smprint("xwindow.screen.%d", w->id);
+	if(drawaddname(nil, di, strlen(name), name, &err) < 0)
+		return 0;
+	d->screendimage = di;
+	d->screenname = name;
+	return 1;
+}
+
+/*
+ * NOT DONE:
+ * drawwalk, drawstat, drawopen
+ * drawclose, drawread
+ */
+
+int
+readdrawctl(char *a, Client *cl)
+{
+	int n;
+	DImage *di;
+	Memimage *i;
+	char buf[16];
+
+	i = nil;
+	if(cl->infoid < 0)
+		return 0;
+	if(cl->infoid == 0){
+		i = cl->draw->screenimage;
+		if(i == nil)
+			return 0;
+	}else{
+		di = drawlookup(cl, cl->infoid, 1);
+		if(di == nil)
+			return 0;
+		i = di->image;
+	}
+chantostr(buf, i->chan);
+print("XXX i->chan %d = %s\n", i->chan, buf);
+	n = sprint(a, "%11d %11d %11s %11d %11d %11d %11d %11d %11d %11d %11d %11d ",
+		cl->clientid, cl->infoid, chantostr(buf, i->chan), (i->flags&Frepl)==Frepl,
+		i->r.min.x, i->r.min.y, i->r.max.x, i->r.max.y,
+		i->clipr.min.x, i->clipr.min.y, i->clipr.max.x, i->clipr.max.y);
+	cl->infoid = -1;
+	return n;
+}
+
+int
+readrefresh(char *buf, long n, Client *cl)
+{
+	Refresh *r;
+	uchar *p;
+
+	if(!(cl->refreshme || cl->refresh))
+		return 0;
+	p = buf;
+	while(cl->refresh && n>=5*4){
+		r = cl->refresh;
+		BPLONG(p+0*4, r->dimage->id);
+		BPLONG(p+1*4, r->r.min.x);
+		BPLONG(p+2*4, r->r.min.y);
+		BPLONG(p+3*4, r->r.max.x);
+		BPLONG(p+4*4, r->r.max.y);
+		cl->refresh = r->next;
+		free(r);
+		p += 5*4;
+		n -= 5*4;
+	}
+	cl->refreshme = 0;
+	return p-(uchar*)buf;
+}
+
+/*
+ * NOT DONE:
+ * drawwakeall, drawwrite
+ */
+
 static
 uchar*
 drawcoord(uchar *p, uchar *maxp, int oldx, int *newx)
@@ -727,12 +702,12 @@ drawcoord(uchar *p, uchar *maxp, int oldx, int *newx)
 	int b, x;
 
 	if(p >= maxp)
-		return nil;
+		return nil; /* error(Eshortdraw); */
 	b = *p++;
 	x = b & 0x7F;
 	if(b & 0x80){
 		if(p+1 >= maxp)
-			return nil;
+			return nil; /* error(Eshortdraw); */
 		x |= *p++ << 7;
 		x |= *p++ << 15;
 		if(x & (1<<22))
@@ -746,10 +721,63 @@ drawcoord(uchar *p, uchar *maxp, int oldx, int *newx)
 	return p;
 }
 
+static void
+printmesg(char *fmt, uchar *a, int plsprnt)
+{
+	char buf[256];
+	char *p, *q;
+	int s;
+
+#define printing 0
+
+	if(printing|| plsprnt==0){
+		SET(s); SET(q); SET(p);
+		USED(fmt); USED(a); USED(buf); USED(p); USED(q); USED(s);
+		return;
+	}
+	q = buf;
+	*q++ = *a++;
+	for(p=fmt; *p; p++){
+		switch(*p){
+		case 'l':
+			q += sprint(q, " %ld", (long)BGLONG(a));
+			a += 4;
+			break;
+		case 'L':
+			q += sprint(q, " %.8lux", (ulong)BGLONG(a));
+			a += 4;
+			break;
+		case 'R':
+			q += sprint(q, " [%d %d %d %d]", BGLONG(a), BGLONG(a+4), BGLONG(a+8), BGLONG(a+12));
+			a += 16;
+			break;
+		case 'P':
+			q += sprint(q, " [%d %d]", BGLONG(a), BGLONG(a+4));
+			a += 8;
+			break;
+		case 'b':
+			q += sprint(q, " %d", *a++);
+			break;
+		case 's':
+			q += sprint(q, " %d", BGSHORT(a));
+			a += 2;
+			break;
+		case 'S':
+			q += sprint(q, " %.4ux", BGSHORT(a));
+			a += 2;
+			break;
+		}
+	}
+	*q++ = '\n';
+	*q = 0;
+	// iprint("%.*s", (int)(q-buf), buf);
+	print("devwsys: drawmsg %s", buf);
+}
+
 int
 drawmesg(Client *client, void *av, int n)
 {
-	char cbuf[40], *err, ibuf[12*12+1], *s;
+	char *fmt, *err, *s;
 	int c, ci, doflush, dstid, e0, e1, esize, j, m;
 	int ni, nw, oesize, oldn, op, ox, oy, repl, scrnid, y; 
 	uchar *a, refresh, *u;
@@ -777,9 +805,8 @@ drawmesg(Client *client, void *av, int n)
 
 	while((n-=m) > 0){
 		a += m;
-fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 		switch(*a){
-/*fprint(2, "bad command %d\n", *a); */
+		default:
 			err = "bad draw command";
 			goto error;
 
@@ -787,6 +814,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			R[4*4] clipR[4*4] rrggbbaa[4]
 		 */
 		case 'b':
+			printmesg(fmt="LLbLbRRL", a, 0);
 			m = 1+4+4+1+4+1+4*4+4*4+4;
 			if(n < m)
 				goto Eshortdraw;
@@ -826,7 +854,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 				l = memlalloc(scrn, r, reffn, 0, value);
 				if(l == 0)
 					goto Edrawmem;
-				addflush(draw, l->layer->screenr);
+				dstflush(draw, l->layer->screen->image, l->layer->screenr);
 				l->clipr = clipr;
 				rectclip(&l->clipr, r);
 				if(drawinstall(client, dstid, l, dscrn) == 0){
@@ -868,6 +896,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* allocate screen: 'A' id[4] imageid[4] fillid[4] public[1] */
 		case 'A':
+			printmesg(fmt="LLLb", a, 1);
 			m = 1+4+4+4+1;
 			if(n < m)
 				goto Eshortdraw;
@@ -886,6 +915,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* set repl and clip: 'c' dstid[4] repl[1] clipR[4*4] */
 		case 'c':
+			printmesg(fmt="LbR", a, 0);
 			m = 1+4+1+4*4;
 			if(n < m)
 				goto Eshortdraw;
@@ -904,11 +934,11 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* draw: 'd' dstid[4] srcid[4] maskid[4] R[4*4] P[2*4] P[2*4] */
 		case 'd':
+			printmesg(fmt="LLLRPP", a, 0);
 			m = 1+4+4+4+4*4+2*4+2*4;
 			if(n < m)
 				goto Eshortdraw;
 			dst = drawimage(client, a+1);
-			dstid = BGLONG(a+1);
 			src = drawimage(client, a+5);
 			mask = drawimage(client, a+9);
 			if(!dst || !src || !mask)
@@ -918,11 +948,12 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			drawpoint(&q, a+37);
 			op = drawclientop(client);
 			memdraw(dst, r, src, p, mask, q, op);
-			dstflush(draw, dstid, dst, r);
+			dstflush(draw, dst, r);
 			continue;
 
 		/* toggle debugging: 'D' val[1] */
 		case 'D':
+			printmesg(fmt="b", a, 0);
 			m = 1+1;
 			if(n < m)
 				goto Eshortdraw;
@@ -932,11 +963,11 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 		/* ellipse: 'e' dstid[4] srcid[4] center[2*4] a[4] b[4] thick[4] sp[2*4] alpha[4] phi[4]*/
 		case 'e':
 		case 'E':
+			printmesg(fmt="LLPlllPll", a, 0);
 			m = 1+4+4+2*4+4+4+4+2*4+2*4;
 			if(n < m)
 				goto Eshortdraw;
 			dst = drawimage(client, a+1);
-			dstid = BGLONG(a+1);
 			src = drawimage(client, a+5);
 			if(!dst || !src)
 				goto Enodrawimage;
@@ -967,11 +998,12 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 				memarc(dst, p, e0, e1, c, src, sp, ox, oy, op);
 			}else
 				memellipse(dst, p, e0, e1, c, src, sp, op);
-			dstflush(draw, dstid, dst, Rect(p.x-e0-j, p.y-e1-j, p.x+e0+j+1, p.y+e1+j+1));
+			dstflush(draw, dst, Rect(p.x-e0-j, p.y-e1-j, p.x+e0+j+1, p.y+e1+j+1));
 			continue;
 
 		/* free: 'f' id[4] */
 		case 'f':
+			printmesg(fmt="L", a, 1);
 			m = 1+4;
 			if(n < m)
 				goto Eshortdraw;
@@ -984,6 +1016,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* free screen: 'F' id[4] */
 		case 'F':
+			printmesg(fmt="L", a, 1);
 			m = 1+4;
 			if(n < m)
 				goto Eshortdraw;
@@ -994,11 +1027,13 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* initialize font: 'i' fontid[4] nchars[4] ascent[1] */
 		case 'i':
+			printmesg(fmt="Llb", a, 1);
 			m = 1+4+4+1;
 			if(n < m)
 				goto Eshortdraw;
 			dstid = BGLONG(a+1);
-			if(dstid == 0){
+			dst = drawimage(client, a+1);
+			if(dstid == 0 || dst == draw->screenimage) {
 				err = "can't use display as font";
 				goto error;
 			}
@@ -1025,54 +1060,9 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			font->ascent = a[9];
 			continue;
 
-		/* set image 0 to screen image */
-		case 'J':
-			m = 1;
-			if(n < m)
-				goto Eshortdraw;
-			if(drawlookup(client, 0, 0))
-				goto Eimageexists;
-			drawinstall(client, 0, draw->screenimage, 0);
-			client->infoid = 0;
-			continue;
-
-		/* get image info: 'I' */
-		case 'I':
-			m = 1;
-			if(n < m)
-				goto Eshortdraw;
-			if(client->infoid < 0)
-				goto Enodrawimage;
-			if(client->infoid == 0){
-				i = draw->screenimage;
-				if(i == nil)
-					goto Enodrawimage;
-			}else{
-				di = drawlookup(client, client->infoid, 1);
-				if(di == nil)
-					goto Enodrawimage;
-				i = di->image;
-			}
-			ni = sprint(ibuf, "%11d %11d %11s %11d %11d %11d %11d %11d"
-					" %11d %11d %11d %11d ",
-					client->clientid,
-					client->infoid,	
-					chantostr(cbuf, i->chan),
-					(i->flags&Frepl)==Frepl,
-					i->r.min.x, i->r.min.y, i->r.max.x, i->r.max.y,
-					i->clipr.min.x, i->clipr.min.y, 
-					i->clipr.max.x, i->clipr.max.y);
-			free(client->readdata);
-			client->readdata = malloc(ni);
-			if(client->readdata == nil)
-				goto Enomem;
-			memmove(client->readdata, ibuf, ni);
-			client->nreaddata = ni;
-			client->infoid = -1;
-			continue;	
-
 		/* load character: 'l' fontid[4] srcid[4] index[2] R[4*4] P[2*4] left[1] width[1] */
 		case 'l':
+			printmesg(fmt="LLSRPbb", a, 0);
 			m = 1+4+4+2+4*4+2*4+1+1;
 			if(n < m)
 				goto Eshortdraw;
@@ -1101,11 +1091,11 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* draw line: 'L' dstid[4] p0[2*4] p1[2*4] end0[4] end1[4] radius[4] srcid[4] sp[2*4] */
 		case 'L':
+			printmesg(fmt="LPPlllLP", a, 0);
 			m = 1+4+2*4+2*4+4+4+4+4+2*4;
 			if(n < m)
 				goto Eshortdraw;
 			dst = drawimage(client, a+1);
-			dstid = BGLONG(a+1);
 			drawpoint(&p, a+5);
 			drawpoint(&q, a+13);
 			e0 = BGLONG(a+21);
@@ -1122,10 +1112,10 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			op = drawclientop(client);
 			memline(dst, p, q, e0, e1, j, src, sp, op);
 			/* avoid memlinebbox if possible */
-			if(dstid==0 || dst->layer!=nil){
+			if(dst == draw->screenimage || dst->layer!=nil){
 				/* BUG: this is terribly inefficient: update maximal containing rect*/
 				r = memlinebbox(p, q, e0, e1, j);
-				dstflush(draw, dstid, dst, insetrect(r, -(1+1+j)));
+				dstflush(draw, dst, insetrect(r, -(1+1+j)));
 			}
 			continue;
 
@@ -1133,6 +1123,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 /*
  *
 		case 'm':
+			printmesg("LL", a, 0);
 			m = 4+4;
 			if(n < m)
 				goto Eshortdraw;
@@ -1142,6 +1133,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* attach to a named image: 'n' dstid[4] j[1] name[j] */
 		case 'n':
+			printmesg(fmt="Lz", a, 0);
 			m = 1+4+1;
 			if(n < m)
 				goto Eshortdraw;
@@ -1154,7 +1146,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			dstid = BGLONG(a+1);
 			if(drawlookup(client, dstid, 0))
 				goto Eimageexists;
-			dn = drawlookupname(draw, j, (char*)a+6);
+			dn = drawlookupname(j, (char*)a+6);
 			if(dn == nil)
 				goto Enoname;
 			s = malloc(j+1);
@@ -1176,6 +1168,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* name an image: 'N' dstid[4] in[1] j[1] name[j] */
 		case 'N':
+			printmesg(fmt="Lbz", a, 0);
 			m = 1+4+1+1;
 			if(n < m)
 				goto Eshortdraw;
@@ -1191,21 +1184,22 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 				goto Enodrawimage;
 			if(di->name)
 				goto Enamed;
-			if(c)
+			if(c) {
 				if(drawaddname(client, di, j, (char*)a+7, &err) < 0)
 					goto error;
-			else{
-				dn = drawlookupname(draw, j, (char*)a+7);
+			}else{
+				dn = drawlookupname(j, (char*)a+7);
 				if(dn == nil)
 					goto Enoname;
 				if(dn->dimage != di)
 					goto Ewrongname;
-				drawdelname(draw, dn);
+				drawdelname(dn);
 			}
 			continue;
 
 		/* position window: 'o' id[4] r.min [2*4] screenr.min [2*4] */
 		case 'o':
+			printmesg(fmt="LPP", a, 0);
 			m = 1+4+2*4+2*4;
 			if(n < m)
 				goto Eshortdraw;
@@ -1222,8 +1216,8 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 					goto error;
 				}
 				if(ni > 0){
-					addflush(draw, r);
-					addflush(draw, dst->layer->screenr);
+					dstflush(draw, dst->layer->screen->image, r);
+					dstflush(draw, dst->layer->screen->image, dst->layer->screenr);
 					ll = drawlookup(client, BGLONG(a+1), 1);
 					drawrefreshscreen(ll, client);
 				}
@@ -1232,6 +1226,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* set compositing operator for next draw operation: 'O' op */
 		case 'O':
+			printmesg(fmt="b", a, 0);
 			m = 1+1;
 			if(n < m)
 				goto Eshortdraw;
@@ -1242,10 +1237,10 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 		/* polygon: 'p' dstid[4] n[2] end0[4] end1[4] radius[4] srcid[4] sp[2*4] p0[2*4] dp[2*2*n] */
 		case 'p':
 		case 'P':
+			printmesg(fmt="LslllLPP", a, 0);
 			m = 1+4+2+4+4+4+4+2*4;
 			if(n < m)
 				goto Eshortdraw;
-			dstid = BGLONG(a+1);
 			dst = drawimage(client, a+1);
 			ni = BGSHORT(a+5);
 			if(ni < 0){
@@ -1272,7 +1267,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			if(pp == nil)
 				goto Enomem;
 			doflush = 0;
-			if(dstid==0 || (dst->layer && dst->layer->screen->image->data == draw->screenimage->data))
+			if(dst == draw->screenimage || (dst->layer && dst->layer->screen->image->data == draw->screenimage->data))
 				doflush = 1;	/* simplify test in loop */
 			ox = oy = 0;
 			esize = 0;
@@ -1309,12 +1304,12 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 						combinerect(&r, Rect(p.x-esize, p.y-esize, p.x+esize+1, p.y+esize+1));
 					}
 					if(rectclip(&r, dst->clipr))		/* should perhaps be an arg to dstflush */
-						dstflush(draw, dstid, dst, r);
+						dstflush(draw, dst, r);
 				}
 				pp[y] = p;
 			}
 			if(y == 1)
-				dstflush(draw, dstid, dst, Rect(p.x-esize, p.y-esize, p.x+esize+1, p.y+esize+1));
+				dstflush(draw, dst, Rect(p.x-esize, p.y-esize, p.x+esize+1, p.y+esize+1));
 			op = drawclientop(client);
 			if(*a == 'p')
 				mempoly(dst, pp, ni, e0, e1, j, src, sp, op);
@@ -1326,6 +1321,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* read: 'r' id[4] R[4*4] */
 		case 'r':
+			printmesg(fmt="LR", a, 0);
 			m = 1+4+4*4;
 			if(n < m)
 				goto Eshortdraw;
@@ -1356,6 +1352,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 		/* stringbg: 'x' dstid[4] srcid[4] fontid[4] P[2*4] clipr[4*4] sp[2*4] ni[2] bgid[4] bgpt[2*4] ni*(index[2]) */
 		case 's':
 		case 'x':
+			printmesg(fmt="LLLPRPs", a, 0);
 			m = 1+4+4+4+2*4+4*4+2*4+2;
 			if(*a == 'x')
 				m += 4+2*4;
@@ -1363,7 +1360,6 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 				goto Eshortdraw;
 
 			dst = drawimage(client, a+1);
-			dstid = BGLONG(a+1);
 			src = drawimage(client, a+5);
 			if(!dst || !src)
 				goto Enodrawimage;
@@ -1418,11 +1414,12 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 			}
 			dst->clipr = clipr;
 			p.y -= font->ascent;
-			dstflush(draw, dstid, dst, Rect(p.x, p.y, q.x, p.y+Dy(font->image->r)));
+			dstflush(draw, dst, Rect(p.x, p.y, q.x, p.y+Dy(font->image->r)));
 			continue;
 
 		/* use public screen: 'S' id[4] chan[4] */
 		case 'S':
+			printmesg(fmt="Ll", a, 0);
 			m = 1+4+4;
 			if(n < m)
 				goto Eshortdraw;
@@ -1442,6 +1439,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 
 		/* top or bottom windows: 't' top[1] nw[2] n*id[4] */
 		case 't':
+			printmesg(fmt="bsL", a, 0);
 			m = 1+1+2;
 			if(n < m)
 				goto Eshortdraw;
@@ -1480,7 +1478,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 				memltorearn(lp, nw);
 			if(lp[0]->layer->screen->image->data == draw->screenimage->data)
 				for(j=0; j<nw; j++)
-					addflush(draw, lp[j]->layer->screenr);
+					dstflush(draw, lp[j]->layer->screen->image, lp[j]->layer->screenr);
 			free(lp);
 			ll = drawlookup(client, BGLONG(a+1+1+2), 1);
 			drawrefreshscreen(ll, client);
@@ -1496,10 +1494,10 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 		/* write from compressed data: 'Y' id[4] R[4*4] data[x*1] */
 		case 'y':
 		case 'Y':
+			printmesg(fmt="LR", a, 0);
 			m = 1+4+4*4;
 			if(n < m)
 				goto Eshortdraw;
-			dstid = BGLONG(a+1);
 			dst = drawimage(client, a+1);
 			if(!dst)
 				goto Enodrawimage;
@@ -1511,7 +1509,7 @@ fprint(2, "XXX msgwrite %d(%d): %c\n", n, *a, *a); /**/
 				err = "bad writeimage call";
 				goto error;
 			}
-			dstflush(draw, dstid, dst, r);
+			dstflush(draw, dst, r);
 			m += y;
 			continue;
 		}
@@ -1588,4 +1586,72 @@ error:
 	werrstr("%s", err);
 	// qunlock(&sdraw.lk);
 	return -1;
+}
+
+/*
+ * From p9p
+ */
+
+void
+drawreplacescreenimage(Window *w, Memimage *m)
+{
+	/*
+	 * Replace the screen image because the screen
+	 * was resized.
+	 * 
+	 * In theory there should only be one reference
+	 * to the current screen image, and that's through
+	 * client0's image 0, installed a few lines above.
+	 * Once the client drops the image, the underlying backing 
+	 * store freed properly.  The client is being notified
+	 * about the resize through external means, so all we
+	 * need to do is this assignment.
+	 */
+	Memimage *om;
+	Memimage *screenimage;
+
+	screenimage = w->draw.screenimage;
+	// qlock(&sdraw.lk);
+	om = screenimage;
+	w->draw.screenimage = m;
+	// m->screenref = 1;
+	// if(om && --om->screenref == 0){
+	//	freememimage(om);
+	// }
+	// qunlock(&sdraw.lk);
+}
+
+void
+drawfree(Client *cl)
+{
+	int i;
+	Draw *draw;
+	DImage *d, **dp;
+	Refresh *r;
+
+	draw = cl->draw;
+	while(r = cl->refresh){	/* assign = */
+		cl->refresh = r->next;
+		free(r);
+	}
+	/* free names */
+	for(i=0; i<ndname; )
+		if(dname[i].client == cl)
+			drawdelname(dname+i);
+		else
+			i++;
+	while(cl->cscreen)
+		drawuninstallscreen(cl, cl->cscreen);
+	/* all screens are freed, so now we can free images */
+	dp = cl->dimage;
+	for(i=0; i<NHASH; i++){
+		while((d = *dp) != nil){
+			*dp = d->next;
+			drawfreedimage(draw, d);
+		}
+		dp++;
+	}
+	client[cl->slot] = 0;
+	drawflush(draw);	/* to erase visible, now dead windows */
+	free(cl);
 }

@@ -116,6 +116,7 @@ exposeevent(Window *w, XEvent xev)
 	Rectangle r;
 	Xwin *xw;
 
+	debugev("Expose event at window %d\n", w->id);
 	xw = w->x;
 	// qlock(&_x.screenlock);
 	if(xw->screenpm != xw->nextscreenpm){

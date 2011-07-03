@@ -22,9 +22,10 @@ newwin(char *label, char *winsize)
 
 	w->id = id++;
 	w->label = label;
-	w->draw.window = w;
-	xattach(w, winsize);
-
+	if(!drawattach(w, winsize)) {
+		// TODO: cleanup window
+		return nil;
+	}
 	return w;
 }
 
