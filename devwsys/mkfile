@@ -37,7 +37,7 @@ HFILES=\
 	latin1.h\
 	${XHFILES:%=x11/%}\
 
-LIBS=	memlayer memdraw kern draw 9
+LIBS=	memlayer memdraw draw kern 9
 
 BIN=$ROOT/$OBJDIR/bin
 

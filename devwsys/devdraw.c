@@ -655,8 +655,6 @@ readdrawctl(char *a, Client *cl)
 			return 0;
 		i = di->image;
 	}
-chantostr(buf, i->chan);
-print("XXX i->chan %d = %s\n", i->chan, buf);
 	n = sprint(a, "%11d %11d %11s %11d %11d %11d %11d %11d %11d %11d %11d %11d ",
 		cl->clientid, cl->infoid, chantostr(buf, i->chan), (i->flags&Frepl)==Frepl,
 		i->r.min.x, i->r.min.y, i->r.max.x, i->r.max.y,
