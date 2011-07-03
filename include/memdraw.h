@@ -201,6 +201,7 @@ extern Memimage* _allocmemimage(Rectangle, ulong);
 extern void	_freememimage(Memimage*);
 extern int		_cloadmemimage(Memimage*, Rectangle, uchar*, int);
 extern void	_memimagedraw(Memimage*, Rectangle, Memimage*, Point, Memimage*, Point, int);
+extern void	_memfillcolor(Memimage*, ulong);
 extern ulong	_pixelbits(Memimage*, Point);
 extern int		_loadmemimage(Memimage*, Rectangle, uchar*, int);
 extern int		_unloadmemimage(Memimage*, Rectangle, uchar*, int);

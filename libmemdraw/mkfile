@@ -18,6 +18,7 @@ COMMONFILES=\
 	poly.$O\
 	read.$O\
 	string.$O\
+	stub.$O\
 	subfont.$O\
 	write.$O\
 
