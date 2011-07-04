@@ -197,6 +197,9 @@ extern int		drawdebug;
 /*
  * For other implementations, like devwsys.
  */
+extern ulong	imgtorgba(Memimage*, ulong);
+extern ulong	rgbatoimg(Memimage*, ulong);
+
 extern Memimage* _allocmemimage(Rectangle, ulong);
 extern void	_freememimage(Memimage*);
 extern int		_cloadmemimage(Memimage*, Rectangle, uchar*, int);

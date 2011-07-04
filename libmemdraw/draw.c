@@ -83,9 +83,6 @@ memimageinit(void)
 	memtransparent = memzeros;
 }
 
-static ulong imgtorgba(Memimage*, ulong);
-static ulong rgbatoimg(Memimage*, ulong);
-
 #define DBG if(0)
 void
 _memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
@@ -1969,7 +1966,7 @@ memset24(void *vp, ulong val, int n)
 	}
 }
 
-static ulong
+ulong
 imgtorgba(Memimage *img, ulong val)
 {
 	uchar r, g, b, a;
@@ -2017,7 +2014,7 @@ imgtorgba(Memimage *img, ulong val)
 	return (r<<24)|(g<<16)|(b<<8)|a;	
 }
 
-static ulong
+ulong
 rgbatoimg(Memimage *img, ulong rgba)
 {
 	ulong chan;
