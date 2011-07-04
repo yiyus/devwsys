@@ -27,6 +27,7 @@ struct Xmem
 	int		dirty;	/* is the X server ahead of us?  */
 	Rectangle	dirtyr;	/* which pixels? */
 	Rectangle	r;		/* size of image */
+	Window	*w;		/* associated window */
 };
 
 struct Xwin {
@@ -60,3 +61,11 @@ extern Xconn xconn;
 
 int xtoplan9kbd(XEvent*);
 int xtoplan9mouse(XEvent*, Mouse*);
+int xcloadmemimage(Memimage*, Rectangle, uchar*, int);
+void xfillcolor(Memimage*, Rectangle, ulong);
+XImage* xgetxdata(Memimage*, Rectangle);
+int xreplacescreenimage(Window*);
+void xmovewindow(Window*, Rectangle);
+void xputxdata(Memimage*, Rectangle);
+void xmemimagedraw(Memimage*, Rectangle, Memimage*, Point,
+	Memimage*, Point, int);

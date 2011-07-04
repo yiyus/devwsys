@@ -4,10 +4,15 @@ TARG=devwsys
 
 XFILES=\
 	alloc.$O\
+	cload.$O\
 	display.$O\
+	draw.$O\
 	event.$O\
+	fill.$O\
+	get.$O\
 	itrans.$O\
 	keysym2ucs.$O\
+	stub.$O\
 	window.$O\
 	wsys.$O\
 

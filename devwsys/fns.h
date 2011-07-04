@@ -41,12 +41,9 @@ void xnextevent(void);
 void xclose(void);
 
 /* X window */
+Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
 int xattach(Window*, char*);
-// Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
-Memimage* xallocmemimage(Window*, Rectangle, ulong, int, void**);
-void xfreememimage(Memimage*);
 void xdeletewin(Window*);
 void xflushmemscreen(Window*, Rectangle);
-int xreplacescreenimage(Window*);
+void xfreememimage(Memimage*);
 int xupdatelabel(Window*);
-void xmovewindow(Window*, Rectangle);

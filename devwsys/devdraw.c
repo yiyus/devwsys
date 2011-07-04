@@ -726,9 +726,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 	char *p, *q;
 	int s;
 
-#define printing 0
-
-	if(printing|| plsprnt==0){
+	if(debuglevel == 0 || plsprnt==0){
 		SET(s); SET(q); SET(p);
 		USED(fmt); USED(a); USED(buf); USED(p); USED(q); USED(s);
 		return;

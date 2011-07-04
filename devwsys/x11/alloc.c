@@ -11,7 +11,7 @@
  * Allocate a Memimage with an optional pixmap backing on the X server.
  */
 Memimage*
-xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap, void** v)
+xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 {
 	int d, offset;
 	Memimage *m;
@@ -19,10 +19,10 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap, void** v)
 	Xmem *xm;
 	Xwin *xw;
 
-	m = allocmemimage(r, chan);
+	m = _allocmemimage(r, chan);
 	if(chan != GREY1 && chan != xconn.chan)
 		return m;
-	if(xconn.display == 0)
+	if(w == nil || xconn.display == 0)
 		return m;
 
 	/*
@@ -79,6 +79,7 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap, void** v)
 
 	xm->xi = xi;
 	xm->r = r;
+	xm->w = w;
 
 	/*
 	 * Set the XImage parameters so that it looks exactly like
@@ -94,7 +95,7 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap, void** v)
 	XInitImage(xi);
 	XFlush(xconn.display);
 
-	*v = xm; // m->X = xm;
+	m->X = xm;
 	return m;
 }
 
@@ -106,7 +107,7 @@ xfreememimage(Memimage *m)
 	if(m == nil)
 		return;
 
-	xm = nil; // m->X;
+	xm = m->X;
 	if(xm && m->data->ref == 1){
 		if(xm->xi){
 			xm->xi->data = nil;
@@ -114,7 +115,7 @@ xfreememimage(Memimage *m)
 		}
 		XFreePixmap(xconn.display, xm->pixmap);
 		free(xm);
-		// m->X = nil;
+		m->X = nil;
 	}
 	freememimage(m);
 }

@@ -2,10 +2,10 @@
 #include <draw.h>
 #include <memdraw.h>
 #include <memlayer.h>
-#include "inc.h"
-#include "x.h"
 #include "dat.h"
 #include "fns.h"
+#include "inc.h"
+#include "x.h"
 
 #define debugev(...) if(0) debug(__VA_ARGS__)
 

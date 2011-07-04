@@ -55,7 +55,6 @@ struct Draw
 	Rectangle		flushrect;
 	int			waste;
 	DScreen*		dscreen;
-	void*		X;
 };
 
 struct Client
