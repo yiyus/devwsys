@@ -74,7 +74,7 @@ xreplacescreenimage(Window *w)
 		XFreePixmap(xconn.display, xw->nextscreenpm);
 	xw->nextscreenpm = pixmap;
 	w->screenr = r;
-	drawreplacescreenimage(w, m);
+	drawreplacescreenimage(&w->draw, m);
 	return 1;
 }
 

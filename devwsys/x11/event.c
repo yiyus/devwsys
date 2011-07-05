@@ -89,7 +89,7 @@ configevent(Window *w, XEvent xev)
 			w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
 	}
 
-	if(xe->width == Dx(w->screenr) && xe->height == Dy(w->screenr))
+	if(xe->width == Dx(xconn.screenrect) && xe->height == Dy(xconn.screenrect))
 		return;
 	r = Rect(0, 0, xe->width, xe->height);
 

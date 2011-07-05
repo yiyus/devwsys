@@ -393,10 +393,14 @@ drawfreedimage(Draw *d, DImage *dimage)
 		goto Return;
 	}
 	ds = dimage->dscreen;
+	l = dimage->image;
+	dimage->dscreen = nil;	/* paranoia */
+	dimage->image = nil;
 	if(ds){
-		l = dimage->image;
+		// XXX TODO: this should not happen:
+		if(l->layer == nil) return;
 		if(l->data == d->screenimage->data)
-			dstflush(d, l->layer->screen->image, l->layer->screenr);
+			addflush(d, l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
 			free(l->layer->refreshptr);
 		l->layer->refreshptr = nil;
@@ -409,7 +413,7 @@ drawfreedimage(Draw *d, DImage *dimage)
 		// XXX TODO
 		// inferno-os/emu/port/devdraw.c:652
 		// plan9port/src/cmd/devdraw/devdraw.c:566,569
-		freememimage(dimage->image);
+		freememimage(l);
 	}
     Return:
 	free(dimage->fchar);
@@ -1589,32 +1593,58 @@ error:
  */
 
 void
-drawreplacescreenimage(Window *w, Memimage *m)
+drawreplacescreenimage(Draw *d, Memimage *m)
 {
+	int i;
+	DImage *di;
+
+	if(d->screendimage == nil)
+		return;
+
 	/*
 	 * Replace the screen image because the screen
-	 * was resized.
-	 * 
-	 * In theory there should only be one reference
-	 * to the current screen image, and that's through
-	 * client0's image 0, installed a few lines above.
-	 * Once the client drops the image, the underlying backing 
-	 * store freed properly.  The client is being notified
-	 * about the resize through external means, so all we
-	 * need to do is this assignment.
+	 * was resized.  Clients still have references to the
+	 * old screen image, so we can't free it just yet.
 	 */
-	Memimage *om;
-	Memimage *screenimage;
+	// drawqlock();
+	di = allocdimage(m);
+	if(di == nil){
+		print("no memory to replace screen image\n");
+		freememimage(m);
+		// drawqunlock();
+		return;
+	}
+	
+	/* Replace old screen image in global name lookup. */
+	for(i=0; i<ndname; i++){
+		if(dname[i].dimage == d->screendimage)
+		if(dname[i].client == nil){
+			dname[i].dimage = di;
+			break;
+		}
+	}
 
-	screenimage = w->draw.screenimage;
-	// qlock(&sdraw.lk);
-	om = screenimage;
-	w->draw.screenimage = m;
-	// m->screenref = 1;
-	// if(om && --om->screenref == 0){
-	//	freememimage(om);
-	// }
-	// qunlock(&sdraw.lk);
+	drawfreedimage(d, d->screendimage);
+	d->screendimage = di;
+	d->screenimage = m;
+
+	/*
+	 * Every client, when it starts, gets a copy of the
+	 * screen image as image 0.  Clients only use it 
+	 * for drawing if there is no /dev/winname, but
+	 * this /dev/draw provides a winname (early ones
+	 * didn't; winname originated in rio), so the
+	 * image only ends up used to find the screen
+	 * resolution and pixel format during initialization.
+	 * Silently remove the now-outdated image 0s.
+	 */
+	for(i=0; i<nclient; i++){
+		if(client[i]->draw == d)
+			drawuninstall(client[i], 0);
+	}
+
+	// drawqunlock();
+	// mouseresize();
 }
 
 void

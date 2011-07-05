@@ -117,5 +117,5 @@ xfreememimage(Memimage *m)
 		free(xm);
 		m->X = nil;
 	}
-	freememimage(m);
+	// XXX _freememimage(m);
 }

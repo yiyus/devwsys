@@ -9,7 +9,7 @@ int drawattach(Window*, char*);
 int readdrawctl(char*, Client*);
 int readrefresh(char*, long, Client*);
 int drawmesg(Client*, void*, int);
-char* drawerr(void);
+void drawreplacescreenimage(Draw*, Memimage*);
 
 /* Keyboard */
 void writekbd(Window*, int);
@@ -27,7 +27,6 @@ void* nextreq(Reqbuf *reqs);
 void deletewin(Window*);
 Window* newwin(char*, char*);
 int parsewinsize(char*, Rectangle*, int*);
-void drawreplacescreenimage(Window*, Memimage*);
 void setlabel(Window*, char*);
 
 /* Ixp */
