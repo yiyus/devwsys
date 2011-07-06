@@ -19,9 +19,11 @@ xnextevent(void) {
 	int i;
 	Window *w;
 	Xwin *xw;
-	XEvent xev;
+	XEvent xev, xevp;
 
 	xw = nil;
+
+NextEvent:
 	XNextEvent(xconn.display, &xev);
 	for(i = 0; i < nwindow; i++){
 		xw = window[i]->x;
@@ -38,6 +40,13 @@ xnextevent(void) {
 		break;
 
 	case ConfigureNotify:
+		// TODO: I'm not sure about this
+		/* avoid superflous redraws */
+		if(XPending(xconn.display)) {
+			XPeekEvent(xconn.display, &xevp);
+			if(xevp.type == ConfigureNotify)
+				goto NextEvent;
+		}
 		configevent(w, xev);
 		break;
 
@@ -70,6 +79,8 @@ xnextevent(void) {
 	default:
 		break;
 	}
+	if(XPending(xconn.display))
+		goto NextEvent;
 }
 
 void

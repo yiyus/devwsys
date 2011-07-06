@@ -397,7 +397,10 @@ drawfreedimage(Draw *d, DImage *dimage)
 	dimage->dscreen = nil;	/* paranoia */
 	dimage->image = nil;
 	if(ds){
-		// XXX TODO: this should not happen:
+		// XXX TODO: l->layer can be nil
+		// if we get ConfigEvents before
+		// we have a screen, is that the
+		// only case?
 		if(l->layer == nil) return;
 		if(l->data == d->screenimage->data)
 			addflush(d, l->layer->screenr);
@@ -624,7 +627,11 @@ drawattach(Window *w, char *winsize)
 	if(!xattach(w, winsize))
 		return 0;
 	di = allocdimage(d->screenimage);
-	name = smprint("xwindow.screen.%d", w->id);
+	/*
+	 * we must use the name "noborder"
+	 * name = smprint("xwindow.screen.%d", w->id);
+	 */
+	name = smprint("noborder.screen.%d", w->id);
 	if(drawaddname(nil, di, strlen(name), name, &err) < 0)
 		return 0;
 	d->screendimage = di;
@@ -878,8 +885,7 @@ drawmesg(Client *client, void *av, int n)
 				}
 				continue;
 			}
-			// i = xallocmemimage(w, r, chan, PMundef, &x);
-			i = allocmemimage(r, chan);
+			i = xallocmemimage(w, r, chan, PMundef);
 			if(i == 0)
 				goto Edrawmem;
 			if(repl)

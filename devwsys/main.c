@@ -9,8 +9,23 @@
 #define GETARG() (cp-*argv == strlen(*argv)-1) ? *++argv : cp+1
 
 int debuglevel = 0;
+int drawdebug; /* used by libmemdraw */
 int nwindow;
 Window **window;
+
+/* used by libmemdraw */
+int
+iprint(char* fmt, ...)
+{
+	int n;
+	va_list args;
+
+	va_start(args, fmt);
+	n = fprint(2, "devwsys: ");
+	n += vfprint(2, fmt, args);
+	va_end(args);
+	return n;
+}
 
 int
 main(int argc, char **argv)
@@ -38,6 +53,7 @@ main(int argc, char **argv)
 			}
 		}
 	}
+	drawdebug = debuglevel;
 
 	/* Connect to X */
 	if(xinit() != 0)
