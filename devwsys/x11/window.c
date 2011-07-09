@@ -44,7 +44,7 @@ xattach(Window *w, char *winsize)
 
 Error:
 	/* BUG: detach screen */
-print("XXX Error in xattach\n");
+	// print("XXX Error in xattach\n");
 	return 0;
 }
 

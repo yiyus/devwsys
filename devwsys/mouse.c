@@ -71,8 +71,8 @@ matchmouse(Mousebuf *mouse, Reqbuf *mousereqs)
 void
 replymouse(Mousebuf *mouse, void *r)
 {
-	int resized;
-	char buf[48], c;
+	int n, resized;
+	char buf[50], c;
 	Mouse m;
 
 	m = mouse->m[mouse->ri];
@@ -80,7 +80,8 @@ replymouse(Mousebuf *mouse, void *r)
 	c = 'm';
 	if(mouse->resized)
 		c = 'r';
-	sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
+	n = sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
+	buf[n] = '\0';
 	ixprread(r, buf);
 	mouse->resized = 0;
 }

@@ -267,8 +267,10 @@ void
 fs_open(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
-	Client *cl;
 	Draw *d;
+	Client *cl;
+	DName *dn;
+	DImage *di;
 
 	debug9p("fs_open(%p)\n", r);
 
@@ -307,7 +309,29 @@ fs_open(Ixp9Req *r) {
 		d = cl->draw;
 		d->flushrect = Rect(10000, 10000, -10000, -10000);
 		// print("XXX drawinstall %d (draw %d)\n", d->screenimage, d);
-		drawinstall(cl, 0, d->screenimage, 0);
+		dn = drawlookupname(strlen(d->screenname), d->screenname);
+		if(dn == 0){
+			ixp_respond(r, "draw: cannot happen 2");
+			return;
+		}
+		if(drawinstall(cl, 0, dn->dimage->image, 0) == 0){
+			ixp_respond(r, Enomem);
+			return;
+		}
+		di = drawlookup(cl, 0, 0);
+		if(di == 0){
+			ixp_respond(r, "draw: cannot happen 1");
+			return;
+		}
+		di->vers = dn->vers;
+		di->name = malloc(strlen(d->screenname)+1);
+		if(di->name == 0){
+			ixp_respond(r, Enomem);
+			return;
+		}
+		strcpy(di->name, d->screenname);
+		di->fromname = dn->dimage;
+		di->fromname->ref++;
 		incref(&cl->r);
 		break;
 	case FsFColormap:
@@ -586,11 +610,11 @@ fs_clunk(Ixp9Req *r) {
 		break;
 	}
 	cl = f->p.client;
-	// TODO: inferno-os/emu/port/devdraw.c:971
+	// TODO: ../../inferno-os/emu/port/devdraw.c:971
 	if(f->tab.type == FsFCtl)
 		cl->busy = 0;
 	if(!iswindow(f->tab.type) && (decref(&cl->r)==0))
-		; // XXX TODO: drawfree(cl);
+		drawfree(cl); // XXX TODO: 
 	ixp_respond(r, nil);
 }
 

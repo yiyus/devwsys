@@ -6,6 +6,8 @@ Client* drawnewclient(Draw*);
 Memimage* drawinstall(Client*, int, Memimage*, DScreen*);
 void drawfree(Client*);
 int drawattach(Window*, char*);
+DImage* drawlookup(Client*, int, int);
+DName* drawlookupname(int, char*);
 int readdrawctl(char*, Client*);
 int readrefresh(char*, long, Client*);
 int drawmesg(Client*, void*, int);

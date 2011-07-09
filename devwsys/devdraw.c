@@ -6,7 +6,6 @@
 #include "dat.h"
 #include "fns.h"
 
-static DImage* drawlookup(Client*, int, int);
 static void drawfreedimage(Draw*, DImage*);
 static int drawgoodname(DImage*);
 static void drawflush(Draw*);
@@ -149,7 +148,6 @@ drawcmp(char *a, char *b, int n)
 	return memcmp(a, b, n);
 }
 
-static
 DName*
 drawlookupname(int n, char *str)
 {
@@ -184,7 +182,6 @@ drawgoodname(DImage *d)
 	return 1;
 }
 
-static
 DImage*
 drawlookup(Client *client, int id, int checkname)
 {
@@ -261,7 +258,7 @@ drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 {
 	DImage *d;
 
-	// print("XXX installing %d with id %d\n", i, id);
+	// print("XXX drawinstall %d (%p) in window %d\n", id, i, client->draw->window->id);
 	d = allocdimage(i);
 	if(d == 0)
 		return 0;
@@ -279,7 +276,7 @@ drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *df
 	Memscreen *s;
 	CScreen *c;
 
-	// print("XXX drawinstallscreen\n");
+	// print("XXX drawinstallscreen %d in window %d\n", id, client->draw->window->id);
 	c = malloc(sizeof(CScreen));
 	if(dimage && dimage->image && dimage->image->chan == 0)
 		fatal("bad image %p in drawinstallscreen", dimage->image);
@@ -344,6 +341,7 @@ drawfreedscreen(Draw *d, DScreen *this)
 	DScreen *ds, *next;
 
 	this->ref--;
+	// print("XXX drawfreedscreen %d from window %d (ref %d)\n", this->id, d->window->id, this->ref);
 	if(this->ref < 0)
 		fprint(2, "negative ref in drawfreedscreen\n");
 	if(this->ref > 0)
@@ -381,6 +379,7 @@ drawfreedimage(Draw *d, DImage *dimage)
 	DScreen *ds;
 
 	dimage->ref--;
+	// print("XXX drawfreedimage %d (%p) from window %d (ref %d) with image (%p)\n", dimage->id, dimage, d->window->id, dimage->ref, dimage->image);
 	if(dimage->ref < 0)
 		fprint(2, "negative ref in drawfreedimage\n");
 	if(dimage->ref > 0)
@@ -401,11 +400,12 @@ drawfreedimage(Draw *d, DImage *dimage)
 	dimage->dscreen = nil;	/* paranoia */
 	dimage->image = nil;
 	if(ds){
-		// XXX TODO: l->layer can be nil
-		// if we get ConfigEvents before
-		// we have a screen, is that the
-		// only case?
-		if(l->layer == nil) return;
+		/*
+		 * l->layer will be nil if we get any
+		 * ConfigEvent before having a screen
+		 */
+		if(!l->layer)
+			return;
 		if(l->data == d->screenimage->data)
 			addflush(d, l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
@@ -417,9 +417,6 @@ drawfreedimage(Draw *d, DImage *dimage)
 			memlfree(l);
 		drawfreedscreen(d, ds);
 	}else{
-		// XXX TODO
-		// ../../inferno-os/emu/port/devdraw.c:652
-		// ../../plan9port/src/cmd/devdraw/devdraw.c:566,569
 		_freememimage(l);
 	}
     Return:
@@ -433,6 +430,7 @@ drawuninstallscreen(Client *client, CScreen *this)
 {
 	CScreen *cs, *next;
 
+	// print("XXX drawuninstallscreen %d from window %d\n", this->dscreen->id, client->draw->window->id);
 	cs = client->cscreen;
 	if(cs == this){
 		client->cscreen = this->next;
@@ -462,6 +460,7 @@ drawuninstall(Client *client, int id)
 		return -1; /* BUG: error(Enodrawimage); */
 	if(d->id == id){
 		client->dimage[id&HASHMASK] = d->next;
+	// print("XXX drawuninstall %d from client %d\n", id, client->draw->window->id);
 		drawfreedimage(client->draw, d);
 		return 0;
 	}
@@ -638,14 +637,13 @@ drawattach(Window *w, char *winsize)
 	di = allocdimage(d->screenimage);
 	/*
 	 * we must use the name "noborder"
-	 * name = smprint("xwindow.screen.%d", w->id);
 	 */
 	name = smprint("noborder.screen.%d", w->id);
 	if(drawaddname(nil, di, strlen(name), name, &err) < 0)
 		return 0;
 	d->screendimage = di;
 	d->screenname = name;
-	// print("XXX drawattach id %d name %s clipr %d %d %d %d\n", d->screendimage->id, name, d->screenimage->clipr.min.x, d->screenimage->clipr.min.y, d->screenimage->clipr.max.x, d->screenimage->clipr.max.y);
+	// print("XXX drawattach id %d (%p) name %s clipr %d %d %d %d\n", d->screendimage->id, d->screendimage, name, d->screenimage->clipr.min.x, d->screenimage->clipr.min.y, d->screenimage->clipr.max.x, d->screenimage->clipr.max.y);
 	return 1;
 }
 
@@ -1444,6 +1442,8 @@ drawmesg(Client *client, void *av, int n)
 			if(dstid == 0)
 				goto Ebadarg;
 			dscrn = drawlookupdscreen(draw, dstid);
+			if(dscrn == draw->dscreen)
+				goto Ebadarg;
 			if(dscrn==0 || (dscrn->public==0 && dscrn->owner!=client))
 				goto Enodrawscreen;
 			if(dscrn->screen->image->chan != BGLONG(a+5)){
@@ -1634,14 +1634,13 @@ drawreplacescreenimage(Draw *d, Memimage *m)
 	
 	/* Replace old screen image in global name lookup. */
 	for(i=0; i<ndname; i++){
-		if(dname[i].dimage == d->screendimage)
-		if(dname[i].client == nil){
+		if(dname[i].dimage == d->screendimage){
 			dname[i].dimage = di;
 			break;
 		}
 	}
 
-//XXX	drawfreedimage(d, d->screendimage);
+	drawfreedimage(d, d->screendimage); // XXX
 	d->screendimage = di;
 	d->screenimage = m;
 
@@ -1695,6 +1694,7 @@ drawfree(Client *cl)
 		dp++;
 	}
 	client[cl->slot] = 0;
-	drawflush(draw);	/* to erase visible, now dead windows */
+	// drawflush(draw);	/* to erase visible, now dead windows */
+	xdeletewin(cl->draw->window);
 	free(cl);
 }

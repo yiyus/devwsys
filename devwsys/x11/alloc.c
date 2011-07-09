@@ -104,7 +104,9 @@ xfreememimage(Memimage *m)
 {
 	Xmem *xm;
 
-	if(m == nil)
+	// print("XXX xfreememimage (%p)\n", m);
+	// XXX TODO: why m->data == nil ?
+	if(!m || !m->data)
 		return;
 
 	xm = m->X;
