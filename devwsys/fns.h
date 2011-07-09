@@ -29,6 +29,9 @@ Window* newwin(char*, char*);
 int parsewinsize(char*, Rectangle*, int*);
 void setlabel(Window*, char*);
 
+/* Wctl */
+int wctlmesg(Window*, char*, int, char*);
+
 /* Ixp */
 void ixprread(void*, char*);
 int ixpserve(char*);
@@ -46,3 +49,5 @@ void xdeletewin(Window*);
 void xflushmemscreen(Window*, Rectangle);
 void xfreememimage(Memimage*);
 int xupdatelabel(Window*);
+void xtopwindow(Window*);
+void xresizewindow(Window*, Rectangle);

@@ -20,7 +20,7 @@ newwin(char *label, char *winsize)
 		return nil;
 	window[nwindow-1] = w;
 
-	w->id = id++;
+	w->id = ++id;
 	w->label = label;
 	if(!drawattach(w, winsize)) {
 		// TODO: cleanup window
@@ -126,3 +126,4 @@ setlabel(Window *w, char *label)
 	w->label = label;
 	xupdatelabel(w);
 }
+

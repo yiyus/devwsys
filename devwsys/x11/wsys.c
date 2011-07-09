@@ -30,6 +30,8 @@ xresizewindow(Window *w, Rectangle r)
 	xw = w->x;
 	memset(&e, 0, sizeof e);
 	value_mask = CWX|CWY|CWWidth|CWHeight;
+	e.x = r.min.x;
+	e.y = r.min.y;
 	e.width = Dx(r);
 	e.height = Dy(r);
 	XConfigureWindow(xconn.display, xw->drawable, value_mask, &e);

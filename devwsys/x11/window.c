@@ -30,6 +30,7 @@ xattach(Window *w, char *winsize)
 	Xwin *xw;
 
 	w->screenr = xwinrectangle(w->label, winsize, &havemin);
+	// print("XXX xattach: w->screenr %d %d %d %d\n", w->screenr.min.x, w->screenr.min.y, w->screenr.max.x, w->screenr.max.y);
 	xw = xcreatewin(w->label, winsize, w->screenr);
 	if(xw == nil)
 		goto Error;
@@ -43,6 +44,7 @@ xattach(Window *w, char *winsize)
 
 Error:
 	/* BUG: detach screen */
+print("XXX Error in xattach\n");
 	return 0;
 }
 

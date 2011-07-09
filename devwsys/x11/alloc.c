@@ -117,5 +117,6 @@ xfreememimage(Memimage *m)
 		free(xm);
 		m->X = nil;
 	}
-	// XXX _freememimage(m);
+// print("XXX free %d with layer %d\n", m, m->layer);
+	_freememimage(m);
 }

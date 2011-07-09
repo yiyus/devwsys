@@ -53,7 +53,7 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	drawdebug = debuglevel;
+	drawdebug = 0; // debuglevel;
 
 	/* Connect to X */
 	if(xinit() != 0)

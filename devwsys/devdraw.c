@@ -155,11 +155,13 @@ drawlookupname(int n, char *str)
 {
 	DName *name, *ename;
 
+	// print("XXX drawlookupname %d %s\n", n, str);
 	name = dname;
 	ename = &name[ndname];
 	for(; name<ename; name++)
 		if(drawcmp(name->name, str, n) == 0)
 			return name;
+	// print("XXX drawlookupname: %s not found\n", str);
 	return 0;
 }
 
@@ -177,7 +179,7 @@ drawgoodname(DImage *d)
 	if(d->name == nil)
 		return 1;
 	n = drawlookupname(strlen(d->name), d->name);
-	if(n==nil || n->vers!=vers)
+	if(n==nil || n->vers!=d->vers)
 		return 0;
 	return 1;
 }
@@ -188,6 +190,7 @@ drawlookup(Client *client, int id, int checkname)
 {
 	DImage *d;
 
+	// print("XXX drawlookup %d in client %p\n", id, client);
 	d = client->dimage[id&HASHMASK];
 	while(d){
 		if(d->id == id){
@@ -328,6 +331,7 @@ drawdelname(DName *name)
 {
 	int i;
 
+	// print("XXX drawdelname %s\n", dname->name);
 	i = name-dname;
 	memmove(name, name+1, (ndname-(i+1))*sizeof(DName));
 	ndname--;
@@ -414,9 +418,9 @@ drawfreedimage(Draw *d, DImage *dimage)
 		drawfreedscreen(d, ds);
 	}else{
 		// XXX TODO
-		// inferno-os/emu/port/devdraw.c:652
-		// plan9port/src/cmd/devdraw/devdraw.c:566,569
-		freememimage(l);
+		// ../../inferno-os/emu/port/devdraw.c:652
+		// ../../plan9port/src/cmd/devdraw/devdraw.c:566,569
+		_freememimage(l);
 	}
     Return:
 	free(dimage->fchar);
@@ -479,6 +483,7 @@ drawaddname(Client *client, DImage *di, int n, char *str, char **err)
 	DName *name, *ename, *new, *t;
 	char *ns;
 
+	// print("XXX drawaddname %s\n", str);
 	name = dname;
 	ename = &name[ndname];
 	for(; name<ename; name++)
@@ -565,6 +570,7 @@ drawimage(Client *client, uchar *a)
 {
 	DImage *d;
 
+	// print("XXX drawimage %d\n", BGLONG(a));
 	d = drawlookup(client, BGLONG(a), 1);
 	if(d == nil)
 		return nil;	/* caller must check! */
@@ -624,6 +630,9 @@ drawattach(Window *w, char *winsize)
 
 	d = &w->draw;
 	d->window = w;
+	/*
+	 * xattach sets screenr, x and draw.screenimage
+	 */
 	if(!xattach(w, winsize))
 		return 0;
 	di = allocdimage(d->screenimage);
@@ -636,6 +645,7 @@ drawattach(Window *w, char *winsize)
 		return 0;
 	d->screendimage = di;
 	d->screenname = name;
+	// print("XXX drawattach id %d name %s clipr %d %d %d %d\n", d->screendimage->id, name, d->screenimage->clipr.min.x, d->screenimage->clipr.min.y, d->screenimage->clipr.max.x, d->screenimage->clipr.max.y);
 	return 1;
 }
 
@@ -810,6 +820,7 @@ drawmesg(Client *client, void *av, int n)
 	draw = client->draw;
 	w = draw->window;
 
+	// print("XXX drawmesg %c, n = %d\n", *a, n);
 	while((n-=m) > 0){
 		a += m;
 		switch(*a){
@@ -894,7 +905,7 @@ drawmesg(Client *client, void *av, int n)
 			if(!repl)
 				rectclip(&i->clipr, r);
 			if(drawinstall(client, dstid, i, 0) == 0){
-				xfreememimage(i);
+				freememimage(i);
 				goto Edrawmem;
 			}
 			memfillcolor(i, value);
@@ -1630,7 +1641,7 @@ drawreplacescreenimage(Draw *d, Memimage *m)
 		}
 	}
 
-	drawfreedimage(d, d->screendimage);
+//XXX	drawfreedimage(d, d->screendimage);
 	d->screendimage = di;
 	d->screenimage = m;
 

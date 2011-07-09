@@ -187,6 +187,7 @@ struct Window
 	Mousebuf	mouse;
 	Reqbuf	kbdreqs;
 	Reqbuf	mousereqs;
+	Point	orig;
 	Rectangle	screenr;
 	Rectangle	newscreenr;
 	void		*x;

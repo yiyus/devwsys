@@ -7,7 +7,7 @@
 #include "inc.h"
 #include "x.h"
 
-#define debugev(...) if(0) debug(__VA_ARGS__)
+#define debugev(...) if(1) debug(__VA_ARGS__)
 
 void configevent(Window*, XEvent);
 void exposeevent(Window*, XEvent);
@@ -33,6 +33,7 @@ NextEvent:
 	if(i == nwindow)
 		return;
 	w = window[i];
+// print("XXX event at window %d (%p)\n", w->id, w);
 	switch(xev.type){
 	case ClientMessage:
 		if(xev.xclient.data.l[0] == xw->wmdelmsg)
@@ -92,12 +93,17 @@ configevent(Window *w, XEvent xev)
 	XConfigureEvent *xe;
 
 	xe = (XConfigureEvent*)&xev;
+	if(Dx(w->screenr) == xe->width && Dy(w->screenr) == xe->height)
+		return;
 	xw = w->x;
 	if(!w->fullscreen){
 		int rx, ry;
 		XWindow xwin;
-		if(XTranslateCoordinates(xconn.display, xw->drawable, DefaultRootWindow(xconn.display), 0, 0, &rx, &ry, &xwin))
+		if(XTranslateCoordinates(xconn.display, xw->drawable, DefaultRootWindow(xconn.display), 0, 0, &rx, &ry, &xwin)) {
+			w->orig.x = rx;
+			w->orig.y = ry;
 			w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
+		}
 	}
 
 	if(xe->width == Dx(xconn.screenrect) && xe->height == Dy(xconn.screenrect))
@@ -169,6 +175,6 @@ mouseevent(Window *w, XEvent xev)
 
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
-	debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
+	// debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
 	writemouse(w, m, 0);
 }

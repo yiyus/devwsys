@@ -19,6 +19,8 @@ union IxpFileIdU {
 #define incref(r)	((*r) = ++(*r))
 #define decref(r)	((*r) = --(*r))
 
+#define debug9p(...) if(0) debug(__VA_ARGS__)
+
 /* Constants */
 enum {
 	/* Dirs */
@@ -37,6 +39,7 @@ enum {
 	FsFMouse,
 	/*	Window */
 	FsFLabel,
+	FsFWctl,
 	FsFWinid,
 	FsFWinname,
 	/*	draw/ */
@@ -82,6 +85,7 @@ dirtab_root[] = {
 	{"cursor",		QTFILE,	FsFCursor,	0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0600 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
+	{"wctl",		QTFILE,	FsFWctl,		0600 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
 	{"winname",	QTFILE,	FsFWinname,	0400 },
 	{nil}
@@ -112,6 +116,7 @@ dirtab_wsysn[] = {
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
+	{"wctl",		QTFILE,	FsFWctl,		0600 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
 	{"winname",	QTFILE,	FsFWinname,	0400 },
 	{nil}
@@ -234,7 +239,7 @@ fs_attach(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
 
-	debug("fs_attach(%p)\n", r);
+	debug9p("fs_attach(%p)\n", r);
 
 	f = ixp_srv_getfile();
 	f->tab = dirtab[FsRoot][0];
@@ -265,7 +270,7 @@ fs_open(Ixp9Req *r) {
 	Client *cl;
 	Draw *d;
 
-	debug("fs_open(%p)\n", r);
+	debug9p("fs_open(%p)\n", r);
 
 	f = r->fid->aux;
 	// print("XXX open %s\n", f->tab.name);
@@ -333,7 +338,7 @@ fs_open(Ixp9Req *r) {
 void
 fs_walk(Ixp9Req *r) {
 
-	debug("fs_walk(%p)\n", r);
+	debug9p("fs_walk(%p)\n", r);
 
 	ixp_srv_walkandclone(r, lookup_file);
 }
@@ -346,7 +351,7 @@ fs_read(Ixp9Req *r) {
 	Client *cl;
 	Window *w;
 
-	debug("fs_read(%p)\n", r);
+	debug9p("fs_read(%p)\n", r);
 
 	f = r->fid->aux;
 	// print("XXX read %s\n", f->tab.name);
@@ -428,6 +433,12 @@ fs_read(Ixp9Req *r) {
 	case FsFMouse:
 		readmouse(w, r);
 		return;
+	case FsFWctl:
+		// XXX TODO: visible, current
+		sprint(buf, "%11d %11d %11d %11d %s %s ", w->orig.x +  w->screenr.min.x, w->orig.y + w->screenr.min.y, w->screenr.max.x, w->screenr.max.y, "visible", "current");
+		ixp_srv_readbuf(r, buf, strlen(buf));
+		ixp_respond(r, nil);
+		return;
 	case FsFWinid:
 		sprint(buf, "%11d ", w->id);
 		ixp_srv_readbuf(r, buf, strlen(buf));
@@ -451,7 +462,7 @@ fs_stat(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
 
-	debug("fs_stat(%p)\n", r);
+	debug9p("fs_stat(%p)\n", r);
 
 	f = r->fid->aux;
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
@@ -483,11 +494,12 @@ fs_stat(Ixp9Req *r) {
 void
 fs_write(Ixp9Req *r) {
 	char *label;
+	char err[256];
 	IxpFileId *f;
 	Window *w;
 	Client *cl;
 
-	debug("fs_write(%p)\n", r);
+	debug9p("fs_write(%p)\n", r);
 
 	f = r->fid->aux;
 	// print("XXX write %s\n", f->tab.name);
@@ -539,6 +551,11 @@ fs_write(Ixp9Req *r) {
 		label[r->ifcall.twrite.count] = 0;
 		setlabel(w, label);
 		break;
+	case FsFWctl:
+ 		r->ofcall.io.count = r->ifcall.io.count;
+		wctlmesg(w, r->ifcall.twrite.data, r->ofcall.rwrite.count, err);
+		ixp_respond(r, nil);
+		return;
 	}
 	ixp_respond(r, nil);
 }
@@ -549,7 +566,7 @@ fs_clunk(Ixp9Req *r) {
 	Window *w;
 	Client *cl;
 
-	debug("fs_clunk(%p)\n", r);
+	debug9p("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
 	// print("XXX fs_clunk %s)\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
@@ -572,7 +589,7 @@ fs_clunk(Ixp9Req *r) {
 	// TODO: inferno-os/emu/port/devdraw.c:971
 	if(f->tab.type == FsFCtl)
 		cl->busy = 0;
-	if(f->tab.type >= FsFNew && f->tab.type <= FsFColormap && (decref(&cl->r)==0))
+	if(!iswindow(f->tab.type) && (decref(&cl->r)==0))
 		; // XXX TODO: drawfree(cl);
 	ixp_respond(r, nil);
 }
@@ -593,13 +610,13 @@ fs_flush(Ixp9Req *r) {
 
 void
 fs_create(Ixp9Req *r) {
-	debug("fs_create(%p)\n", r);
+	debug9p("fs_create(%p)\n", r);
 	ixp_respond(r, Enoperm);
 }
 
 void
 fs_remove(Ixp9Req *r) {
-	debug("fs_remove(%p)\n", r);
+	debug9p("fs_remove(%p)\n", r);
 	ixp_respond(r, Enoperm);
 
 }
@@ -637,8 +654,18 @@ void
 ixprread(void *v, char *buf)
 {
 	Ixp9Req *r;
+	IxpFileId *f;
+	Window *w;
 
 	r = v;
+	f = r->fid->aux;
+	if(iswindow(f->tab.type)) {
+		w = f->p.window;
+		if(w->deleted) {
+			ixp_respond(r, Edeleted);
+			return;
+		}
+	}
 	r->ifcall.rread.offset = 0;
 	ixp_srv_readbuf(r, buf, strlen(buf));
 	ixp_respond(r, nil);
