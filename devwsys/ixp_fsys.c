@@ -280,8 +280,8 @@ fs_open(Ixp9Req *r) {
 		ixp_respond(r, Enofile);
 		return;
 	}
+	w = f->p.window;
 	if(iswindow(f->tab.type)) {
-		w = f->p.window;
 		if(w->deleted) {
 			ixp_respond(r, Edeleted);
 			return;
@@ -340,13 +340,25 @@ fs_open(Ixp9Req *r) {
 		cl = f->p.client;
 		incref(&cl->r);
 		break;
+	case FsFCons:
+		if(!(w->kbdp = mallocz(sizeof(IxpPending), 1))){
+			ixp_respond(r, Enomem);
+			return;
+		}
+		ixp_pending_pushfid(w->kbdp, r->fid);
+		break;
 	case FsFMouse:
 		w = f->p.window;
-		if(w->mouse.open){
+		if(w->mouseopen){
 			ixp_respond(r, Einuse);
 			return;
 		}
-		w->mouse.open = 1;
+		if(!(w->mousep = mallocz(sizeof(IxpPending), 1))){
+			ixp_respond(r, Enomem);
+			return;
+		}
+		w->mouseopen = 1;
+		ixp_pending_pushfid(w->mousep, r->fid);
 		break;
 	}
 
@@ -389,6 +401,10 @@ fs_read(Ixp9Req *r) {
 	}
 	if(f->tab.perm & DMDIR) {
 		ixp_srv_readdir(r, lookup_file, dostat);
+		return;
+	}
+	if(f->pending) {
+		ixp_pending_respond(r);
 		return;
 	}
 	cl = f->p.client;
@@ -444,16 +460,10 @@ fs_read(Ixp9Req *r) {
 		return;
 	}
 	switch(f->tab.type) {
-	case FsFCons:
-		readkbd(w, r);
-		return;
 	case FsFLabel:
 		if(w->label)
 			ixp_srv_readbuf(r, w->label, strlen(w->label));
 		ixp_respond(r, nil);
-		return;
-	case FsFMouse:
-		readmouse(w, r);
 		return;
 	case FsFWctl:
 		// XXX TODO: visible, current
@@ -594,32 +604,30 @@ fs_clunk(Ixp9Req *r) {
 
 	debug9p("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
-	// print("XXX fs_clunk %s)\n", f->tab.name);
+	// print("XXX fs_clunk %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, nil);
 		return;
 	}
+
 	cl = f->p.client;
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
 		w = cl->draw->window;
-
-	switch(f->tab.type) {
-	case FsFCons:
-		w->kbd.wi = w->kbd.ri;
-		w->kbdreqs.wi = w->kbdreqs.ri;
-		break;
-	case FsFMouse:
-		w->mouse.open = 0;
-		w->mouse.wi = w->mouse.ri;
-		w->mousereqs.wi = w->mousereqs.ri;
-		break;
+	if(f->pending) {
+		/* Should probably be in freefid */
+		if(ixp_pending_clunk(r)) {
+			if(f->tab.type == FsFMouse)
+				w->mouseopen = 0;
+		}
+		return;
 	}
+
 	// TODO: ../../inferno-os/emu/port/devdraw.c:971
 	if(f->tab.type == FsFCtl)
 		cl->busy = 0;
 	if(!iswindow(f->tab.type) && (decref(&cl->r)==0))
-		drawfree(cl); // XXX TODO
+		drawfree(cl);
 	ixp_respond(r, nil);
 }
 
@@ -630,6 +638,8 @@ fs_flush(Ixp9Req *r) {
 
 	or = r->oldreq;
 	f = or->fid->aux;
+	if(f->pending)
+		ixp_pending_flush(r);
 	/* else die() ? */
 	ixp_respond(r->oldreq, Einterrupted);
 	ixp_respond(r, nil);
@@ -676,27 +686,12 @@ Ixp9Srv p9srv = {
 	.freefid=	fs_freefid
 };
 
-/* Reply a read request */
 void
-ixprread(void *v, char *buf)
+ixppwrite(void *v, char *buf)
 {
-	Ixp9Req *r;
-	IxpFileId *f;
-	Client *cl;
-	Window *w;
+	IxpPending *p;
 
-	r = v;
-	f = r->fid->aux;
-	// print("XXX ixprread %s\n", f->tab.name);
-	cl = f->p.client;
-	w = f->p.window;
-	if(!iswindow(f->tab.type))
-		w = cl->draw->window;
-	if(w->deleted){
-		ixp_respond(r, Edeleted);
-		return;
-	}
-	r->ifcall.rread.offset = 0;
-	ixp_srv_readbuf(r, buf, strlen(buf));
-	ixp_respond(r, nil);
+	p = v;
+	ixp_pending_write(p, buf, strlen(buf));
 }
+

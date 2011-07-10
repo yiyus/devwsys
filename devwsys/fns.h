@@ -15,15 +15,9 @@ void drawreplacescreenimage(Draw*, Memimage*);
 
 /* Keyboard */
 void writekbd(Window*, int);
-void readkbd(Window*, void*);
 
 /* Mouse */
 void writemouse(Window*, Mouse, int);
-void readmouse(Window*, void*);
-
-/* Reqbuf */
-void addreq(Reqbuf*, void*);
-void* nextreq(Reqbuf *reqs);
 
 /* Window */
 void deletewin(Window*);
@@ -35,7 +29,7 @@ void setlabel(Window*, char*);
 int wctlmesg(Window*, char*, int, char*);
 
 /* Ixp */
-void ixprread(void*, char*);
+void ixppwrite(void*, char*);
 int ixpserve(char*);
 
 /* X connection */

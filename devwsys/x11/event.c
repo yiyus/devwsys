@@ -50,7 +50,9 @@ NextEvent:
 		if(XPending(xconn.display)) {
 			XPeekEvent(xconn.display, &xevp);
 			if(xevp.type == ConfigureNotify)
+{
 				goto NextEvent;
+}
 		}
 		configevent(w, xev);
 		break;

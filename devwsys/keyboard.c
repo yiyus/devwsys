@@ -5,79 +5,22 @@
 #include "dat.h"
 #include "fns.h"
 
-void addkbd(Kbdbuf*, int);
-void matchkbd(Kbdbuf*, Reqbuf*);
 int kbdputc(Kbdbuf*, int);
 long latin1(uchar*, int);
-void replykbd(Kbdbuf*, void*);
 
 void
 writekbd(Window *w, int ch)
 {
-	Kbdbuf *kbd;
-	Reqbuf *kbdreqs;
-
-	kbd = &w->kbd;
-	kbdreqs = &w->kbdreqs;
-
-	addkbd(kbd, ch);
-	matchkbd(kbd, kbdreqs);
-}
-
-void
-readkbd(Window *w, void* r)
-{
-	Kbdbuf *kbd;
-	Reqbuf *kbdreqs;
-
-	kbd = &w->kbd;
-	kbdreqs = &w->kbdreqs;
-
-	addreq(kbdreqs, r);
-	// fprint(2, "kbd unstall\n");
-	kbd->stall = 0;
-	matchkbd(kbd, kbdreqs);
-}
-
-void
-addkbd(Kbdbuf *kbd, int ch)
-{
+	char buf[5];
 	Rune r;
+	Kbdbuf *kbd;
 
-	ch = kbdputc(kbd, ch);
-	if(kbd->stall || ch == -1)
+	kbd = &w->kbd;
+	if((ch = kbdputc(kbd, ch)) == -1)
 		return;
 	r = ch;
-
-	kbd->r[kbd->wi++] = r;
-	if(kbd->wi == nelem(kbd->r))
-		kbd->wi = 0;
-	if(kbd->ri == kbd->wi){
-		kbd->stall = 1;
-		/* fprint(2, "kbd stall\n"); */
-	}
-}
-
-void
-matchkbd(Kbdbuf *kbd, Reqbuf *kbdreqs)
-{
-	while(kbd->ri != kbd->wi && kbdreqs->ri != kbdreqs->wi){
-		replykbd(kbd, nextreq(kbdreqs));
-		kbd->ri++;
-		if(kbd->ri == nelem(kbd->r))
-			kbd->ri = 0;
-	}
-}
-
-void
-replykbd(Kbdbuf *kbd, void *r)
-{
-	char buf[5];
-	Rune rune;
-
-	rune = kbd->r[kbd->ri];
-	sprint(buf, "%C", rune);
-	ixprread(r, buf);
+	sprint(buf, "%C", r);
+	ixppwrite(w->kbdp, buf);
 }
 
 int

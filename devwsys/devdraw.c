@@ -1703,5 +1703,8 @@ drawfree(Client *cl)
 	}
 	client[cl->slot] = 0;
 	drawflush(draw);	/* to erase visible, now dead windows */
-	free(cl);
+	// XXX TODO:
+	// we cannot free cl because it could be
+	// in some fid->aux, but we should.
+	// free(cl);
 }

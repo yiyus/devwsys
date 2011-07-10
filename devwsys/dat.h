@@ -36,10 +36,8 @@ typedef struct CScreen CScreen;
 typedef struct DScreen DScreen;
 typedef struct FChar FChar;
 typedef struct Kbdbuf Kbdbuf;
-typedef struct Mousebuf Mousebuf;
 typedef struct Refresh Refresh;
 typedef struct Refx Refx;
-typedef struct Reqbuf Reqbuf;
 typedef struct Window Window;
 
 /* Drawing device */
@@ -139,14 +137,9 @@ struct DScreen
 	DScreen*	next;
 };
 
-/* Events */
+/* Used by kbdputc */
 struct Kbdbuf
 {
-	Rune	r[32];
-	int	ri;
-	int	wi;
-	int	stall;
-	/* Used by kbdputc */
 	uchar k[5*UTFmax];
 	int	alting, nk;
 };
@@ -158,35 +151,20 @@ struct  Mouse
 	ulong	msec;
 };
 
-struct Mousebuf
-{
-	int open;
-	Mouse m[32];
-	int ri;
-	int wi;
-	int stall;
-	int resized;
-};
-
-struct Reqbuf
-{
-	void *r[32];
-	int ri;
-	int wi;
-};
-
 /* Window system */
 struct Window
 {
 	int		id;
 	int		fullscreen;
 	int		deleted;
+	int		mouseopen;
+	int		mousebuttons;
+	int		resized;
 	char		*label;
 	Draw	draw;
 	Kbdbuf	kbd;
-	Mousebuf	mouse;
-	Reqbuf	kbdreqs;
-	Reqbuf	mousereqs;
+	void*	kbdp;
+	void*	mousep;
 	Point	orig;
 	Rectangle	screenr;
 	Rectangle	newscreenr;
