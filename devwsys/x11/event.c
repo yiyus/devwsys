@@ -30,8 +30,12 @@ NextEvent:
 		if(xw && xw->drawable == xev.xany.window)
 			break;
 	}
-	if(i == nwindow)
+	if(i == nwindow){
+		if(XPending(xconn.display))
+			goto NextEvent;
+		// print("XXX event received in wrong window\n");
 		return;
+	}
 	w = window[i];
 // print("XXX event at window %d (%p)\n", w->id, w);
 	switch(xev.type){

@@ -1,0 +1,29 @@
+#!/bin/rc
+
+# Usage
+#	wctl=`{wctl $wsys}
+
+fn serv {
+	srvname=$1^.^$user
+	$1=/srv/^$srvname
+	shift
+	srv -eq $"* $srvname
+}
+
+fn wctl {
+	while () awk '
+	$1=="new" {
+		$1=""
+		if($2=="-cd") {
+			print "cd " $3
+			$2=$3=""
+		}
+		print "window -m " $0
+		exit
+	}' | rc
+}
+
+if(! ~ $1 "")
+	wsys=$1
+serv wctl wctl
+echo $wctl

@@ -53,9 +53,28 @@ xdeletewin(Window *w)
 {
 	Xwin *xw;
 
-	xw = w->x;
+	// print("XXX xdeletewin %d\n", w->id);
 	// TODO anything else to cleanup?
+	xw = w->x;
+	if(!xw)
+		return;
+
 	XDestroyWindow(xconn.display, xw->drawable);
+	if(xw->screenpm != xw->nextscreenpm)
+		XFreePixmap(xconn.display, xw->screenpm);
+	XFreePixmap(xconn.display, xw->nextscreenpm);
+	XFreeGC(xconn.display, xw->gccopy);
+	XFreeGC(xconn.display, xw->gccopy0);
+	XFreeGC(xconn.display, xw->gcfill);
+	XFreeGC(xconn.display, xw->gcfill0);
+	XFreeGC(xconn.display, xw->gcreplsrc);
+	XFreeGC(xconn.display, xw->gcreplsrc0);
+	XFreeGC(xconn.display, xw->gcsimplesrc);
+	XFreeGC(xconn.display, xw->gcsimplesrc0);
+	XFreeGC(xconn.display, xw->gczero);
+	XFreeGC(xconn.display, xw->gczero0);
+	free(xw);
+	xw = (void*)nil;
 	XSync(xconn.display, False);
 }
 
@@ -127,58 +146,62 @@ xwinrectangle(char *label, char *winsize, int *havemin)
 	mask = 0;
 	x = 0;
 	y = 0;
-	if(winsize && winsize[0]){
-		if(parsewinsize(winsize, &r, havemin) < 0)
-			sysfatal("%r");
-	}else{
-		/*
-		 * Parse the various X resources.  Thanks to Peter Canning.
-		 */
-		char *screen_resources, *display_resources, *geom, 
-			*geomrestype, *home, *file;
-		XrmDatabase database;
-		XrmValue geomres;
+	/*
+	 * XXX TODO:
+	 * The error returned by parsewinsize is ignored,
+	 * there could be other options to mount we are
+	 * not (but should be) processing.
+	 */
+	if(winsize && winsize[0])
+		if(parsewinsize(winsize, &r, havemin) == 0)
+			return r;
 
-		database = XrmGetDatabase(xconn.display);
-		screen_resources = XScreenResourceString(xconn.screen);
-		if(screen_resources != nil){
-			XrmCombineDatabase(XrmGetStringDatabase(screen_resources), &database, False);
-			XFree(screen_resources);
-		}
+	/*
+	 * Parse the various X resources.  Thanks to Peter Canning.
+	 */
+	char *screen_resources, *display_resources, *geom, 
+		*geomrestype, *home, *file;
+	XrmDatabase database;
+	XrmValue geomres;
 
-		display_resources = XResourceManagerString(xconn.display);
-		if(display_resources == nil){
-			home = getenv("HOME");
-			if(home!=nil && (file=smprint("%s/.Xdefaults", home)) != nil){
-				XrmCombineFileDatabase(file, &database, False);
-				free(file);
-			}
-		}else
-			XrmCombineDatabase(XrmGetStringDatabase(display_resources), &database, False);
-		geom = smprint("%s.geometry", label);
-		if(geom && XrmGetResource(database, geom, nil, &geomrestype, &geomres))
-			mask = XParseGeometry(geomres.addr, &x, &y, (uint*)&width, (uint*)&height);
-		free(geom);
-
-		if((mask & WidthValue) && (mask & HeightValue)){
-			r = Rect(0, 0, width, height);
-		}else{
-			r = Rect(0, 0, WidthOfScreen(xconn.screen)*3/4,
-					HeightOfScreen(xconn.screen)*3/4);
-			if(Dx(r) > Dy(r)*3/2)
-				r.max.x = r.min.x + Dy(r)*3/2;
-			if(Dy(r) > Dx(r)*3/2)
-				r.max.y = r.min.y + Dx(r)*3/2;
-		}
-		if(mask & XNegative){
-			x += WidthOfScreen(xconn.screen);
-		}
-		if(mask & YNegative){
-			y += HeightOfScreen(xconn.screen);
-		}
-		*havemin = 0;
+	database = XrmGetDatabase(xconn.display);
+	screen_resources = XScreenResourceString(xconn.screen);
+	if(screen_resources != nil){
+		XrmCombineDatabase(XrmGetStringDatabase(screen_resources), &database, False);
+		XFree(screen_resources);
 	}
 
+	display_resources = XResourceManagerString(xconn.display);
+	if(display_resources == nil){
+		home = getenv("HOME");
+		if(home!=nil && (file=smprint("%s/.Xdefaults", home)) != nil){
+			XrmCombineFileDatabase(file, &database, False);
+			free(file);
+		}
+	}else
+		XrmCombineDatabase(XrmGetStringDatabase(display_resources), &database, False);
+	geom = smprint("%s.geometry", label);
+	if(geom && XrmGetResource(database, geom, nil, &geomrestype, &geomres))
+		mask = XParseGeometry(geomres.addr, &x, &y, (uint*)&width, (uint*)&height);
+	free(geom);
+
+	if((mask & WidthValue) && (mask & HeightValue)){
+		r = Rect(0, 0, width, height);
+	}else{
+		r = Rect(0, 0, WidthOfScreen(xconn.screen)*3/4,
+				HeightOfScreen(xconn.screen)*3/4);
+		if(Dx(r) > Dy(r)*3/2)
+			r.max.x = r.min.x + Dy(r)*3/2;
+		if(Dy(r) > Dx(r)*3/2)
+			r.max.y = r.min.y + Dx(r)*3/2;
+	}
+	if(mask & XNegative){
+		x += WidthOfScreen(xconn.screen);
+	}
+	if(mask & YNegative){
+		y += HeightOfScreen(xconn.screen);
+	}
+	*havemin = 0;
 	return r;
 }
 

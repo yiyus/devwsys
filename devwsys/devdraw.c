@@ -1655,7 +1655,7 @@ drawreplacescreenimage(Draw *d, Memimage *m)
 	 * Silently remove the now-outdated image 0s.
 	 */
 	for(i=0; i<nclient; i++){
-		if(client[i]->draw == d)
+		if(client[i] && client[i]->draw == d)
 			drawuninstall(client[i], 0);
 	}
 
@@ -1672,6 +1672,14 @@ drawfree(Client *cl)
 	Refresh *r;
 
 	draw = cl->draw;
+	/*
+	 * XXX TODO
+	 * BUG: If the window was deleted,
+	 * we won't give the client a chance to
+	 * free its memory structures
+	 */
+	if(draw->window->deleted)
+		return;
 	while(r = cl->refresh){	/* assign = */
 		cl->refresh = r->next;
 		free(r);
@@ -1694,7 +1702,6 @@ drawfree(Client *cl)
 		dp++;
 	}
 	client[cl->slot] = 0;
-	// drawflush(draw);	/* to erase visible, now dead windows */
-	xdeletewin(cl->draw->window);
+	drawflush(draw);	/* to erase visible, now dead windows */
 	free(cl);
 }
