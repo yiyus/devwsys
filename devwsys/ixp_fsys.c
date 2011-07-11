@@ -259,6 +259,14 @@ fs_attach(Ixp9Req *r) {
 		ixp_respond(r, Enomem);
 		return;
 	}
+	if(!(w->kbdp = mallocz(sizeof(IxpPending), 1))){
+		ixp_respond(r, Enomem);
+		return;
+	}
+	if(!(w->mousep = mallocz(sizeof(IxpPending), 1))){
+		ixp_respond(r, Enomem);
+		return;
+	}
 	f->p.window = w;
 	ixp_respond(r, nil);
 }
@@ -341,20 +349,12 @@ fs_open(Ixp9Req *r) {
 		incref(&cl->r);
 		break;
 	case FsFCons:
-		if(!(w->kbdp = mallocz(sizeof(IxpPending), 1))){
-			ixp_respond(r, Enomem);
-			return;
-		}
 		ixp_pending_pushfid(w->kbdp, r->fid);
 		break;
 	case FsFMouse:
 		w = f->p.window;
 		if(w->mouseopen){
 			ixp_respond(r, Einuse);
-			return;
-		}
-		if(!(w->mousep = mallocz(sizeof(IxpPending), 1))){
-			ixp_respond(r, Enomem);
 			return;
 		}
 		w->mouseopen = 1;

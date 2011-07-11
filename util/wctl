@@ -3,27 +3,30 @@
 # Usage
 #	wctl=`{wctl $wsys}
 
-fn serv {
-	srvname=$1^.^$user
-	$1=/srv/^$srvname
-	shift
-	srv -eq $"* $srvname
+fn new {
+	if(~ $1 -cd) {
+		d=`{echo $2 | sed 's/-cd//'}
+		cd $d
+		shift 2
+	}
+	window -m $*
 }
 
 fn wctl {
-	while () awk '
-	$1=="new" {
-		$1=""
-		if($2=="-cd") {
-			print "cd " $3
-			$2=$3=""
-		}
-		print "window -m " $0
-		exit
-	}' | rc
+	while (a=`{read})
+		if (~ $a(1) new) $a
 }
 
-if(! ~ $1 "")
+if(! ~ $1 '')
 	wsys=$1
-serv wctl wctl
-echo $wctl
+if(~ $wsys '')
+	exit '$wsys not set'
+
+# $pid should be the pid of the rc process
+# launched by srv, but we don't know it.
+# Instead, use the pid of this process as a
+# semi-random id.
+
+srvname=wctl.^$user^.^$pid
+srv -eq wctl
+echo /srv/^$srvname
