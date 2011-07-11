@@ -3,6 +3,7 @@
 #include <draw.h>
 #include <memdraw.h>
 #include <memlayer.h>
+#include <cursor.h>
 #include "dat.h"
 #include "fns.h"
 #include "inc.h"
@@ -50,8 +51,10 @@ void
 xmemfillcolor(Memimage *m, ulong val)
 {
 	memfillcolor(m, val);
-	if(m->X == nil)
+	if(m->X == nil) {
+		_memfillcolor(m, val);
 		return;
+	}
 	if((val & 0xFF) == 0xFF)	/* full alpha */
 		xfillcolor(m, m->r, rgbatoimg(m, val));
 	else

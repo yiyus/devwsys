@@ -2,6 +2,7 @@
 #include <draw.h>
 #include <memdraw.h>
 #include <memlayer.h>
+#include <cursor.h>
 #include "dat.h"
 #include "fns.h"
 #include "inc.h"
@@ -58,8 +59,15 @@ xputxdata(Memimage *m, Rectangle r)
 	Xwin *xw;
 
 	xm = m->X;
-	if(xm == nil)
+	// XXX TODO:
+	// This should not happen, but we are not
+	// always setting it in allocmemimage, so
+	// print an error and be done with it,
+	// for the moment.
+	if(xm == nil) {
+		print("XXX devwsys: xm is nil!\n");
 		return;
+	}
 
 	xw = xm->w->x;
 	xi = xm->xi;

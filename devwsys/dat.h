@@ -27,6 +27,11 @@ enum {
 	Kcmd=	0xF100	/* Beginning of Cmd+'a', Cmd+'A', etc on Mac */
 };
 
+/* biggest cursor size */
+enum {
+	CursorSize=	32
+};
+
 /* Datatypes: */
 typedef struct Client Client;
 typedef struct DImage DImage;
@@ -38,6 +43,7 @@ typedef struct FChar FChar;
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Refresh Refresh;
 typedef struct Refx Refx;
+typedef struct Cursor Cursor;
 typedef struct Window Window;
 
 /* Drawing device */
@@ -46,7 +52,7 @@ typedef struct Window Window;
 
 struct Draw
 {
-	Window*	window;
+	Window*		window;
 	Memimage*	screenimage;
 	DImage*		screendimage;
 	char*		screenname;
@@ -144,6 +150,7 @@ struct Kbdbuf
 	int	alting, nk;
 };
 
+/* Pointer */
 struct  Mouse
 {
 	int		buttons;	/* bit array: LMR=124 */
@@ -151,24 +158,34 @@ struct  Mouse
 	ulong	msec;
 };
 
+struct Cursor {
+	int	hotx;
+	int	hoty;
+	int	w;
+	int	h;
+	uchar	src[(CursorSize/8)*CursorSize];	/* image and mask bitmaps */
+	uchar	mask[(CursorSize/8)*CursorSize];
+};
+
 /* Window system */
 struct Window
 {
-	int		id;
-	int		fullscreen;
-	int		deleted;
-	int		mouseopen;
-	int		mousebuttons;
-	int		resized;
-	char		*label;
-	Draw	draw;
-	Kbdbuf	kbd;
-	void*	kbdp;
-	void*	mousep;
-	Point	orig;
-	Rectangle	screenr;
-	Rectangle	newscreenr;
-	void		*x;
+	int			id;
+	int			fullscreen;
+	int			deleted;
+	int			mouseopen;
+	int			mousebuttons;
+	int			resized;
+	char			*label;
+	Draw		draw;
+	Kbdbuf		kbd;
+	void*		kbdp;
+	void*		mousep;
+	Cursor		cursor;
+	Point		orig;
+	Rectangle		screenr;
+	Rectangle		newscreenr;
+	void			*x;
 };
 
 /* Global Vars */

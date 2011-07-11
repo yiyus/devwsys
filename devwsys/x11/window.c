@@ -3,6 +3,7 @@
 #include <draw.h>
 #include <memdraw.h>
 #include <memlayer.h>
+#include <cursor.h>
 #include "dat.h"
 #include "fns.h"
 #include "inc.h"
@@ -218,7 +219,7 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	Xwin *xw;
 	XWMHints hint;
 
-	xw = malloc(sizeof(Xwin));
+	xw = mallocz(sizeof(Xwin), 1);
 	if(xw == nil)
 		return nil;
 

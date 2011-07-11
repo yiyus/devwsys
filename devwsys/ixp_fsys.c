@@ -3,6 +3,7 @@
 #include <draw.h>
 #include <memdraw.h>
 #include <memlayer.h>
+#include <cursor.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -37,6 +38,7 @@ enum {
 	/*	Mouse */
 	FsFCursor,
 	FsFMouse,
+	FsFSnarf,
 	/*	Window */
 	FsFLabel,
 	FsFWctl,
@@ -84,6 +86,7 @@ dirtab_root[] = {
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
 	{"cursor",		QTFILE,	FsFCursor,	0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0600 },
+	{"snarf",		QTFILE,	FsFSnarf,		0600 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"wctl",		QTFILE,	FsFWctl,		0600 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
@@ -114,8 +117,10 @@ dirtab_wsysn[] = {
 	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
 	{"cons",		QTFILE,	FsFCons,		0600 },
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
-	{"label",		QTFILE,	FsFLabel,		0600 },
+	{"cursor",		QTFILE,	FsFCursor,	0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
+	{"snarf",		QTFILE,	FsFSnarf,		0600 },
+	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"wctl",		QTFILE,	FsFWctl,		0600 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
 	{"winname",	QTFILE,	FsFWinname,	0400 },
@@ -576,6 +581,14 @@ fs_write(Ixp9Req *r) {
 		return;
 	}
 	switch(f->tab.type) {
+	case FsFCursor:
+		r->ofcall.io.count = r->ifcall.io.count;
+		if(cursorwrite(w, r->ifcall.twrite.data, r->ofcall.rwrite.count) < 0){
+			r->ofcall.rwrite.count = 0;
+			ixp_respond(r, "error"); // XXX TODO
+			return;
+		}
+		break;
 	case FsFLabel:
 		r->ofcall.io.count = r->ifcall.io.count;
 		if(!(label = malloc(r->ifcall.twrite.count + 1))) {

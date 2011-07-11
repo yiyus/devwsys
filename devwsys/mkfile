@@ -5,6 +5,7 @@ TARG=devwsys
 XFILES=\
 	alloc.$O\
 	cload.$O\
+	cursor.$O\
 	display.$O\
 	draw.$O\
 	event.$O\

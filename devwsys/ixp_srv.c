@@ -7,6 +7,7 @@
 #include <memdraw.h>
 #include <ixp.h>
 #include <memlayer.h>
+#include <cursor.h>
 #include "dat.h"
 #include "fns.h"
 

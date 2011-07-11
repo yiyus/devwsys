@@ -32,6 +32,7 @@ struct Xmem
 
 struct Xwin {
 	Atom 		wmdelmsg;
+	XCursor		cursor;
 	XDrawable	drawable;
 	XDrawable	screenpm;
 	XDrawable	nextscreenpm;

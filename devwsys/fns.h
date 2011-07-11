@@ -18,6 +18,7 @@ void writekbd(Window*, int);
 
 /* Mouse */
 void writemouse(Window*, Mouse, int);
+int cursorwrite(Window*, char*, int);
 
 /* Window */
 void deletewin(Window*);
@@ -47,3 +48,4 @@ void xfreememimage(Memimage*);
 int xupdatelabel(Window*);
 void xtopwindow(Window*);
 void xresizewindow(Window*, Rectangle);
+void xsetcursor(Window*);
