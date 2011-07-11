@@ -1,0 +1,9 @@
+#!/dis/sh
+
+# Usage
+#	wsys='#U*/tmp/ns.$user.:0/wsys'  wm
+
+mount -Ab $wsys /dev
+bind /dev/mouse /dev/pointer
+bind /dev/cons /dev/keyboard
+wm/wm &
