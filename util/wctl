@@ -22,11 +22,16 @@ if(! ~ $1 '')
 if(~ $wsys '')
 	exit '$wsys not set'
 
-# $pid should be the pid of the rc process
-# launched by srv, but we don't know it.
-# Instead, use the pid of this process as a
-# semi-random id.
-
-srvname=wctl.^$user^.^$pid
-srv -eq wctl
-echo /srv/^$srvname
+service=wctl.$user
+# we want to know the pid of the wctl rc,
+# so we use the fd 3 to send it from the
+# rc runned by srv to this process.
+srvpid=`{
+	srv -eq '
+		echo $pid >[1=3]
+		wctl
+	' $service.$pid >[3=1] |
+		read
+}
+mv /srv/$service.^($pid $srvpid) &&
+	echo /srv/$service.$srvpid
