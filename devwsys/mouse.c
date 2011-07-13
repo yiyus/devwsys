@@ -13,14 +13,17 @@ writemouse(Window *w, Mouse m, int resized)
 
 	/*
 	 * TODO:
-	 * If the last event in the queue is a resize,
-	 * overwrite it instead of adding a new event.
+	 * Continuous resizes will cause too many redraws.
+	 * The solution is to not queue resize events and instead
+	 * change the response, but IxpPending is too opaque
+	 * to do that.
 	 */
 	c = 'm';
-	if(resized)
+	if(w->resized)
 		c = 'r';
 	sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
 	w->mousebuttons = m.buttons;
+	w->resized = 0;
 	ixppwrite(w->mousep, buf);
 }
 
@@ -82,8 +85,9 @@ drawwincursor(Window *win, Drawcursor* c)
 	xsetcursor(win);
 }
 
+static
 int
-cursorwrite(Window *w, char *buf, int n)
+infernocursorwrite(Window *w, char *buf, int n)
 {
 	uchar *p;
 	Drawcursor c;
@@ -94,11 +98,6 @@ cursorwrite(Window *w, char *buf, int n)
 	 *  hotx[4] hoty[4] dx[4] dy[4] clr[dx/8 * dy/2] set[dx/8 * dy/2]
 	 *  dx must be a multiple of 8; dy must be a multiple of 2.
 	 */
-	if(n == 0){
-		c.data = nil;
-		drawwincursor(w, &c);
-		return 0;
-	}
 	if(n < 8)
 		return -1;
 	c.hotx = BGLONG(p+0*4);
@@ -111,5 +110,40 @@ cursorwrite(Window *w, char *buf, int n)
 		return -1;
 	c.data = p + 4*4;
 	drawwincursor(w, &c);
+	return 0;
+}
+
+static
+int
+plan9cursorwrite(Window *w, char *buf, int n)
+{
+	uchar *p;
+	Drawcursor c;
+
+	p = buf;
+	/*
+	 *  offsetx[4] offsety[4] clr[2*16] set[2*16]
+	 */
+	if(n < 2*4+2*2*16)
+		return -1;
+	c.hotx = BGLONG(p+0*4);
+	c.hoty = BGLONG(p+1*4);
+	c.minx = 0;
+	c.miny = 0;
+	c.maxx = 16;
+	c.maxy = 32;
+	c.data = p + 2*4;
+	drawwincursor(w, &c);
+	return 0;
+}
+
+int
+cursorwrite(Window *w, char *buf, int n)
+{
+	if(infernocursorwrite(w, buf, n) < 0 &&
+	plan9cursorwrite(w, buf, n) < 0){
+		w->cursor.h = 0;
+		xsetcursor(w);
+	}
 	return 0;
 }

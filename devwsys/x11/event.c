@@ -20,7 +20,7 @@ xnextevent(void) {
 	int i;
 	Window *w;
 	Xwin *xw;
-	XEvent xev, xevp;
+	XEvent xev;
 
 	xw = nil;
 
@@ -46,15 +46,6 @@ NextEvent:
 		break;
 
 	case ConfigureNotify:
-		// TODO: I'm not sure about this
-		/* avoid superflous redraws */
-		if(XPending(xconn.display)) {
-			XPeekEvent(xconn.display, &xevp);
-			if(xevp.type == ConfigureNotify)
-{
-				goto NextEvent;
-}
-		}
 		configevent(w, xev);
 		break;
 
@@ -130,7 +121,14 @@ configevent(Window *w, XEvent xev)
 	m.xy.y = Dy(r);
 	xreplacescreenimage(w);
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
-	writemouse(w, m, 1);
+	w->resized = 1;
+	/* XXX TODO
+	 * we should send a resize event, and then
+	 * respond with a normal 'm' mouse event if
+	 * the window has already been resized, but
+	 * IxpPending does not let us to do that.
+	 */
+	// writemouse(w, m, 1);
 }
 
 void

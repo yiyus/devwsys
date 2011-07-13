@@ -61,11 +61,9 @@ xputxdata(Memimage *m, Rectangle r)
 	xm = m->X;
 	// XXX TODO:
 	// This should not happen, but we are not
-	// always setting it in allocmemimage, so
-	// print an error and be done with it,
-	// for the moment.
+	// always setting it in allocmemimage.
 	if(xm == nil) {
-		print("XXX devwsys: xm is nil!\n");
+		// print("XXX devwsys: xm is nil!\n");
 		return;
 	}
 
