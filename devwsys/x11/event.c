@@ -75,6 +75,10 @@ NextEvent:
 		writekbd(w, -1);;
 		break;
 	
+	case SelectionRequest:
+		xselect(&xev);
+		break;
+
 	default:
 		break;
 	}
@@ -178,6 +182,7 @@ mouseevent(Window *w, XEvent xev)
 {
 	Mouse m;
 
+	xsetsnarfowner(w);
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
 	// debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);

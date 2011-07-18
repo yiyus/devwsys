@@ -140,6 +140,8 @@ static IxpDirtab* dirtab[] = {
 typedef char* (*MsgFunc)(void*, IxpMsg*);
 typedef char* (*BufFunc)(void*);
 
+static char *snarfbuf;
+
 static void
 dostat(IxpStat *s, IxpFileId *f) {
 	s->type = 0;
@@ -367,6 +369,13 @@ fs_open(Ixp9Req *r) {
 		w->mouseopen = 1;
 		ixp_pending_pushfid(w->mousep, r->fid);
 		break;
+	case FsFSnarf:
+		if((r->ifcall.topen.mode&3) == ORDWR){
+			/* one at a time please */
+			ixp_respond(r, Enoperm);
+			return;
+		}
+		break;
 	}
 
 	if((r->ifcall.topen.mode&3) == OEXEC
@@ -388,7 +397,7 @@ fs_walk(Ixp9Req *r) {
 
 void
 fs_read(Ixp9Req *r) {
-	char buf[512];
+	char buf[512], *s;
 	int n;
 	IxpFileId *f;
 	Client *cl;
@@ -461,6 +470,7 @@ fs_read(Ixp9Req *r) {
 		}
 		n = readrefresh(buf, r->ifcall.io.count, cl);
 		if(n > 0) {
+			
 			ixp_srv_readbuf(r, buf, n);
 			ixp_respond(r, nil);
 		}
@@ -470,6 +480,11 @@ fs_read(Ixp9Req *r) {
 	case FsFLabel:
 		if(w->label)
 			ixp_srv_readbuf(r, w->label, strlen(w->label));
+		ixp_respond(r, nil);
+		return;
+	case FsFSnarf:
+		s= xgetsnarf(w);
+		ixp_srv_readbuf(r, s, strlen(s));
 		ixp_respond(r, nil);
 		return;
 	case FsFWctl:
@@ -534,7 +549,7 @@ fs_stat(Ixp9Req *r) {
 
 void
 fs_write(Ixp9Req *r) {
-	char *label;
+	char *label, *p;
 	char err[256];
 	IxpFileId *f;
 	Window *w;
@@ -602,11 +617,38 @@ fs_write(Ixp9Req *r) {
 		label[r->ifcall.twrite.count] = 0;
 		setlabel(w, label);
 		break;
+	case FsFSnarf:
+		if(r->ifcall.twrite.offset+r->ifcall.twrite.count >= SnarfSize){
+			ixp_respond(r, "too much snarf");
+			return;
+		}
+		if(r->ifcall.twrite.count == 0){
+			r->ofcall.io.count = r->ifcall.io.count;
+			break;
+		}
+		if(snarfbuf == nil)
+			r->ofcall.io.count = 0;
+		else
+			r->ofcall.io.count = strlen(snarfbuf);
+		if(r->ifcall.twrite.offset+r->ifcall.twrite.count > r->ofcall.io.count){
+			r->ofcall.io.count = r->ifcall.twrite.offset+r->ifcall.twrite.count;
+			p = malloc(r->ofcall.io.count+1);
+			if(p == nil){
+				ixp_respond(r, Enomem);
+				return;
+			}
+			if(snarfbuf){
+				strcpy(p, snarfbuf);
+				free(snarfbuf);
+			}
+			snarfbuf = p;
+		}
+		memmove(snarfbuf+r->ifcall.twrite.offset, r->ifcall.twrite.data, r->ifcall.twrite.count);
+		break;
 	case FsFWctl:
  		r->ofcall.io.count = r->ifcall.io.count;
 		wctlmesg(w, r->ifcall.twrite.data, r->ofcall.rwrite.count, err);
-		ixp_respond(r, nil);
-		return;
+		break;
 	}
 	ixp_respond(r, nil);
 }
@@ -639,8 +681,19 @@ fs_clunk(Ixp9Req *r) {
 	}
 
 	// TODO: ../../inferno-os/emu/port/devdraw.c:971
-	if(f->tab.type == FsFCtl)
+	switch(f->tab.type){
+	case FsFCtl:
 		cl->busy = 0;
+	case FsFSnarf:
+		if(r->fid->omode == OWRITE){
+			if(snarfbuf)
+				xputsnarf(w, snarfbuf);
+			else
+				xputsnarf(w, "");
+		}
+		free(snarfbuf);
+
+	}
 	if(!iswindow(f->tab.type) && (decref(&cl->r)==0))
 		drawfree(cl);
 	ixp_respond(r, nil);

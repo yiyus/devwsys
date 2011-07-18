@@ -8,6 +8,14 @@
 #include "inc.h"
 #include "x.h"
 
+/* for copy/paste, lifted from plan9ports via drawterm */
+static int putsnarf, assertsnarf;
+static Atom clipboard; 
+static Atom utf8string;
+static Atom targets;
+static Atom text;
+static Atom compoundtext;
+
 long keysym2ucs(KeySym);
 int
 xtoplan9kbd(XEvent *e)
@@ -126,16 +134,6 @@ xtoplan9mouse(XEvent *e, Mouse *m)
 	XButtonEvent *be;
 	XMotionEvent *me;
 
-	/* TODO
-	if(_x.putsnarf != _x.assertsnarf){
-		_x.assertsnarf = _x.putsnarf;
-		XSetSelectionOwner(_x.display, XA_PRIMARY, _x.drawable, CurrentTime);
-		if(_x.clipboard != None)
-			XSetSelectionOwner(_x.display, _x.clipboard, _x.drawable, CurrentTime);
-		XFlush(_x.display);
-	}
-	*/
-
 	switch(e->type){
 	case ButtonPress:
 		be = (XButtonEvent*)e;
@@ -222,3 +220,207 @@ xtoplan9mouse(XEvent *e, Mouse *m)
 		m->buttons |= 16;
 	return 0;
 }
+
+/*
+ * Cut and paste.  Just couldn't stand to make this simple...
+ */
+
+void
+xinitclipboard(void){
+	clipboard = XInternAtom(xconn.display, "CLIPBOARD", False);
+	utf8string = XInternAtom(xconn.display, "UTF8_STRING", False);
+	targets = XInternAtom(xconn.display, "TARGETS", False);
+	text = XInternAtom(xconn.display, "TEXT", False);
+	compoundtext = XInternAtom(xconn.display, "COMPOUND_TEXT", False);
+}
+
+void
+xsetsnarfowner(Window *w)
+{
+	Xwin *xw;
+
+	xw = w->x;
+	if(putsnarf != assertsnarf){
+		assertsnarf = putsnarf;
+		XSetSelectionOwner(xconn.display, XA_PRIMARY, xw->drawable, CurrentTime);
+		if(clipboard != None)
+			XSetSelectionOwner(xconn.display, clipboard, xw->drawable, CurrentTime);
+		XFlush(xconn.display);
+	}
+}
+
+char*
+xgetsnarf(Window *window)
+{
+	uchar *data, *xdata;
+	Atom clipboard, type, prop;
+	unsigned long len, lastlen, dummy;
+	int fmt, i;
+	XWindow w, xdrawable;
+	XDisplay *xd;
+	Xwin *xw;
+
+	/*
+	 * Have we snarfed recently and the X server hasn't caught up?
+	 */
+	if(putsnarf != assertsnarf)
+		goto mine;
+
+	xd = xconn.display;
+	xw = window->x;
+	xdrawable = xw->drawable;
+
+	/*
+	 * Is there a primary selection (highlighted text in an xterm)?
+	 */
+	clipboard = XA_PRIMARY;
+	w = XGetSelectionOwner(xd, XA_PRIMARY);
+	if(w == xdrawable){
+	mine:
+		data = (uchar*)strdup(clip.buf);
+		goto out;
+	}
+
+	/*
+	 * If not, is there a clipboard selection?
+	 */
+	if(w == None && clipboard != None){
+		clipboard = clipboard;
+		w = XGetSelectionOwner(xd, clipboard);
+		if(w == xdrawable)
+			goto mine;
+	}
+
+	/*
+	 * If not, give up.
+	 */
+	if(w == None){
+		data = nil;
+		goto out;
+	}
+		
+	/*
+	 * We should be waiting for SelectionNotify here, but it might never
+	 * come, and we have no way to time out.  Instead, we will clear
+	 * local property #1, request our buddy to fill it in for us, and poll
+	 * until he's done or we get tired of waiting.
+	 *
+	 * We should try to go for utf8string instead of XA_STRING,
+	 * but that would add to the polling.
+	 */
+	prop = 1;
+	XChangeProperty(xd, xdrawable, prop, XA_STRING, 8, PropModeReplace, (uchar*)"", 0);
+	XConvertSelection(xd, clipboard, XA_STRING, prop, xdrawable, CurrentTime);
+	XFlush(xd);
+	lastlen = 0;
+	for(i=0; i<10 || (lastlen!=0 && i<30); i++){
+		usleep(10*1000);
+		XGetWindowProperty(xd, xdrawable, prop, 0, 0, 0, AnyPropertyType,
+			&type, &fmt, &dummy, &len, &data);
+		if(lastlen == len && len > 0)
+			break;
+		lastlen = len;
+	}
+	if(i == 10){
+		data = nil;
+		goto out;
+	}
+	/* get the property */
+	data = nil;
+	XGetWindowProperty(xd, xdrawable, prop, 0, SnarfSize/sizeof(unsigned long), 0, 
+		AnyPropertyType, &type, &fmt, &len, &dummy, &xdata);
+	if((type != XA_STRING && type != utf8string) || len == 0){
+		if(xdata)
+			XFree(xdata);
+		data = nil;
+	}else{
+		if(xdata){
+			data = (uchar*)strdup((char*)xdata);
+			XFree(xdata);
+		}else
+			data = nil;
+	}
+out:
+	return (char*)data;
+}
+
+void
+xputsnarf(Window *window, char *data)
+{
+	XButtonEvent e;
+	XWindow xdrawable;
+	Xwin *xw;
+
+	if(strlen(data) >= SnarfSize)
+		return;
+	strcpy(clip.buf, data);
+
+	xw = window->x;
+	xdrawable = xw->drawable;
+
+	/* leave note for mouse proc to assert selection ownership */
+	putsnarf++;
+
+	/* send mouse a fake event so snarf is announced */
+	memset(&e, 0, sizeof e);
+	e.type = ButtonPress;
+	e.window = xdrawable;
+	e.state = ~0;
+	e.button = ~0;
+	XSendEvent(xconn.display, xdrawable, True, ButtonPressMask, (XEvent*)&e);
+	XFlush(xconn.display);
+}
+
+void
+xselect(XEvent *e)
+{
+	char *name;
+	XEvent r;
+	XSelectionRequestEvent *xe;
+	Atom a[4];
+	XDisplay *xd;
+
+	if(e->xany.type != SelectionRequest)
+		return;
+
+	xd  = xconn.display;
+
+	memset(&r, 0, sizeof r);
+	xe = (XSelectionRequestEvent*)e;
+if(0) iprint("xselect target=%d requestor=%d property=%d selection=%d\n",
+	xe->target, xe->requestor, xe->property, xe->selection);
+	r.xselection.property = xe->property;
+	if(xe->target == targets){
+		a[0] = XA_STRING;
+		a[1] = utf8string;
+		a[2] = text;
+		a[3] = compoundtext;
+
+		XChangeProperty(xd, xe->requestor, xe->property, xe->target,
+			8, PropModeReplace, (uchar*)a, sizeof a);
+	}else if(xe->target == XA_STRING || xe->target == utf8string || xe->target == text || xe->target == compoundtext){
+		/* if the target is STRING we're supposed to reply with Latin1 XXX */
+		XChangeProperty(xd, xe->requestor, xe->property, xe->target,
+			8, PropModeReplace, (uchar*)clip.buf, strlen(clip.buf));
+	}else{
+		iprint("get %d\n", xe->target);
+		name = XGetAtomName(xd, xe->target);
+		if(name == nil)
+			iprint("XGetAtomName failed\n");
+		else if(strcmp(name, "TIMESTAMP") != 0)
+			iprint("%s: cannot handle selection request for '%s' (%d)\n", argv0, name, (int)xe->target);
+		r.xselection.property = None;
+	}
+
+	r.xselection.display = xe->display;
+	/* r.xselection.property filled above */
+	r.xselection.target = xe->target;
+	r.xselection.type = SelectionNotify;
+	r.xselection.requestor = xe->requestor;
+	r.xselection.time = xe->time;
+	r.xselection.send_event = True;
+	r.xselection.selection = xe->selection;
+	XSendEvent(xd, xe->requestor, False, 0, &r);
+	XFlush(xd);
+}
+

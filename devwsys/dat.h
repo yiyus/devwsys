@@ -32,6 +32,11 @@ enum {
 	CursorSize=	32
 };
 
+/* snarf buffer size */
+enum{
+	SnarfSize=	100*1024
+};
+
 /* Datatypes: */
 typedef struct Client Client;
 typedef struct DImage DImage;
@@ -44,6 +49,7 @@ typedef struct Kbdbuf Kbdbuf;
 typedef struct Refresh Refresh;
 typedef struct Refx Refx;
 typedef struct Cursor Cursor;
+typedef struct Clip Clip;
 typedef struct Window Window;
 
 /* Drawing device */
@@ -167,6 +173,12 @@ struct Cursor {
 	uchar	mask[(CursorSize/8)*CursorSize];
 };
 
+/* snarf buffer */
+struct Clip
+{
+	char buf[SnarfSize];
+};
+
 /* Window system */
 struct Window
 {
@@ -194,4 +206,5 @@ int		nwindow;
 Window	**window;
 int		nclient;
 Client	**client;
+Clip clip;
 

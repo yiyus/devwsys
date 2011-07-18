@@ -4,6 +4,7 @@
 #include <memlayer.h>
 #include <cursor.h>
 #include "dat.h"
+#include "fns.h"
 #include "inc.h"
 #include "x.h"
 
@@ -182,6 +183,9 @@ xinit(void)
 		setupcmap(xconn.root);
 	}
 	xconn.screenrect = Rect(0, 0, WidthOfScreen(xconn.screen), HeightOfScreen(xconn.screen));
+
+	xinitclipboard();
+
 	return 0;
 }
 

@@ -70,3 +70,6 @@ void xmovewindow(Window*, Rectangle);
 void xputxdata(Memimage*, Rectangle);
 void xmemimagedraw(Memimage*, Rectangle, Memimage*, Point,
 	Memimage*, Point, int);
+void xinitclipboard(void);
+void xsetsnarfowner(Window*);
+void xselect(XEvent*);
