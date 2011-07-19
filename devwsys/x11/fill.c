@@ -50,11 +50,9 @@ xfillcolor(Memimage *m, Rectangle r, ulong v)
 void
 xmemfillcolor(Memimage *m, ulong val)
 {
-	memfillcolor(m, val);
-	if(m->X == nil) {
-		_memfillcolor(m, val);
+	_memfillcolor(m, val);
+	if(m->X == nil)
 		return;
-	}
 	if((val & 0xFF) == 0xFF)	/* full alpha */
 		xfillcolor(m, m->r, rgbatoimg(m, val));
 	else

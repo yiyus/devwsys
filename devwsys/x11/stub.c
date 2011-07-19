@@ -45,13 +45,13 @@ memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point sp, Memimage *mask
 void
 memfillcolor(Memimage *m, ulong val)
 {
-	_memfillcolor(m, val);
+	xmemfillcolor(m, val);
 }
 
 ulong
 pixelbits(Memimage *m, Point p)
 {
-	return _pixelbits(m, p);
+	return xpixelbits(m, p);
 }
 
 /* load.c */
@@ -59,7 +59,7 @@ pixelbits(Memimage *m, Point p)
 int
 loadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
 {
-	return _loadmemimage(i, r, data, ndata);
+	return xloadmemimage(i, r, data, ndata);
 }
 
 /* unload.c */
@@ -67,6 +67,6 @@ loadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
 int
 unloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
 {
-	return _unloadmemimage(i, r, data, ndata);
+	return xunloadmemimage(i, r, data, ndata);
 }
 

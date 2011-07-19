@@ -204,3 +204,30 @@ xdraw(Memdrawparam *par)
 	return 0;
 }
 
+int
+xloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
+{
+	int n;
+
+	n = _loadmemimage(i, r, data, ndata);
+	if(n > 0 && i->X)
+		xputxdata(i, r);
+	return n;
+}
+
+int
+xunloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
+{
+	if(i->X)
+		xgetxdata(i, r);
+	return _unloadmemimage(i, r, data, ndata);
+}
+
+ulong
+xpixelbits(Memimage *m, Point p)
+{
+	if(m->X)
+		xgetxdata(m, Rect(p.x, p.y, p.x+1, p.y+1));
+	return _pixelbits(m, p);
+}
+

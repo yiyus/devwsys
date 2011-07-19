@@ -73,3 +73,8 @@ void xmemimagedraw(Memimage*, Rectangle, Memimage*, Point,
 void xinitclipboard(void);
 void xsetsnarfowner(Window*);
 void xselect(XEvent*);
+void xmemfillcolor(Memimage*, ulong);
+int xloadmemimage(Memimage*, Rectangle, uchar*, int);
+int xunloadmemimage(Memimage*, Rectangle, uchar*, int);
+ulong xpixelbits(Memimage*, Point);
+
