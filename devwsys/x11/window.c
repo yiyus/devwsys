@@ -22,7 +22,6 @@
 static void* xcreatewin(char*, char*, Rectangle);
 static Rectangle xmapwin(void*, int, Rectangle);
 static Rectangle xwinrectangle(char*, char*, int*);
-static XGC	xgc(XDrawable, int, int);
 
 int
 xattach(Window *w, char *winsize)
@@ -64,16 +63,6 @@ xdeletewin(Window *w)
 	if(xw->screenpm != xw->nextscreenpm)
 		XFreePixmap(xconn.display, xw->screenpm);
 	XFreePixmap(xconn.display, xw->nextscreenpm);
-	XFreeGC(xconn.display, xw->gccopy);
-	XFreeGC(xconn.display, xw->gccopy0);
-	XFreeGC(xconn.display, xw->gcfill);
-	XFreeGC(xconn.display, xw->gcfill0);
-	XFreeGC(xconn.display, xw->gcreplsrc);
-	XFreeGC(xconn.display, xw->gcreplsrc0);
-	XFreeGC(xconn.display, xw->gcsimplesrc);
-	XFreeGC(xconn.display, xw->gcsimplesrc0);
-	XFreeGC(xconn.display, xw->gczero);
-	XFreeGC(xconn.display, xw->gczero0);
 	free(xw);
 	xw = (void*)nil;
 	XSync(xconn.display, False);
@@ -322,7 +311,6 @@ static
 Rectangle
 xmapwin(void *x, int havemin, Rectangle r)
 {
-	XDrawable pmid;
 	Xwin *xw;
 	XWindowAttributes wattr;
 
@@ -367,23 +355,6 @@ xmapwin(void *x, int havemin, Rectangle r)
 	xw->screenpm = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), xconn.depth);
 	xw->nextscreenpm = xw->screenpm;
 
-	/*
-	 * Allocate some useful graphics contexts for the future.
-	 */
-	xw->gcfill	= xgc(xw->screenpm, FillSolid, -1);
-	xw->gccopy	= xgc(xw->screenpm, -1, -1);
-	xw->gcsimplesrc 	= xgc(xw->screenpm, FillStippled, -1);
-	xw->gczero	= xgc(xw->screenpm, -1, -1);
-	xw->gcreplsrc	= xgc(xw->screenpm, FillTiled, -1);
-
-	pmid = XCreatePixmap(xconn.display, xw->drawable, 1, 1, 1);
-	xw->gcfill0	= xgc(pmid, FillSolid, 0);
-	xw->gccopy0	= xgc(pmid, -1, -1);
-	xw->gcsimplesrc0	= xgc(pmid, FillStippled, -1);
-	xw->gczero0	= xgc(pmid, -1, -1);
-	xw->gcreplsrc0	= xgc(pmid, FillTiled, -1);
-	XFreePixmap(xconn.display, pmid);
-
 	return r;
 }
 
@@ -404,28 +375,8 @@ xflushmemscreen(Window *w, Rectangle r)
 
 	if(r.min.x >= r.max.x || r.min.y >= r.max.y)
 		return;
-	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xw->gccopy, r.min.x, r.min.y,
+	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xconn.gccopy, r.min.x, r.min.y,
 		Dx(r), Dy(r), r.min.x, r.min.y);
 	XFlush(xconn.display);
 }
 
-/*
- * Create a GC with a particular fill style and XXX.
- * Disable generation of GraphicsExpose/NoExpose events in the GC.
- */
-static XGC
-xgc(XDrawable d, int fillstyle, int foreground)
-{
-	XGC gc;
-	XGCValues v;
-
-	memset(&v, 0, sizeof v);
-	v.function = GXcopy;
-	v.graphics_exposures = False;
-	gc = XCreateGC(xconn.display, d, GCFunction|GCGraphicsExposures, &v);
-	if(fillstyle != -1)
-		XSetFillStyle(xconn.display, gc, fillstyle);
-	if(foreground != -1)
-		XSetForeground(xconn.display, gc, 0);
-	return gc;
-}

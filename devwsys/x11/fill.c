@@ -25,18 +25,18 @@ xfillcolor(Memimage *m, Rectangle r, ulong v)
 	 * Set up fill context appropriately.
 	 */
 	if(m->chan == GREY1){
-		gc = xw->gcfill0;
-		if(xw->gcfill0color != v){
+		gc = xconn.gcfill0;
+		if(xconn.gcfill0color != v){
 			XSetForeground(xconn.display, gc, v);
-			xw->gcfill0color = v;
+			xconn.gcfill0color = v;
 		}
 	}else{
 		if(m->chan == CMAP8 && xconn.usetable)
 			v = xconn.tox11[v];
-		gc = xw->gcfill;
-		if(xw->gcfillcolor != v){
+		gc = xconn.gcfill;
+		if(xconn.gcfillcolor != v){
 			XSetForeground(xconn.display, gc, v);
-			xw->gcfillcolor = v;
+			xconn.gcfillcolor = v;
 		}
 	}
 

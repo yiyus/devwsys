@@ -18,24 +18,7 @@ struct Xconn {
 	XScreen		*screen;
 	XVisual		*vis;
 	XWindow		root;
-};
-
-struct Xmem
-{
-	int		pixmap;	/* pixmap id */
-	XImage	*xi;		/* local image */
-	int		dirty;	/* is the X server ahead of us?  */
-	Rectangle	dirtyr;	/* which pixels? */
-	Rectangle	r;		/* size of image */
-	Window	*w;		/* associated window */
-};
-
-struct Xwin {
-	Atom 		wmdelmsg;
-	XCursor		cursor;
-	XDrawable	drawable;
-	XDrawable	screenpm;
-	XDrawable	nextscreenpm;
+	XWindow		w;
 	XGC			gccopy;
 	XGC			gccopy0;
 	XGC			gcfill;
@@ -56,6 +39,24 @@ struct Xwin {
 	ulong		gczeropixmap;
 	XGC			gczero0;
 	ulong		gczero0pixmap;
+};
+
+struct Xmem
+{
+	int		pixmap;	/* pixmap id */
+	XImage	*xi;		/* local image */
+	int		dirty;	/* is the X server ahead of us?  */
+	Rectangle	dirtyr;	/* which pixels? */
+	Rectangle	r;		/* size of image */
+	Window	*w;		/* associated window */
+};
+
+struct Xwin {
+	Atom 		wmdelmsg;
+	XCursor		cursor;
+	XDrawable	drawable;
+	XDrawable	screenpm;
+	XDrawable	nextscreenpm;
 };
 
 extern Xconn xconn;

@@ -12,6 +12,7 @@ void xclose(void);
 
 static void	plan9cmap(void);
 static int	setupcmap(XWindow);
+static XGC	xgc(XDrawable, int, int);
 
 Xconn xconn;
 
@@ -63,6 +64,7 @@ xinit(void)
 {
 	char *disp;
 	int i, n, xrootid;
+	XDrawable pmid;
 	XPixmapFormatValues *pfmt;
 	XVisualInfo xvi;
 
@@ -182,11 +184,77 @@ xinit(void)
 		plan9cmap();
 		setupcmap(xconn.root);
 	}
+
+	/*
+	 * Set up screen rectangle.
+	 */
 	xconn.screenrect = Rect(0, 0, WidthOfScreen(xconn.screen), HeightOfScreen(xconn.screen));
+
+	/*
+	 * Set up InputOnly window for gcs, pixmaps and snarf.
+	 */
+	xconn.w = XCreateWindow(
+		xconn.display,	/* display */
+		xconn.root,	/* parent */
+		0,			/* x */
+		0,			/* y */
+		1,			/* width */
+	 	1,			/* height */
+		0,			/* border width */
+		0,			/* depth */
+		InputOnly,	/* class */
+		xconn.vis,		/* visual */
+		0,			/* valuemask */
+		nil			/* attributes (the above aren't?!) */
+	);
+
+	/*
+	 * Allocate some useful graphics contexts for the future.
+	 */
+	pmid = XCreatePixmap(xconn.display, xconn.w, 1, 1, xconn.depth);
+	xconn.gcfill	= xgc(pmid, FillSolid, -1);
+	xconn.gccopy	= xgc(pmid, -1, -1);
+	xconn.gcsimplesrc 	= xgc(pmid, FillStippled, -1);
+	xconn.gczero	= xgc(pmid, -1, -1);
+	xconn.gcreplsrc	= xgc(pmid, FillTiled, -1);
+	XFreePixmap(xconn.display, pmid);
+
+	pmid = XCreatePixmap(xconn.display, xconn.w, 1, 1, 1);
+	xconn.gcfill0	= xgc(pmid, FillSolid, 0);
+	xconn.gccopy0	= xgc(pmid, -1, -1);
+	xconn.gcsimplesrc0	= xgc(pmid, FillStippled, -1);
+	xconn.gczero0	= xgc(pmid, -1, -1);
+	xconn.gcreplsrc0	= xgc(pmid, FillTiled, -1);
+	XFreePixmap(xconn.display, pmid);
 
 	xinitclipboard();
 
 	return 0;
+}
+
+void
+xclose(void)
+{
+	/*
+	 * Should do a better job of cleaning up here.
+	 */
+
+	/*
+	 * Clean up gcs and input window.
+	 */
+	XDestroyWindow(xconn.display, xconn.w);
+	XFreeGC(xconn.display, xconn.gccopy);
+	XFreeGC(xconn.display, xconn.gccopy0);
+	XFreeGC(xconn.display, xconn.gcfill);
+	XFreeGC(xconn.display, xconn.gcfill0);
+	XFreeGC(xconn.display, xconn.gcreplsrc);
+	XFreeGC(xconn.display, xconn.gcreplsrc0);
+	XFreeGC(xconn.display, xconn.gcsimplesrc);
+	XFreeGC(xconn.display, xconn.gcsimplesrc0);
+	XFreeGC(xconn.display, xconn.gczero);
+	XFreeGC(xconn.display, xconn.gczero0);
+
+	XCloseDisplay(xconn.display);
 }
 
 /*
@@ -350,11 +418,23 @@ setupcmap(XWindow w)
 	return 0;
 }
 
-void
-xclose(void)
+/*
+ * Create a GC with a particular fill style and XXX.
+ * Disable generation of GraphicsExpose/NoExpose events in the GC.
+ */
+static XGC
+xgc(XDrawable d, int fillstyle, int foreground)
 {
-	/*
-	 * Should do a better job of cleaning up here.
-	 */
-	XCloseDisplay(xconn.display);
+	XGC gc;
+	XGCValues v;
+
+	memset(&v, 0, sizeof v);
+	v.function = GXcopy;
+	v.graphics_exposures = False;
+	gc = XCreateGC(xconn.display, d, GCFunction|GCGraphicsExposures, &v);
+	if(fillstyle != -1)
+		XSetFillStyle(xconn.display, gc, fillstyle);
+	if(foreground != -1)
+		XSetForeground(xconn.display, gc, 0);
+	return gc;
 }

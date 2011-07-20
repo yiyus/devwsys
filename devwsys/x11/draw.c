@@ -142,7 +142,7 @@ xdraw(Memdrawparam *par)
 		xsrc = src->X;
 		dp = subpt(r.min,       dst->r.min);
 		sp = subpt(par->sr.min, src->r.min);
-		gc = dst->chan==GREY1 ?  xw->gccopy0 : xw->gccopy;
+		gc = dst->chan==GREY1 ?  xconn.gccopy0 : xconn.gccopy;
 
 		XCopyArea(xconn.display, xsrc->pixmap, xdst->pixmap, gc,
 			sp.x, sp.y, Dx(r), Dy(r), dp.x, dp.y);
@@ -165,29 +165,29 @@ xdraw(Memdrawparam *par)
 		mp = subpt(r.min, subpt(par->mr.min, mask->r.min));
 
 		if(dst->chan == GREY1){
-			gc = xw->gcsimplesrc0;
-			if(xw->gcsimplesrc0color != sdval){
+			gc = xconn.gcsimplesrc0;
+			if(xconn.gcsimplesrc0color != sdval){
 				XSetForeground(xconn.display, gc, sdval);
-				xw->gcsimplesrc0color = sdval;
+				xconn.gcsimplesrc0color = sdval;
 			}
-			if(xw->gcsimplesrc0pixmap != xmask->pixmap){
+			if(xconn.gcsimplesrc0pixmap != xmask->pixmap){
 				XSetStipple(xconn.display, gc, xmask->pixmap);
-				xw->gcsimplesrc0pixmap = xmask->pixmap;
+				xconn.gcsimplesrc0pixmap = xmask->pixmap;
 			}
 		}else{
 			/* this doesn't work on rob's mac?  */
 			return 0;
-			/* gc = xw->gcsimplesrc;
+			/* gc = xconn.gcsimplesrc;
 			if(dst->chan == CMAP8 && xconn.usetable)
 				sdval = xw->tox11[sdval];
 
-			if(xw->gcsimplesrccolor != sdval){
+			if(xconn.gcsimplesrccolor != sdval){
 				XSetForeground(xconn.display, gc, sdval);
-				xw->gcsimplesrccolor = sdval;
+				xconn.gcsimplesrccolor = sdval;
 			}
-			if(xw->gcsimplesrcpixmap != xmask->pixmap){
+			if(xconn.gcsimplesrcpixmap != xmask->pixmap){
 				XSetStipple(xconn.display, gc, xmask->pixmap);
-				xw->gcsimplesrcpixmap = xmask->pixmap;
+				xconn.gcsimplesrcpixmap = xmask->pixmap;
 			}
 			*/
 		}

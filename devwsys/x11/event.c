@@ -114,7 +114,7 @@ configevent(Window *w, XEvent xev)
 
 	// qlock(&_x.screenlock);
 	if(xw->screenpm != xw->nextscreenpm){
-		XCopyArea(xconn.display, xw->screenpm, xw->drawable, xw->gccopy, r.min.x, r.min.y,
+		XCopyArea(xconn.display, xw->screenpm, xw->drawable, xconn.gccopy, r.min.x, r.min.y,
 			Dx(r), Dy(r), r.min.x, r.min.y);
 		XSync(xconn.display, False);
 	}
@@ -154,7 +154,7 @@ exposeevent(Window *w, XEvent xev)
 	r.min.y = xe->y;
 	r.max.x = xe->x+xe->width;
 	r.max.y = xe->y+xe->height;
-	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xw->gccopy, r.min.x, r.min.y,
+	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xconn.gccopy, r.min.x, r.min.y,
 		Dx(r), Dy(r), r.min.x, r.min.y);
 	XSync(xconn.display, False);
 	// qunlock(&_x.screenlock);

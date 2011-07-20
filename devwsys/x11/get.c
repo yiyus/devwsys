@@ -69,7 +69,7 @@ xputxdata(Memimage *m, Rectangle r)
 
 	xw = xm->w->x;
 	xi = xm->xi;
-	gc = m->chan==GREY1 ? xw->gccopy0 : xw->gccopy;
+	gc = m->chan==GREY1 ? xconn.gccopy0 : xconn.gccopy;
 	if(m->depth == 24)
 		offset = r.min.x & 3;
 	else
