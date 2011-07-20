@@ -644,6 +644,7 @@ fs_write(Ixp9Req *r) {
 			snarfbuf = p;
 		}
 		memmove(snarfbuf+r->ifcall.twrite.offset, r->ifcall.twrite.data, r->ifcall.twrite.count);
+		snarfbuf[r->ifcall.twrite.offset+r->ifcall.twrite.count] = '\0';
 		break;
 	case FsFWctl:
  		r->ofcall.io.count = r->ifcall.io.count;

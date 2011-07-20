@@ -49,5 +49,5 @@ int xupdatelabel(Window*);
 void xtopwindow(Window*);
 void xresizewindow(Window*, Rectangle);
 void xsetcursor(Window*);
-char* xgetsnarf(Window*);
+char* xgetsnarf();
 void xputsnarf(Window*, char*);

@@ -234,31 +234,27 @@ xinitclipboard(void){
 	compoundtext = XInternAtom(xconn.display, "COMPOUND_TEXT", False);
 }
 
+static
 void
-xsetsnarfowner(Window *w)
+xsetsnarfowner(void)
 {
-	Xwin *xw;
-
-	xw = w->x;
 	if(putsnarf != assertsnarf){
 		assertsnarf = putsnarf;
-		XSetSelectionOwner(xconn.display, XA_PRIMARY, xw->drawable, CurrentTime);
+		XSetSelectionOwner(xconn.display, XA_PRIMARY, xconn.w, CurrentTime);
 		if(clipboard != None)
-			XSetSelectionOwner(xconn.display, clipboard, xw->drawable, CurrentTime);
+			XSetSelectionOwner(xconn.display, clipboard, xconn.w, CurrentTime);
 		XFlush(xconn.display);
 	}
 }
 
 char*
-xgetsnarf(Window *window)
+xgetsnarf(void)
 {
 	uchar *data, *xdata;
-	Atom clipboard, type, prop;
+	Atom cb, type, prop;
 	unsigned long len, lastlen, dummy;
 	int fmt, i;
-	XWindow w, xdrawable;
-	XDisplay *xd;
-	Xwin *xw;
+	XWindow w;
 
 	/*
 	 * Have we snarfed recently and the X server hasn't caught up?
@@ -266,16 +262,12 @@ xgetsnarf(Window *window)
 	if(putsnarf != assertsnarf)
 		goto mine;
 
-	xd = xconn.display;
-	xw = window->x;
-	xdrawable = xw->drawable;
-
 	/*
 	 * Is there a primary selection (highlighted text in an xterm)?
 	 */
-	clipboard = XA_PRIMARY;
-	w = XGetSelectionOwner(xd, XA_PRIMARY);
-	if(w == xdrawable){
+	cb = XA_PRIMARY;
+	w = XGetSelectionOwner(xconn.display, XA_PRIMARY);
+	if(w == xconn.w){
 	mine:
 		data = (uchar*)strdup(clip.buf);
 		goto out;
@@ -285,9 +277,9 @@ xgetsnarf(Window *window)
 	 * If not, is there a clipboard selection?
 	 */
 	if(w == None && clipboard != None){
-		clipboard = clipboard;
-		w = XGetSelectionOwner(xd, clipboard);
-		if(w == xdrawable)
+		cb = clipboard;
+		w = XGetSelectionOwner(xconn.display, clipboard);
+		if(w == xconn.w)
 			goto mine;
 	}
 
@@ -309,13 +301,13 @@ xgetsnarf(Window *window)
 	 * but that would add to the polling.
 	 */
 	prop = 1;
-	XChangeProperty(xd, xdrawable, prop, XA_STRING, 8, PropModeReplace, (uchar*)"", 0);
-	XConvertSelection(xd, clipboard, XA_STRING, prop, xdrawable, CurrentTime);
-	XFlush(xd);
+	XChangeProperty(xconn.display, xconn.w, prop, XA_STRING, 8, PropModeReplace, (uchar*)"", 0);
+	XConvertSelection(xconn.display, cb, XA_STRING, prop, xconn.w, CurrentTime);
+	XFlush(xconn.display);
 	lastlen = 0;
 	for(i=0; i<10 || (lastlen!=0 && i<30); i++){
 		usleep(10*1000);
-		XGetWindowProperty(xd, xdrawable, prop, 0, 0, 0, AnyPropertyType,
+		XGetWindowProperty(xconn.display, xconn.w, prop, 0, 0, 0, AnyPropertyType,
 			&type, &fmt, &dummy, &len, &data);
 		if(lastlen == len && len > 0)
 			break;
@@ -327,7 +319,7 @@ xgetsnarf(Window *window)
 	}
 	/* get the property */
 	data = nil;
-	XGetWindowProperty(xd, xdrawable, prop, 0, SnarfSize/sizeof(unsigned long), 0, 
+	XGetWindowProperty(xconn.display, xconn.w, prop, 0, SnarfSize/sizeof(unsigned long), 0, 
 		AnyPropertyType, &type, &fmt, &len, &dummy, &xdata);
 	if((type != XA_STRING && type != utf8string) || len == 0){
 		if(xdata)
@@ -347,28 +339,14 @@ out:
 void
 xputsnarf(Window *window, char *data)
 {
-	XButtonEvent e;
-	XWindow xdrawable;
-	Xwin *xw;
-
 	if(strlen(data) >= SnarfSize)
 		return;
 	strcpy(clip.buf, data);
 
-	xw = window->x;
-	xdrawable = xw->drawable;
-
 	/* leave note for mouse proc to assert selection ownership */
 	putsnarf++;
 
-	/* send mouse a fake event so snarf is announced */
-	memset(&e, 0, sizeof e);
-	e.type = ButtonPress;
-	e.window = xdrawable;
-	e.state = ~0;
-	e.button = ~0;
-	XSendEvent(xconn.display, xdrawable, True, ButtonPressMask, (XEvent*)&e);
-	XFlush(xconn.display);
+	xsetsnarfowner();
 }
 
 void

@@ -72,7 +72,6 @@ void xputxdata(Memimage*, Rectangle);
 void xmemimagedraw(Memimage*, Rectangle, Memimage*, Point,
 	Memimage*, Point, int);
 void xinitclipboard(void);
-void xsetsnarfowner(Window*);
 void xselect(XEvent*);
 void xmemfillcolor(Memimage*, ulong);
 int xloadmemimage(Memimage*, Rectangle, uchar*, int);

@@ -26,6 +26,12 @@ xnextevent(void) {
 
 NextEvent:
 	XNextEvent(xconn.display, &xev);
+	if(xev.xany.window == xconn.w && xev.type == SelectionRequest){
+		xselect(&xev);
+		if(XPending(xconn.display))
+			goto NextEvent;
+		return;
+	}
 	for(i = 0; i < nwindow; i++){
 		xw = window[i]->x;
 		if(xw && xw->drawable == xev.xany.window)
@@ -75,10 +81,6 @@ NextEvent:
 		writekbd(w, -1);;
 		break;
 	
-	case SelectionRequest:
-		xselect(&xev);
-		break;
-
 	default:
 		break;
 	}
@@ -182,7 +184,6 @@ mouseevent(Window *w, XEvent xev)
 {
 	Mouse m;
 
-	xsetsnarfowner(w);
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
 	// debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
