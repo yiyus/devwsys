@@ -26,8 +26,9 @@ xnextevent(void) {
 
 NextEvent:
 	XNextEvent(xconn.display, &xev);
-	if(xev.xany.window == xconn.w && xev.type == SelectionRequest){
-		xselect(&xev);
+	if(xev.xany.window == xconn.w){
+		if(xev.type == SelectionRequest)
+			xselect(&xev);
 		if(XPending(xconn.display))
 			goto NextEvent;
 		return;

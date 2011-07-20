@@ -693,6 +693,7 @@ fs_clunk(Ixp9Req *r) {
 				xputsnarf(w, "");
 		}
 		free(snarfbuf);
+		snarfbuf = nil;
 
 	}
 	if(!iswindow(f->tab.type) && (decref(&cl->r)==0))
