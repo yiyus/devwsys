@@ -50,4 +50,4 @@ void xtopwindow(Window*);
 void xresizewindow(Window*, Rectangle);
 void xsetcursor(Window*);
 char* xgetsnarf();
-void xputsnarf(Window*, char*);
+void xputsnarf(char*);

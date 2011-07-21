@@ -688,9 +688,9 @@ fs_clunk(Ixp9Req *r) {
 	case FsFSnarf:
 		if(r->fid->omode == OWRITE){
 			if(snarfbuf)
-				xputsnarf(w, snarfbuf);
+				xputsnarf(snarfbuf);
 			else
-				xputsnarf(w, "");
+				xputsnarf("");
 		}
 		free(snarfbuf);
 		snarfbuf = nil;

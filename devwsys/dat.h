@@ -1,7 +1,8 @@
-/* Pixmap undefined */
 enum
 {
-	PMundef = ~0
+	PMundef = ~0,			/* Pixmap undefined */
+	CursorSize= 32,		/* Biggest cursor size */
+	SnarfSize= 100*1024,	/* snarf buffer size */
 };
 
 /* Runes */
@@ -25,16 +26,6 @@ enum {
 	Kctl=		KF|0x17,
 	
 	Kcmd=	0xF100	/* Beginning of Cmd+'a', Cmd+'A', etc on Mac */
-};
-
-/* biggest cursor size */
-enum {
-	CursorSize=	32
-};
-
-/* snarf buffer size */
-enum{
-	SnarfSize=	100*1024
 };
 
 /* Datatypes: */

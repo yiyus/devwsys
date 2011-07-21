@@ -337,7 +337,7 @@ out:
 }
 
 void
-xputsnarf(Window *window, char *data)
+xputsnarf(char *data)
 {
 	if(strlen(data) >= SnarfSize)
 		return;
