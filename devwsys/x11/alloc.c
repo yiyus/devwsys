@@ -19,6 +19,8 @@ xallocmemimage(Rectangle r, ulong chan, int pixmap)
 	XImage *xi;
 	Xmem *xm;
 
+	if(Dx(r) == 0 || Dy(r) == 0)
+		return nil;
 	if(!(m = _allocmemimage(r, chan)))
 		return m;
 	if(chan != GREY1 && chan != xconn.chan)
