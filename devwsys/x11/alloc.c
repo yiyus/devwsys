@@ -12,18 +12,17 @@
  * Allocate a Memimage with an optional pixmap backing on the X server.
  */
 Memimage*
-xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
+xallocmemimage(Rectangle r, ulong chan, int pixmap)
 {
 	int d, offset;
 	Memimage *m;
 	XImage *xi;
 	Xmem *xm;
-	Xwin *xw;
 
 	m = _allocmemimage(r, chan);
 	if(chan != GREY1 && chan != xconn.chan)
 		return m;
-	if(w == nil || xconn.display == 0)
+	if(xconn.display == 0)
 		return m;
 
 	/*
@@ -50,10 +49,8 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 		d = xconn.depth;
 	if(pixmap != PMundef)
 		xm->pixmap = pixmap;
-	else {
-		xw = w->x;
-		xm->pixmap = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), d);
-	}
+	else
+		xm->pixmap = XCreatePixmap(xconn.display, xconn.w, Dx(r), Dy(r), d);
 
 	/*
 	 * We want to align pixels on word boundaries.
@@ -80,7 +77,6 @@ xallocmemimage(Window *w, Rectangle r, ulong chan, int pixmap)
 
 	xm->xi = xi;
 	xm->r = r;
-	xm->w = w;
 
 	/*
 	 * Set the XImage parameters so that it looks exactly like

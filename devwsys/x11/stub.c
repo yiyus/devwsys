@@ -13,11 +13,7 @@
 Memimage*
 allocmemimage(Rectangle r, ulong chan)
 {
-	/*
-	 * TODO: will only return _memimage(),
-	 * should know the current window
-	 */
-	return xallocmemimage(nil, r, chan, PMundef);
+	return xallocmemimage(r, chan, PMundef);
 }
 
 void

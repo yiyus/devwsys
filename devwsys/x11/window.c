@@ -36,7 +36,7 @@ xattach(Window *w, char *winsize)
 		goto Error;
 	w->screenr = xmapwin(xw, havemin, w->screenr);
 	w->x = xw;
-	w->draw.screenimage = xallocmemimage(w, w->screenr, xconn.chan, xw->screenpm);
+	w->draw.screenimage = xallocmemimage(w->screenr, xconn.chan, xw->screenpm);
 	// print("XXX xattach screenimage %d to window %d (draw %d)\n", w->draw.screenimage, w, &w->draw);
 	if(w->draw.screenimage == nil)
 		goto Error;
@@ -80,7 +80,7 @@ xreplacescreenimage(Window *w)
 	r = w->newscreenr;
 
 	pixmap = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), xconn.depth);
-	m = xallocmemimage(w, r, xconn.chan, pixmap);
+	m = xallocmemimage(r, xconn.chan, pixmap);
 	if(xw->nextscreenpm != xw->screenpm)
 		XFreePixmap(xconn.display, xw->nextscreenpm);
 	xw->nextscreenpm = pixmap;

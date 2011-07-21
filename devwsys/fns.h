@@ -40,7 +40,7 @@ void xnextevent(void);
 void xclose(void);
 
 /* X window */
-Memimage* xallocmemimage(Window*, Rectangle, ulong, int);
+Memimage* xallocmemimage(Rectangle, ulong, int);
 int xattach(Window*, char*);
 void xdeletewin(Window*);
 void xflushmemscreen(Window*, Rectangle);

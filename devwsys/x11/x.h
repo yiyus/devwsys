@@ -48,7 +48,6 @@ struct Xmem
 	int		dirty;	/* is the X server ahead of us?  */
 	Rectangle	dirtyr;	/* which pixels? */
 	Rectangle	r;		/* size of image */
-	Window	*w;		/* associated window */
 };
 
 struct Xwin {

@@ -56,7 +56,6 @@ xputxdata(Memimage *m, Rectangle r)
 	Xmem *xm;
 	XGC gc;
 	XImage *xi;
-	Xwin *xw;
 
 	xm = m->X;
 	// XXX TODO:
@@ -67,7 +66,6 @@ xputxdata(Memimage *m, Rectangle r)
 		return;
 	}
 
-	xw = xm->w->x;
 	xi = xm->xi;
 	gc = m->chan==GREY1 ? xconn.gccopy0 : xconn.gccopy;
 	if(m->depth == 24)

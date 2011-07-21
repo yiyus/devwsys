@@ -15,11 +15,9 @@ xfillcolor(Memimage *m, Rectangle r, ulong v)
 	Point p;
 	Xmem *xm;
 	XGC gc;
-	Xwin *xw;
 	
 	xm = m->X;
 	assert(xm != nil);
-	xw = xm->w->x;
 
 	/*
 	 * Set up fill context appropriately.

@@ -108,7 +108,6 @@ xdraw(Memdrawparam *par)
 	Rectangle r;
 	Xmem *xdst, *xmask, *xsrc;
 	XGC gc;
-	Xwin *xw;
 
 	if(par->dst->X == nil)
 		return 0;
@@ -138,7 +137,6 @@ xdraw(Memdrawparam *par)
 	m = Simplemask|Fullmask;
 	if((state&(m|Replsrc))==m && src->chan==dst->chan && src->X){
 		xdst = dst->X;
-		xw =xdst->w->x;
 		xsrc = src->X;
 		dp = subpt(r.min,       dst->r.min);
 		sp = subpt(par->sr.min, src->r.min);
@@ -157,7 +155,6 @@ xdraw(Memdrawparam *par)
 	if(dst->X && mask->X && !(mask->flags&Frepl)
 	&& mask->chan==GREY1 && (state&Simplesrc)){
 		xdst = dst->X;
-		xw =xdst->w->x;
 		xmask = mask->X;
 		sdval = par->sdval;
 
@@ -179,7 +176,7 @@ xdraw(Memdrawparam *par)
 			return 0;
 			/* gc = xconn.gcsimplesrc;
 			if(dst->chan == CMAP8 && xconn.usetable)
-				sdval = xw->tox11[sdval];
+				sdval = xconn.tox11[sdval];
 
 			if(xconn.gcsimplesrccolor != sdval){
 				XSetForeground(xconn.display, gc, sdval);

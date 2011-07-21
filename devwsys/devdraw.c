@@ -895,7 +895,7 @@ drawmesg(Client *client, void *av, int n)
 				}
 				continue;
 			}
-			i = xallocmemimage(w, r, chan, PMundef);
+			i = xallocmemimage(r, chan, PMundef);
 			if(i == 0)
 				goto Edrawmem;
 			if(repl)
