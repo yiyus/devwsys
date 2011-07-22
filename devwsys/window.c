@@ -102,7 +102,6 @@ deletewin(Window *w)
 {
 	int i;
 
-	// XXX TODO: free draw.
 	for(i = 0; i < nwindow; i++){
 		if(window[i] == w)
 			break;
@@ -111,7 +110,11 @@ deletewin(Window *w)
 		return;
 	xdeletewin(w);
 	drawdettach(w->draw);
-	w->draw = nil;
+	/*
+	 * TODO
+	 * Do not free w->draw (see devdraw.c:1927)
+	 */
+	// w->draw = nil;
 	w->x = nil;
 	w->deleted++;
 	--nwindow;

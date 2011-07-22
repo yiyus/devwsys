@@ -361,7 +361,6 @@ xflushmemscreen(Window *w, Rectangle r)
 {
 	Xwin *xw;
 
-	// print("XXX xflushmemscreen\n");
 	xw = w->x;
 	if(xw->nextscreenpm != xw->screenpm){
 		// qlock(&xw->screenlock);

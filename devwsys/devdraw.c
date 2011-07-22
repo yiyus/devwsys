@@ -236,8 +236,6 @@ static
 void
 drawflush(Draw *d)
 {
-	// Rectangle r = d->flushrect;
-	// print("XXX drawflush: %d %d %d %d \n", r.min.x, r.min.y, r.max.x, r.max.y);
 	if(d->flushrect.min.x < d->flushrect.max.x)
 		xflushmemscreen(d->window, d->flushrect);
 	d->flushrect = Rect(10000, 10000, -10000, -10000);
@@ -258,13 +256,11 @@ drawlookupname(int n, char *str)
 {
 	DName *name, *ename;
 
-	// print("XXX drawlookupname %d %s\n", n, str);
 	name = dname;
 	ename = &name[ndname];
 	for(; name<ename; name++)
 		if(drawcmp(name->name, str, n) == 0)
 			return name;
-	// print("XXX drawlookupname: %s not found\n", str);
 	return 0;
 }
 
@@ -293,7 +289,6 @@ drawlookup(Client *client, int id, int checkname)
 {
 	DImage *d;
 
-	// print("XXX drawlookup %d in client %p\n", id, client);
 	d = client->dimage[id&HASHMASK];
 	while(d){
 		if(d->id == id){
@@ -365,7 +360,6 @@ drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 {
 	DImage *d;
 
-	// print("XXX drawinstall %d (%p) in window %d\n", id, i, client->draw->window->id);
 	d = allocdimage(i);
 	if(d == 0)
 		return 0;
@@ -383,7 +377,6 @@ drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *df
 	Memscreen *s;
 	CScreen *c;
 
-	// print("XXX drawinstallscreen %d in window %d\n", id, client->draw->window->id);
 	c = malloc(sizeof(CScreen));
 	if(dimage && dimage->image && dimage->image->chan == 0)
 		fatal("bad image %p in drawinstallscreen", dimage->image);
@@ -435,7 +428,6 @@ drawdelname(DName *name)
 {
 	int i;
 
-	// print("XXX drawdelname %s\n", dname->name);
 	i = name-dname;
 	memmove(name, name+1, (ndname-(i+1))*sizeof(DName));
 	ndname--;
@@ -448,7 +440,6 @@ drawfreedscreen(Draw *d, DScreen *this)
 	DScreen *ds, *next;
 
 	this->ref--;
-	// print("XXX drawfreedscreen %d from window %d (ref %d)\n", this->id, d->window->id, this->ref);
 	if(this->ref < 0)
 		fprint(2, "negative ref in drawfreedscreen\n");
 	if(this->ref > 0)
@@ -468,7 +459,7 @@ drawfreedscreen(Draw *d, DScreen *this)
 	/* BUG: error(Enodrawimage); */
 	return;
 
-    Found:
+Found:
 	if(this->dimage)
 		drawfreedimage(d, this->dimage);
 	if(this->dfill)
@@ -486,7 +477,6 @@ drawfreedimage(Draw *d, DImage *dimage)
 	DScreen *ds;
 
 	dimage->ref--;
-	// print("XXX drawfreedimage %d (%p) from window %d (ref %d) with image (%p)\n", dimage->id, dimage, d->window->id, dimage->ref, dimage->image);
 	if(dimage->ref < 0)
 		fprint(2, "negative ref in drawfreedimage\n");
 	if(dimage->ref > 0)
@@ -537,7 +527,6 @@ drawuninstallscreen(Client *client, CScreen *this)
 {
 	CScreen *cs, *next;
 
-	// print("XXX drawuninstallscreen %d from window %d\n", this->dscreen->id, client->draw->window->id);
 	cs = client->cscreen;
 	if(cs == this){
 		client->cscreen = this->next;
@@ -567,7 +556,6 @@ drawuninstall(Client *client, int id)
 		return -1; /* BUG: error(Enodrawimage); */
 	if(d->id == id){
 		client->dimage[id&HASHMASK] = d->next;
-	// print("XXX drawuninstall %d from client %d\n", id, client->draw->window->id);
 		drawfreedimage(client->draw, d);
 		return 0;
 	}
@@ -589,7 +577,6 @@ drawaddname(Client *client, DImage *di, int n, char *str, char **err)
 	DName *name, *ename, *new, *t;
 	char *ns;
 
-	// print("XXX drawaddname %s\n", str);
 	name = dname;
 	ename = &name[ndname];
 	for(; name<ename; name++)
@@ -671,7 +658,6 @@ drawimage(Client *client, uchar *a)
 {
 	DImage *d;
 
-	// print("XXX drawimage %d\n", BGLONG(a));
 	d = drawlookup(client, BGLONG(a), 1);
 	if(d == nil)
 		return nil;	/* caller must check! */
@@ -850,7 +836,7 @@ drawread(Client *cl, int type, char *data, int count)
 	IOResponse r;
 
 	r.data = data;
-	r.count = count;
+	r.count = 0;
 	r.err = nil;
 	switch(type) {
 	case FsFCtl:
@@ -873,12 +859,14 @@ drawread(Client *cl, int type, char *data, int count)
 		if(count == -1) {
 			free(cl->readdata);
 			cl->readdata = nil;
+			cl->nreaddata = 0;
 			return r;
 		}
 		if(count < cl->nreaddata) {
 			r.err = Eshortread;
 			return r;
 		}
+		r.data = cl->readdata;
 		r.count = cl->nreaddata;
 		break;
 	case FsFColormap:
@@ -1145,6 +1133,9 @@ drawmesg(Client *client, void *av, int n)
 			dst = drawimage(client, a+1);
 			src = drawimage(client, a+5);
 			mask = drawimage(client, a+9);
+			/*
+			 * TODO: this test fails on rio windows.
+			 */
 			if(!dst || !src || !mask)
 				goto Enodrawimage;
 			drawrectangle(&r, a+13);
@@ -1800,19 +1791,21 @@ drawwrite(Client *cl, int type, char *data, int count)
 	IOResponse r;
 
 	r.data = data;
-	r.count = count;
+	r.count = 0;
 	r.err = nil;
 	switch(type) {
 	case FsFData:
 		drawmesg(cl,data, count);
+		r.count = count;
 		// drawwakeall();
 		break;
 	case FsFCtl:
-		if(r.count != 4){
+		if(count != 4){
 			r.err = "unknown draw control request";
 			break;
 		}
 		cl->infoid = BGLONG((uchar*)data);
+		r.count = count;
 		break;
 	case FsFColormap:
 		r.count = 0;
@@ -1931,8 +1924,15 @@ drawdettach(Draw *d)
 	freememimage(d->window->screenimage);
 	free(d->window->name);
 	d->window->name = nil;
-	drawfreedscreen(d, d->dscreen);
-	free(d);
+	if(d->dscreen)
+		drawfreedscreen(d, d->dscreen);
+	/*
+	 * TODO: we cannot free d because it is needed
+	 * to get the window from a client, and the structures
+	 * of the drawing device will be freed after the
+	 * window has been deleted.
+	 */
+	// free(d);
 }
 
 Window*

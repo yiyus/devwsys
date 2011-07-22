@@ -254,6 +254,7 @@ fs_attach(Ixp9Req *r) {
 
 void
 fs_open(Ixp9Req *r) {
+	const char *err;
 	IxpFileId *f;
 	Window *w;
 	Client *cl;
@@ -282,10 +283,13 @@ fs_open(Ixp9Req *r) {
 			f->tab.type = FsFCtl;
 		}
 	}
-	if(!iswindow(f->tab.type) || f->tab.type == FsFNew){
+	if(!iswindow(f->tab.type)){
 		cl = f->p.client;
-		ixp_respond(r, drawopen(cl, f->tab.type));
-		return;
+		err = drawopen(cl, f->tab.type);
+		if(err != nil){
+			ixp_respond(r, err);
+			return;
+		}
 	}
 	w = f->p.window;
 	switch(f->tab.type) {
@@ -370,8 +374,11 @@ fs_read(Ixp9Req *r) {
 			ixp_respond(r, rread.err);
 			return;
 		}
-		ixp_srv_readbuf(r, rread.data, rread.count);
-		if(f->tab.type = FsFData)
+		if(f->tab.type == FsFRefresh && rread.count == 0)
+			return;
+		if(f->tab.type == FsFCtl || f->tab.type == FsFData || f->tab.type == FsFRefresh)
+			ixp_srv_readbuf(r, rread.data, rread.count);
+		if(f->tab.type == FsFData)
 			drawread(cl, FsFData, nil, -1); /* clear cl->readdata */
 		ixp_respond(r, nil);
 		return;
@@ -478,12 +485,14 @@ fs_write(Ixp9Req *r) {
 	}
 
 	if(!iswindow(f->tab.type)) {
+		if(f->tab.type == FsFRefresh)
+			return;
 		rwrite = drawwrite(cl, f->tab.type, r->ifcall.twrite.data, r->ifcall.io.count);
+		r->ofcall.rwrite.count = rwrite.count;
 		if(rwrite.err != nil){
 			ixp_respond(r, rwrite.err);
 			return;
 		}
-		r->ofcall.rwrite.count = rwrite.count;
 		ixp_respond(r, nil);
 		return;
 	}

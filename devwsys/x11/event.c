@@ -38,7 +38,7 @@ NextEvent:
 		if(xw && xw->drawable == xev.xany.window)
 			break;
 	}
-	if(i == nwindow){
+	if(i == nwindow || window[i]->deleted){
 		if(XPending(xconn.display))
 			goto NextEvent;
 		// print("XXX event received in wrong window\n");
