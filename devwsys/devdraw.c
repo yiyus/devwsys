@@ -6,6 +6,109 @@
 #include <cursor.h>
 #include "dat.h"
 #include "fns.h"
+#include "fsys.h"
+
+typedef struct DImage DImage;
+typedef struct DName DName;
+typedef struct CScreen CScreen;
+typedef struct DScreen DScreen;
+typedef struct FChar FChar;
+typedef struct Refresh Refresh;
+typedef struct Refx Refx;
+
+#define	NHASH		(1<<5)
+#define	HASHMASK	(NHASH-1)
+
+struct Client
+{
+	int		r;	// Ref
+	DImage*	dimage[NHASH];
+	CScreen*	cscreen;
+	Refresh*	refresh;
+//	Rendez	refrend;
+	Draw	*draw;
+	uchar*	readdata;
+	int		nreaddata;
+	int		busy;
+	int		clientid;
+	int		slot;
+	int		refreshme;
+	int		infoid;
+	int		op;
+};
+
+struct Refresh
+{
+	DImage*		dimage;
+	Rectangle	r;
+	Refresh*	next;
+};
+
+struct Refx
+{
+	Client*		client;
+	DImage*		dimage;
+};
+
+struct FChar
+{
+	int		minx;	/* left edge of bits */
+	int		maxx;	/* right edge of bits */
+	uchar	miny;	/* first non-zero scan-line */
+	uchar	maxy;	/* last non-zero scan-line + 1 */
+	schar	left;		/* offset of baseline */
+	uchar	width;	/* width of baseline */
+};
+
+struct DImage
+{
+	int		id;
+	int		ref;
+	char		*name;
+	int		vers;
+	Memimage*	image;
+	int		ascent;
+	int		nfchar;
+	FChar*	fchar;
+	DScreen*	dscreen;		/* 0 if not a window */
+	DImage*	fromname;	/* image this one is derived from, by name */
+	DImage*	next;
+};
+
+struct DName
+{
+	char		*name;
+	Client	*client;
+	DImage*	dimage;
+	int		vers;
+};
+
+struct CScreen
+{
+	DScreen*	dscreen;
+	CScreen*	next;
+};
+
+struct DScreen
+{
+	int		id;
+	int		public;
+	int		ref;
+	DImage	*dimage;
+	DImage	*dfill;
+	Memscreen*	screen;
+	Client*	owner;
+	DScreen*	next;
+};
+
+struct Draw
+{
+	Window*		window;
+	DImage*		screendimage;
+	Rectangle		flushrect;
+	int			waste;
+	DScreen*		dscreen;
+};
 
 static void drawfreedimage(Draw*, DImage*);
 static int drawgoodname(DImage*);
@@ -62,8 +165,7 @@ addflush(Draw *d, Rectangle r)
 	int abb, ar, anbb;
 	Rectangle nbb;
 
-	// print("XXX addflush: %d %d %d %d \n", r.min.x, r.min.y, r.max.x, r.max.y);
-	if(!rectclip(&r, d->screenimage->r))
+	if(!rectclip(&r, d->window->screenimage->r))
 		return;
 
 	if(d->flushrect.min.x >= d->flushrect.max.x){
@@ -105,10 +207,11 @@ static
 void
 dstflush(Draw *d, Memimage *dst, Rectangle r)
 {
+	Memimage *screenimage;
 	Memlayer *l;
 
-	// print("XXX dstflush: %d %d %d %d \n", r.min.x, r.min.y, r.max.x, r.max.y);
-	if(dst == d->screenimage){
+	screenimage = d->window->screenimage;
+	if(dst == screenimage){
 		combinerect(&d->flushrect, r);
 		return;
 	}
@@ -121,7 +224,7 @@ dstflush(Draw *d, Memimage *dst, Rectangle r)
 	if(l == nil)
 		return;
 	do{
-		if(l->screen->image->data != d->screenimage->data)
+		if(l->screen->image->data != screenimage->data)
 			return;
 		r = rectaddpt(r, l->delta);
 		l = l->screen->image->layer;
@@ -149,6 +252,7 @@ drawcmp(char *a, char *b, int n)
 	return memcmp(a, b, n);
 }
 
+static
 DName*
 drawlookupname(int n, char *str)
 {
@@ -183,6 +287,7 @@ drawgoodname(DImage *d)
 	return 1;
 }
 
+static
 DImage*
 drawlookup(Client *client, int id, int checkname)
 {
@@ -254,6 +359,7 @@ allocdimage(Memimage *i)
 	return d;
 }
 
+static
 Memimage*
 drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 {
@@ -407,7 +513,7 @@ drawfreedimage(Draw *d, DImage *dimage)
 		 */
 		if(!l->layer)
 			return;
-		if(l->data == d->screenimage->data)
+		if(l->data == d->window->screenimage->data)
 			addflush(d, l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
 			free(l->layer->refreshptr);
@@ -548,7 +654,8 @@ drawnewclient(Draw *draw)
 	return cl;
 }
 
-static int
+static
+int
 drawclientop(Client *cl)
 {
 	int op;
@@ -557,12 +664,6 @@ drawclientop(Client *cl)
 	cl->op = SoverD;
 	return op;
 }
-
-/*
- * NOT DONE:
- * drawhasclients, drawclientofpath,
- * drawclient
- */
 
 static
 Memimage*
@@ -616,26 +717,23 @@ drawchar(Memimage *dst, Point p, Memimage *src, Point *sp, DImage *font, int ind
 	return p;
 }
 
-/*
- * NOT DONE:
- * initscreenimage, deletescreenimage
- */
-
-int
+Draw*
 drawattach(Window *w, char *winsize)
 {
 	Draw *d;
 	DImage *di;
 	char *name, *err;
 
-	d = &w->draw;
+	d = mallocz(sizeof(Draw), 1);
+	if(d == nil)
+		return 0;
 	d->window = w;
 	/*
-	 * xattach sets screenr, x and draw.screenimage
+	 * xattach sets screenimage, screenr and x
 	 */
 	if(!xattach(w, winsize))
-		return 0;
-	di = allocdimage(d->screenimage);
+		return nil;
+	di = allocdimage(w->screenimage);
 	/*
 	 * we must use the name "noborder"
 	 */
@@ -643,19 +741,55 @@ drawattach(Window *w, char *winsize)
 	if(drawaddname(nil, di, strlen(name), name, &err) < 0)
 		return 0;
 	d->screendimage = di;
-	d->screenname = name;
-	// print("XXX drawattach id %d (%p) name %s clipr %d %d %d %d\n", d->screendimage->id, d->screendimage, name, d->screenimage->clipr.min.x, d->screenimage->clipr.min.y, d->screenimage->clipr.max.x, d->screenimage->clipr.max.y);
-	return 1;
+	w->name = name;
+	return d;
 }
 
-/*
- * NOT DONE:
- * drawwalk, drawstat, drawopen
- * drawclose, drawread
- */
+const char*
+drawopen(Client *cl, uint type)
+{
+	char *name;
+	DImage *di;
+	DName *dn;
+	Draw *d;
 
+	d = cl->draw;
+	name = d->window->name;
+	switch(type) {
+	case FsFCtl:
+		if(cl->busy)
+			return Einuse;
+		cl->busy = 1;
+		d->flushrect = Rect(10000, 10000, -10000, -10000);
+		dn = drawlookupname(strlen(name),name);
+		if(dn == 0)
+			return "draw: cannot happen 2";
+		if(drawinstall(cl, 0, dn->dimage->image, 0) == 0)
+			return Enomem;
+		di = drawlookup(cl, 0, 0);
+		if(di == 0)
+			return "draw: cannot happen 1";
+		di->vers = dn->vers;
+		di->name = malloc(strlen(name)+1);
+		if(di->name == 0)
+			return Enomem;
+		strcpy(di->name, name);
+		di->fromname = dn->dimage;
+		di->fromname->ref++;
+		incref(&cl->r);
+		break;
+	case FsFColormap:
+	case FsFData:
+	case FsFRefresh:
+		incref(&cl->r);
+		break;
+	}
+	return nil;
+}
+
+static
 int
-readdrawctl(char *a, Client *cl)
+drawreadctl(char *a, Client *cl)
 {
 	int n;
 	DImage *di;
@@ -666,7 +800,7 @@ readdrawctl(char *a, Client *cl)
 	if(cl->infoid < 0)
 		return 0;
 	if(cl->infoid == 0){
-		i = cl->draw->screenimage;
+		i = cl->draw->window->screenimage;
 		if(i == nil)
 			return 0;
 	}else{
@@ -683,8 +817,9 @@ readdrawctl(char *a, Client *cl)
 	return n;
 }
 
+static
 int
-readrefresh(char *buf, long n, Client *cl)
+drawreadrefresh(char *buf, long n, Client *cl)
 {
 	Refresh *r;
 	uchar *p;
@@ -708,10 +843,61 @@ readrefresh(char *buf, long n, Client *cl)
 	return p-(uchar*)buf;
 }
 
-/*
- * NOT DONE:
- * drawwakeall, drawwrite
- */
+IOResponse
+drawread(Client *cl, int type, char *data, int count)
+{
+	int n;
+	IOResponse r;
+
+	r.data = data;
+	r.count = count;
+	r.err = nil;
+	switch(type) {
+	case FsFCtl:
+		if(count < 12*12) {
+			r.err = Eshortread;
+			return r;
+		}
+		n = drawreadctl(data, cl);
+		if(n == 0) {
+			r.err = Enodrawimage;
+			return r;
+		}
+		r.count = strlen(data);
+		break;
+	case FsFData:
+		if(cl->readdata == nil) {
+			r.err = "no draw data";
+			return r;
+		}
+		if(count == -1) {
+			free(cl->readdata);
+			cl->readdata = nil;
+			return r;
+		}
+		if(count < cl->nreaddata) {
+			r.err = Eshortread;
+			return r;
+		}
+		r.count = cl->nreaddata;
+		break;
+	case FsFColormap:
+		r.count = 0;
+		break;
+	case FsFRefresh:
+		if(count < 5*4) {
+			r.err = Ebadarg;
+			return r;
+		}
+		n = drawreadrefresh(data, count, cl);
+		if(n > 0) {
+			r.count = n;
+			return r;
+		}
+		break;
+	}
+	return r;
+}
 
 static
 uchar*
@@ -739,7 +925,8 @@ drawcoord(uchar *p, uchar *maxp, int oldx, int *newx)
 	return p;
 }
 
-static void
+static
+void
 printmesg(char *fmt, uchar *a, int plsprnt)
 {
 	char buf[256];
@@ -790,6 +977,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 	print("devwsys: drawmsg %s", buf);
 }
 
+static
 int
 drawmesg(Client *client, void *av, int n)
 {
@@ -804,7 +992,7 @@ drawmesg(Client *client, void *av, int n)
 	Draw *draw;
 	DScreen *dscrn;
 	FChar *fc;
-	Memimage *dst, *i, *l, **lp, *mask, *src;
+	Memimage *dst, *i, *l, **lp, *mask, *src, *screenimage;
 	Memscreen *scrn;
 	Point p, *pp, q, sp;
 	Rectangle clipr, r;
@@ -818,8 +1006,8 @@ drawmesg(Client *client, void *av, int n)
 	oldn = n;
 	draw = client->draw;
 	w = draw->window;
+	screenimage = w->screenimage;
 
-	// print("XXX drawmesg %c, n = %d\n", *a, n);
 	while((n-=m) > 0){
 		a += m;
 		switch(*a){
@@ -1049,7 +1237,7 @@ drawmesg(Client *client, void *av, int n)
 				goto Eshortdraw;
 			dstid = BGLONG(a+1);
 			dst = drawimage(client, a+1);
-			if(dstid == 0 || dst == draw->screenimage) {
+			if(dstid == 0 || dst == screenimage) {
 				err = "can't use display as font";
 				goto error;
 			}
@@ -1128,7 +1316,7 @@ drawmesg(Client *client, void *av, int n)
 			op = drawclientop(client);
 			memline(dst, p, q, e0, e1, j, src, sp, op);
 			/* avoid memlinebbox if possible */
-			if(dst == draw->screenimage || dst->layer!=nil){
+			if(dst == screenimage || dst->layer!=nil){
 				/* BUG: this is terribly inefficient: update maximal containing rect*/
 				r = memlinebbox(p, q, e0, e1, j);
 				dstflush(draw, dst, insetrect(r, -(1+1+j)));
@@ -1283,7 +1471,7 @@ drawmesg(Client *client, void *av, int n)
 			if(pp == nil)
 				goto Enomem;
 			doflush = 0;
-			if(dst == draw->screenimage || (dst->layer && dst->layer->screen->image->data == draw->screenimage->data))
+			if(dst == screenimage || (dst->layer && dst->layer->screen->image->data == screenimage->data))
 				doflush = 1;	/* simplify test in loop */
 			ox = oy = 0;
 			esize = 0;
@@ -1494,7 +1682,7 @@ drawmesg(Client *client, void *av, int n)
 				memltofrontn(lp, nw);
 			else
 				memltorearn(lp, nw);
-			if(lp[0]->layer->screen->image->data == draw->screenimage->data)
+			if(lp[0]->layer->screen->image->data == screenimage->data)
 				for(j=0; j<nw; j++)
 					dstflush(draw, lp[j]->layer->screen->image, lp[j]->layer->screenr);
 			free(lp);
@@ -1606,9 +1794,34 @@ error:
 	return -1;
 }
 
-/*
- * From p9p
- */
+IOResponse
+drawwrite(Client *cl, int type, char *data, int count)
+{
+	IOResponse r;
+
+	r.data = data;
+	r.count = count;
+	r.err = nil;
+	switch(type) {
+	case FsFData:
+		drawmesg(cl,data, count);
+		// drawwakeall();
+		break;
+	case FsFCtl:
+		if(r.count != 4){
+			r.err = "unknown draw control request";
+			break;
+		}
+		cl->infoid = BGLONG((uchar*)data);
+		break;
+	case FsFColormap:
+		r.count = 0;
+		break;
+	case FsFRefresh:
+		break;
+	}
+	return r;
+}
 
 void
 drawreplacescreenimage(Draw *d, Memimage *m)
@@ -1643,7 +1856,7 @@ drawreplacescreenimage(Draw *d, Memimage *m)
 
 	drawfreedimage(d, d->screendimage); // XXX
 	d->screendimage = di;
-	d->screenimage = m;
+	d->window->screenimage = m;
 
 	/*
 	 * Every client, when it starts, gets a copy of the
@@ -1664,6 +1877,7 @@ drawreplacescreenimage(Draw *d, Memimage *m)
 	// mouseresize();
 }
 
+static
 void
 drawfree(Client *cl)
 {
@@ -1708,4 +1922,37 @@ drawfree(Client *cl)
 	// we cannot free cl because it could be
 	// in some fid->aux, but we should.
 	// free(cl);
+}
+
+void
+drawdettach(Draw *d)
+{
+	drawfreedimage(d, d->screendimage);
+	freememimage(d->window->screenimage);
+	free(d->window->name);
+	d->window->name = nil;
+	drawfreedscreen(d, d->dscreen);
+	free(d);
+}
+
+Window*
+drawwindow(Client *cl)
+{
+	return cl->draw->window;
+}
+
+/* This is easier than implementing a drawwalk. */
+int
+drawclientid(Client *cl)
+{
+	return cl->clientid;
+}
+
+void
+drawclose(Client *cl, int type)
+{
+	if(type == FsFCtl)
+		cl->busy = 0;
+	if(decref(&cl->r) == 0)
+		drawfree(cl);
 }

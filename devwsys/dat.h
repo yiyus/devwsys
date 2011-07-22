@@ -29,116 +29,12 @@ enum {
 };
 
 /* Datatypes: */
-typedef struct Client Client;
-typedef struct DImage DImage;
-typedef struct DName DName;
-typedef struct Draw Draw;
-typedef struct CScreen CScreen;
-typedef struct DScreen DScreen;
-typedef struct FChar FChar;
+typedef struct Draw Draw;	/* Defined in devdraw.c: */
+typedef struct Client Client;	/* Defined in devdraw.c: */
 typedef struct Kbdbuf Kbdbuf;
-typedef struct Refresh Refresh;
-typedef struct Refx Refx;
 typedef struct Cursor Cursor;
 typedef struct Clip Clip;
 typedef struct Window Window;
-
-/* Drawing device */
-#define	NHASH		(1<<5)
-#define	HASHMASK	(NHASH-1)
-
-struct Draw
-{
-	Window*		window;
-	Memimage*	screenimage;
-	DImage*		screendimage;
-	char*		screenname;
-	Rectangle		flushrect;
-	int			waste;
-	DScreen*		dscreen;
-};
-
-struct Client
-{
-	int		r;	// Ref
-	DImage*	dimage[NHASH];
-	CScreen*	cscreen;
-	Refresh*	refresh;
-//	Rendez	refrend;
-	Draw	*draw;
-	uchar*	readdata;
-	int		nreaddata;
-	int		busy;
-	int		clientid;
-	int		slot;
-	int		refreshme;
-	int		infoid;
-	int		op;
-};
-
-struct Refresh
-{
-	DImage*		dimage;
-	Rectangle	r;
-	Refresh*	next;
-};
-
-struct Refx
-{
-	Client*		client;
-	DImage*		dimage;
-};
-
-struct FChar
-{
-	int		minx;	/* left edge of bits */
-	int		maxx;	/* right edge of bits */
-	uchar	miny;	/* first non-zero scan-line */
-	uchar	maxy;	/* last non-zero scan-line + 1 */
-	schar	left;		/* offset of baseline */
-	uchar	width;	/* width of baseline */
-};
-
-struct DImage
-{
-	int		id;
-	int		ref;
-	char		*name;
-	int		vers;
-	Memimage*	image;
-	int		ascent;
-	int		nfchar;
-	FChar*	fchar;
-	DScreen*	dscreen;		/* 0 if not a window */
-	DImage*	fromname;	/* image this one is derived from, by name */
-	DImage*	next;
-};
-
-struct DName
-{
-	char		*name;
-	Client	*client;
-	DImage*	dimage;
-	int		vers;
-};
-
-struct CScreen
-{
-	DScreen*	dscreen;
-	CScreen*	next;
-};
-
-struct DScreen
-{
-	int		id;
-	int		public;
-	int		ref;
-	DImage	*dimage;
-	DImage	*dfill;
-	Memscreen*	screen;
-	Client*	owner;
-	DScreen*	next;
-};
 
 /* Used by kbdputc */
 struct Kbdbuf
@@ -180,10 +76,12 @@ struct Window
 	int			mousebuttons;
 	int			resized;
 	char			*label;
-	Draw		draw;
+	char			*name;
+	Draw		*draw;
+	Memimage	*screenimage;
 	Kbdbuf		kbd;
-	void*		kbdp;
-	void*		mousep;
+	void			*kbdp;
+	void			*mousep;
 	Cursor		cursor;
 	Point		orig;
 	Rectangle		screenr;

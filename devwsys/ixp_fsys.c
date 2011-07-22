@@ -6,6 +6,7 @@
 #include <cursor.h>
 #include "dat.h"
 #include "fns.h"
+#include "fsys.h"
 
 #include <ixp.h>
 #define bool int
@@ -17,58 +18,21 @@ union IxpFileIdU {
 };
 #include <ixp_srvutil.h>
 
-#define incref(r)	((*r) = ++(*r))
-#define decref(r)	((*r) = --(*r))
-
-#define debug9p(...) if(0) debug(__VA_ARGS__)
-
-/* Constants */
-enum {
-	/* Dirs */
-	FsRoot,
-	FsDDraw,
-	FsDDrawn,
-	FsDWsys,
-	FsDWsysn,
-
-	/* Files */
-	/*	Keyboard */
-	FsFCons,
-	FsFConsctl,
-	/*	Mouse */
-	FsFCursor,
-	FsFMouse,
-	FsFSnarf,
-	/*	Window */
-	FsFLabel,
-	FsFWctl,
-	FsFWinid,
-	FsFWinname,
-	/*	draw/ */
-	FsFNew,
-	/*	draw/n/ */
-	FsFCtl,
-	FsFData,
-	FsFColormap,
-	FsFRefresh,
-};
-
-#define iswindow(t) ((t) == FsRoot || (t) > FsDDrawn && (t) < FsFCtl)
-
 /* Error messages */
-static char
-	Ebadarg[] = "bad arg in system call",
-	Edeleted[] = "window deleted",
-	Einterrupted[] = "interrupted",
-	Einuse[] = "file in use",
-	Enodev[] = "no free devices",
-	Enofile[] = "file not found",
-	Enodrawimage[] = "unknown id for draw image",
-	Enomem[] = "out of memory",
-	Enoperm[] = "permission denied",
-	Eshortread[] =	"draw read too short";
+const char
+	*Ebadarg = "bad arg in system call",
+	*Edeleted = "window deleted",
+	*Einterrupted = "interrupted",
+	*Einuse = "file in use",
+	*Enodev = "no free devices",
+	*Enofile = "file not found",
+	*Enodrawimage = "unknown id for draw image",
+	*Enomem = "out of memory",
+	*Enoperm = "permission denied",
+	*Eshortread =	"draw read too short";
 
 /* Macros */
+#define debug9p(...) if(0) debug(__VA_ARGS__)
 #define QID(t, i) (((vlong)((t)&0xFF)<<32)|((i)&0xFFFFFFFF))
 
 /* Global Vars */
@@ -164,7 +128,7 @@ dostat(IxpStat *s, IxpFileId *f) {
 static IxpFileId*
 lookup_file(IxpFileId *parent, char *name)
 {
-	int i, id;
+	int i, id, clientid;
 	IxpFileId *ret, *file, **last;
 	IxpDirtab *dir;
 	Client *cl;
@@ -198,8 +162,9 @@ lookup_file(IxpFileId *parent, char *name)
 				for(i = 0; i < nclient; i++) {
 					if(!(cl = client[i]))
 						continue;
-					if(!name || cl->clientid == id) {
-						push_file(smprint("%d", cl->clientid), cl->clientid, 1);
+					clientid = drawclientid(cl);
+					if(!name || clientid == id) {
+						push_file(smprint("%d", clientid), clientid, 1);
 						file->p.client = cl;
 						file->index = id;
 						if(name)
@@ -246,6 +211,7 @@ void
 fs_attach(Ixp9Req *r) {
 	char *label, *winsize;
 	IxpFileId *f;
+	Draw *d;
 	Window *w;
 
 	debug9p("fs_attach(%p)\n", r);
@@ -264,10 +230,16 @@ fs_attach(Ixp9Req *r) {
 	winsize = nil;
 	if(!strncmp(r->ifcall.tattach.aname, "new ", 4))
 		winsize = &r->ifcall.tattach.aname[4];
-	if(!(w = newwin(label, winsize))) {
+	if(!(w = newwin(label, winsize)) || !(d = drawattach(w, winsize))) {
+		if(w){
+			assert(w == window[nwindow-1]);
+			free(w);
+			nwindow--;
+		}
 		ixp_respond(r, Enomem);
 		return;
 	}
+	w->draw = d;
 	if(!(w->kbdp = mallocz(sizeof(IxpPending), 1))){
 		ixp_respond(r, Enomem);
 		return;
@@ -284,10 +256,7 @@ void
 fs_open(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
-	Draw *d;
 	Client *cl;
-	DName *dn;
-	DImage *di;
 
 	debug9p("fs_open(%p)\n", r);
 
@@ -303,65 +272,29 @@ fs_open(Ixp9Req *r) {
 			ixp_respond(r, Edeleted);
 			return;
 		}
+		if(f->tab.type == FsFNew){
+			cl = drawnewclient(w->draw);
+			if(cl == 0) {
+				ixp_respond(r, Enodev);
+				return;
+			}
+			f->p.client = cl;
+			f->tab.type = FsFCtl;
+		}
 	}
-
-	if(f->tab.type == FsFNew){
-		w = f->p.window;
-		cl = drawnewclient(&w->draw);
-		if(cl == 0)
-			ixp_respond(r, Enodev);
-		f->p.client = cl;
-		f->tab.type = FsFCtl;
+	if(!iswindow(f->tab.type) || f->tab.type == FsFNew){
+		cl = f->p.client;
+		ixp_respond(r, drawopen(cl, f->tab.type));
+		return;
 	}
+	w = f->p.window;
 	switch(f->tab.type) {
 	case FsFNew:
-		break;
-	case FsFCtl:
-		cl = f->p.client;
-		if(cl->busy){
-			ixp_respond(r, Einuse);
-			return;
-		}
-		cl->busy = 1;
-		d = cl->draw;
-		d->flushrect = Rect(10000, 10000, -10000, -10000);
-		// print("XXX drawinstall %d (draw %d)\n", d->screenimage, d);
-		dn = drawlookupname(strlen(d->screenname), d->screenname);
-		if(dn == 0){
-			ixp_respond(r, "draw: cannot happen 2");
-			return;
-		}
-		if(drawinstall(cl, 0, dn->dimage->image, 0) == 0){
-			ixp_respond(r, Enomem);
-			return;
-		}
-		di = drawlookup(cl, 0, 0);
-		if(di == 0){
-			ixp_respond(r, "draw: cannot happen 1");
-			return;
-		}
-		di->vers = dn->vers;
-		di->name = malloc(strlen(d->screenname)+1);
-		if(di->name == 0){
-			ixp_respond(r, Enomem);
-			return;
-		}
-		strcpy(di->name, d->screenname);
-		di->fromname = dn->dimage;
-		di->fromname->ref++;
-		incref(&cl->r);
-		break;
-	case FsFColormap:
-	case FsFData:
-	case FsFRefresh:
-		cl = f->p.client;
-		incref(&cl->r);
 		break;
 	case FsFCons:
 		ixp_pending_pushfid(w->kbdp, r->fid);
 		break;
 	case FsFMouse:
-		w = f->p.window;
 		if(w->mouseopen){
 			ixp_respond(r, Einuse);
 			return;
@@ -398,10 +331,10 @@ fs_walk(Ixp9Req *r) {
 void
 fs_read(Ixp9Req *r) {
 	char buf[512], *s;
-	int n;
 	IxpFileId *f;
 	Client *cl;
 	Window *w;
+	IOResponse rread;
 
 	debug9p("fs_read(%p)\n", r);
 
@@ -426,54 +359,21 @@ fs_read(Ixp9Req *r) {
 	cl = f->p.client;
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
-		w = cl->draw->window;
+		w = drawwindow(cl);
 	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
 	}
-	switch(f->tab.type) {
-	case FsFCtl:
-		if(r->ifcall.io.count < 12*12) {
-			ixp_respond(r, Eshortread);
+	if(!iswindow(f->tab.type)) {
+		rread = drawread(cl, f->tab.type, buf, r->ifcall.io.count);
+		if(rread.err != nil){
+			ixp_respond(r, rread.err);
 			return;
 		}
-		n = readdrawctl(buf, cl);
-		if(n == 0) {
-			ixp_respond(r, Enodrawimage);
-			return;
-		}
-		ixp_srv_readbuf(r, buf, strlen(buf));
+		ixp_srv_readbuf(r, rread.data, rread.count);
+		if(f->tab.type = FsFData)
+			drawread(cl, FsFData, nil, -1); /* clear cl->readdata */
 		ixp_respond(r, nil);
-		return;
-	case FsFData:
-		if(cl->readdata == nil) {
-			ixp_respond(r, "no draw data");
-			return;
-		}
-		if(r->ifcall.io.count < cl->nreaddata) {
-			ixp_respond(r, Eshortread);
-			return;
-		}
-		ixp_srv_readbuf(r, cl->readdata, cl->nreaddata);
-		ixp_respond(r, nil);
-		free(cl->readdata);
-		cl->readdata = nil;
-		return;
-	case FsFColormap:
-		r->ofcall.io.count = 0;
-		ixp_respond(r, nil);
-		return;
-	case FsFRefresh:
-		if(r->ifcall.io.count < 5*4) {
-			ixp_respond(r, Ebadarg);
-			return;
-		}
-		n = readrefresh(buf, r->ifcall.io.count, cl);
-		if(n > 0) {
-			
-			ixp_srv_readbuf(r, buf, n);
-			ixp_respond(r, nil);
-		}
 		return;
 	}
 	switch(f->tab.type) {
@@ -499,7 +399,7 @@ fs_read(Ixp9Req *r) {
 		ixp_respond(r, nil);
 		return;
 	case FsFWinname:
-		ixp_srv_readbuf(r, w->draw.screenname, strlen(w->draw.screenname));
+		ixp_srv_readbuf(r, w->name, strlen(w->name));
 		ixp_respond(r, nil);
 		return;
 	}
@@ -527,7 +427,7 @@ fs_stat(Ixp9Req *r) {
 	cl = f->p.client;
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
-		w = cl->draw->window;
+		w = drawwindow(cl);
 	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
@@ -554,6 +454,7 @@ fs_write(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
 	Client *cl;
+	IOResponse rwrite;
 
 	debug9p("fs_write(%p)\n", r);
 
@@ -570,31 +471,20 @@ fs_write(Ixp9Req *r) {
 	cl = f->p.client;
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
-		w = cl->draw->window;
+		w = drawwindow(cl);
 	if(w->deleted){
 		ixp_respond(r, Edeleted);
 		return;
 	}
 
-	switch(f->tab.type) {
-	case FsFData:
-		r->ofcall.io.count = r->ifcall.io.count;
-		drawmesg(cl, r->ifcall.twrite.data, r->ofcall.rwrite.count);
-		// drawwakeall();
+	if(!iswindow(f->tab.type)) {
+		rwrite = drawwrite(cl, f->tab.type, r->ifcall.twrite.data, r->ifcall.io.count);
+		if(rwrite.err != nil){
+			ixp_respond(r, rwrite.err);
+			return;
+		}
+		r->ofcall.rwrite.count = rwrite.count;
 		ixp_respond(r, nil);
-		return;
-	case FsFCtl:
-		r->ofcall.io.count = r->ifcall.io.count;
-		if(r->ofcall.io.count != 4)
-			ixp_respond(r, "unknown draw control request");
-		cl->infoid = BGLONG((uchar*)r->ifcall.twrite.data);
-		ixp_respond(r, nil);
-		return;
-	case FsFColormap:
-		r->ofcall.io.count = 0;
-		ixp_respond(r, nil);
-		return;
-	case FsFRefresh:
 		return;
 	}
 	switch(f->tab.type) {
@@ -671,7 +561,7 @@ fs_clunk(Ixp9Req *r) {
 	cl = f->p.client;
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
-		w = cl->draw->window;
+		w = drawwindow(cl);
 	if(f->pending) {
 		/* Should probably be in freefid */
 		if(ixp_pending_clunk(r)) {
@@ -683,8 +573,6 @@ fs_clunk(Ixp9Req *r) {
 
 	// TODO: ../../inferno-os/emu/port/devdraw.c:971
 	switch(f->tab.type){
-	case FsFCtl:
-		cl->busy = 0;
 	case FsFSnarf:
 		if(r->fid->omode == OWRITE){
 			if(snarfbuf)
@@ -696,8 +584,8 @@ fs_clunk(Ixp9Req *r) {
 		snarfbuf = nil;
 
 	}
-	if(!iswindow(f->tab.type) && (decref(&cl->r)==0))
-		drawfree(cl);
+	if(!iswindow(f->tab.type))
+		drawclose(cl, f->tab.type);
 	ixp_respond(r, nil);
 }
 

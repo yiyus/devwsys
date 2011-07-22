@@ -23,10 +23,6 @@ newwin(char *label, char *winsize)
 
 	w->id = ++id;
 	w->label = label;
-	if(!drawattach(w, winsize)) {
-		// TODO: cleanup window
-		return nil;
-	}
 	return w;
 }
 
@@ -106,6 +102,7 @@ deletewin(Window *w)
 {
 	int i;
 
+	// XXX TODO: free draw.
 	for(i = 0; i < nwindow; i++){
 		if(window[i] == w)
 			break;
@@ -113,6 +110,8 @@ deletewin(Window *w)
 	if(i == nwindow)
 		return;
 	xdeletewin(w);
+	drawdettach(w->draw);
+	w->draw = nil;
 	w->x = nil;
 	w->deleted++;
 	--nwindow;
