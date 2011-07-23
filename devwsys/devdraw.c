@@ -966,7 +966,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 }
 
 static
-int
+const char*
 drawmesg(Client *client, void *av, int n)
 {
 	char *fmt, *err, *s;
@@ -1712,7 +1712,7 @@ drawmesg(Client *client, void *av, int n)
 		}
 	}
 	// qunlock(&sdraw.lk);
-	return oldn - n;
+	return nil;
 
 Enodrawimage:
 	err = "unknown id for draw image";
@@ -1780,9 +1780,9 @@ Ebadarg:
 	goto error;
 
 error:
-	werrstr("%s", err);
+	// werrstr("%s", err);
 	// qunlock(&sdraw.lk);
-	return -1;
+	return err;
 }
 
 IOResponse
@@ -1795,7 +1795,7 @@ drawwrite(Client *cl, int type, char *data, int count)
 	r.err = nil;
 	switch(type) {
 	case FsFData:
-		drawmesg(cl,data, count);
+		r.err = drawmesg(cl,data, count);
 		r.count = count;
 		// drawwakeall();
 		break;
