@@ -134,7 +134,8 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 	/*
 	 * Scrolling defaults to the option given in rio,
 	 * we ignore it, so it is set to 0.
-	 * New commands are ignored too.
+	 * The New command does not create windows
+	 * yet, but it sets their parameters to do it later.
 	 */
 	*pidp = 0;
 	*hiddenp = 0;
@@ -145,8 +146,6 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 		strcpy(err, "unrecognized wctl command");
 		return -1;
 	}
-	if(cmd == New)
-		return 0;
 
 	strcpy(err, "missing or bad wctl parameter");
 	while((param = word(&s, params)) >= 0){
@@ -257,12 +256,11 @@ wctlmesg(Window *w, char *a, int n, char *err)
 
 	cnt = n;
 	a[cnt] = '\0';
-	id = 0;
+	id = pid = 0;
 	buttons = w->mousebuttons;
 
-// print(" XXX wctlmesg: a = %s\n", a);
-	rect = rectaddpt(rect, w->orig);
-// print("XXX original rect %d %d %d %d\n", rect.min.x, rect.min.y, rect.max.x, rect.max.y);
+	// print(" XXX wctlmesg: a = %s\n", a);
+	rect = rectaddpt(w->screenr, w->orig);
 	cmd = parsewctl(&arg, rect, &rect, &pid, &id, &hideit, &scrollit, &dir, a, err);
 	if(cmd < 0)
 		return -1;
@@ -290,10 +288,11 @@ wctlmesg(Window *w, char *a, int n, char *err)
 	switch(cmd){
 	case New:
 		// return wctlnew(rect, arg, pid, hideit, scrollit, dir, err);
+		w->pid = pid;
+		w->screenr = rect;
 		return 1;
 	case Set:
-		// if(pid > 0)
-		//	wsetpid(w, pid, 0);
+		w->pid = pid;
 		return 1;
 	case Move:
 		rect = Rect(rect.min.x, rect.min.y, rect.min.x+Dx(w->screenr), rect.min.y+Dy(w->screenr));
@@ -307,7 +306,6 @@ wctlmesg(Window *w, char *a, int n, char *err)
 		***/
 		if(eqrect(rect, rectaddpt(w->screenr, w->orig)))
 			return 1;
-// print("XXX resizing to %d %d %d %d\n", rect.min.x, rect.min.y, rect.max.x, rect.max.y);
 		xresizewindow(w, rect);
 		return 1;
 	case Scroll:

@@ -15,7 +15,7 @@ int cursorwrite(Window*, char*, int);
 
 /* Window */
 void deletewin(Window*);
-Window* newwin(char*, char*);
+Window* newwin(char*);
 int parsewinsize(char*, Rectangle*, int*);
 void setlabel(Window*, char*);
 

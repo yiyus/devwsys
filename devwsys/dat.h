@@ -74,6 +74,7 @@ struct Window
 	int			deleted;
 	int			mouseopen;
 	int			mousebuttons;
+	int			pid;
 	int			resized;
 	char			*label;
 	char			*name;

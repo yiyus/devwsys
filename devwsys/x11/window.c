@@ -19,21 +19,22 @@
 
 #define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
 
-static void* xcreatewin(char*, char*, Rectangle);
-static Rectangle xmapwin(void*, int, Rectangle);
-static Rectangle xwinrectangle(char*, char*, int*);
+static void* xcreatewin(char*, Rectangle);
+static Rectangle xmapwin(void*, Rectangle);
+static Rectangle xwinrectangle(char*);
 
 int
-xattach(Window *w, char *winsize)
+xattach(Window *w, char *spec)
 {
-	int havemin;
+	char err[256];
 	Xwin *xw;
 
-	w->screenr = xwinrectangle(w->label, winsize, &havemin);
-	xw = xcreatewin(w->label, winsize, w->screenr);
+	w->screenr = xwinrectangle(w->label);
+	wctlmesg(w, spec, strlen(spec), err);
+	xw = xcreatewin(w->label, w->screenr);
 	if(xw == nil)
 		goto Error;
-	w->screenr = xmapwin(xw, havemin, w->screenr);
+	w->screenr = xmapwin(xw, w->screenr);
 	w->x = xw;
 	w->screenimage = xallocmemimage(w->screenr, xconn.chan, xw->screenpm);
 	if(w->screenimage == nil)
@@ -125,7 +126,7 @@ xupdatelabel(Window *w)
 
 static
 Rectangle
-xwinrectangle(char *label, char *winsize, int *havemin)
+xwinrectangle(char *label)
 {
 	int height, mask, width, x, y;
 	Rectangle r;
@@ -138,15 +139,6 @@ xwinrectangle(char *label, char *winsize, int *havemin)
 	mask = 0;
 	x = 0;
 	y = 0;
-	/*
-	 * XXX TODO:
-	 * The error returned by parsewinsize is ignored,
-	 * there could be other options to mount we are
-	 * not (but should be) processing.
-	 */
-	if(winsize && winsize[0])
-		if(parsewinsize(winsize, &r, havemin) == 0)
-			return r;
 
 	/*
 	 * Parse the various X resources.  Thanks to Peter Canning.
@@ -193,13 +185,12 @@ xwinrectangle(char *label, char *winsize, int *havemin)
 	if(mask & YNegative){
 		y += HeightOfScreen(xconn.screen);
 	}
-	*havemin = 0;
 	return r;
 }
 
 static
 void*
-xcreatewin(char *label, char *winsize, Rectangle r)
+xcreatewin(char *label, Rectangle r)
 {
 	char *argv[2];
 	int height, mask, width, x, y;
@@ -259,26 +250,11 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 	name.nitems = strlen((char*)name.value);
 
 	memset(&normalhint, 0, sizeof normalhint);
-	normalhint.flags = PSize|PMaxSize;
-	if(winsize && winsize[0]){
-		normalhint.flags &= ~PSize;
-		normalhint.flags |= USSize;
-		normalhint.width = Dx(r);
-		normalhint.height = Dy(r);
-	}else{
-		if((mask & WidthValue) && (mask & HeightValue)){
-			normalhint.flags &= ~PSize;
-			normalhint.flags |= USSize;
-			normalhint.width = width;
-			normalhint.height = height;
-		}
-		if((mask & WidthValue) && (mask & HeightValue)){
-			normalhint.flags |= USPosition;
-			normalhint.x = x;
-			normalhint.y = y;
-		}
-	}
-
+	normalhint.flags = USSize|PMaxSize|USPosition;
+	normalhint.x = x;
+	normalhint.y = y;
+	normalhint.width = Dx(r);
+	normalhint.height = Dy(r);
 	normalhint.max_width = WidthOfScreen(xconn.screen);
 	normalhint.max_height = HeightOfScreen(xconn.screen);
 
@@ -311,14 +287,14 @@ xcreatewin(char *label, char *winsize, Rectangle r)
 
 static
 Rectangle
-xmapwin(void *x, int havemin, Rectangle r)
+xmapwin(void *x, Rectangle r)
 {
 	Xwin *xw;
 	XWindowAttributes wattr;
 
 	xw = x;
 
-	if(havemin){
+	if(r.min.x != 0 || r.min.y != 0){
 		XWindowChanges ch;
 
 		memset(&ch, 0, sizeof ch);

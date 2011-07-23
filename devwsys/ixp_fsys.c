@@ -211,7 +211,7 @@ LastItem:
 /* Service Functions */
 void
 fs_attach(Ixp9Req *r) {
-	char *label, *winsize;
+	char *label;
 	IxpFileId *f;
 	Draw *d;
 	Window *w;
@@ -229,10 +229,7 @@ fs_attach(Ixp9Req *r) {
 	r->fid->qid.path = QID(f->tab.type, 0);
 	r->ofcall.rattach.qid = r->fid->qid;
 	label = nil; /* pjw face */
-	winsize = nil;
-	if(!strncmp(r->ifcall.tattach.aname, "new ", 4))
-		winsize = &r->ifcall.tattach.aname[4];
-	if(!(w = newwin(label, winsize)) || !(d = drawattach(w, winsize))) {
+	if(!(w = newwin(label)) || !(d = drawattach(w, r->ifcall.tattach.aname))) {
 		if(w){
 			assert(w == window[nwindow-1]);
 			free(w);

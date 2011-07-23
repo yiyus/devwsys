@@ -704,7 +704,7 @@ drawchar(Memimage *dst, Point p, Memimage *src, Point *sp, DImage *font, int ind
 }
 
 Draw*
-drawattach(Window *w, char *winsize)
+drawattach(Window *w, char *spec)
 {
 	Draw *d;
 	DImage *di;
@@ -717,7 +717,7 @@ drawattach(Window *w, char *winsize)
 	/*
 	 * xattach sets screenimage, screenr and x
 	 */
-	if(!xattach(w, winsize))
+	if(!xattach(w, spec))
 		return nil;
 	di = allocdimage(w->screenimage);
 	/*
