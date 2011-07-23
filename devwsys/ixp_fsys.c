@@ -81,9 +81,11 @@ dirtab_wsys[] = {
 dirtab_wsysn[] = {
 	{".",			QTDIR,	FsDWsysn,	0500|DMDIR },
 	{"wsys",		QTDIR,	FsDWsys,		0500|DMDIR },
+	{"keyboard",	QTFILE,	FsFCons,		0600 },
 	{"cons",		QTFILE,	FsFCons,		0600 },
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
 	{"cursor",		QTFILE,	FsFCursor,	0600 },
+	{"pointer",		QTFILE,	FsFMouse,	0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
 	{"snarf",		QTFILE,	FsFSnarf,		0600 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
@@ -630,6 +632,7 @@ fs_freefid(IxpFid *f) {
 	IxpFileId *id, *tid;
 
 	tid = f->aux;
+	// print("XXX fs_freefid %s\n", tid ? tid->tab.name : "NONE");
 	while((id = tid)) {
 		if(iswindow(tid->tab.type) && tid->nref == 0)
 			deletewin(tid->p.window);

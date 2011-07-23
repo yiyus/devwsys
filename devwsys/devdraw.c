@@ -1133,9 +1133,6 @@ drawmesg(Client *client, void *av, int n)
 			dst = drawimage(client, a+1);
 			src = drawimage(client, a+5);
 			mask = drawimage(client, a+9);
-			/*
-			 * TODO: this test fails on rio windows.
-			 */
 			if(!dst || !src || !mask)
 				goto Enodrawimage;
 			drawrectangle(&r, a+13);
@@ -1880,14 +1877,6 @@ drawfree(Client *cl)
 	Refresh *r;
 
 	draw = cl->draw;
-	/*
-	 * XXX TODO
-	 * BUG: If the window was deleted,
-	 * we won't give the client a chance to
-	 * free its memory structures
-	 */
-	if(draw->window->deleted)
-		return;
 	while(r = cl->refresh){	/* assign = */
 		cl->refresh = r->next;
 		free(r);
