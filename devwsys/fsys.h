@@ -16,6 +16,7 @@ enum {
 	FsFMouse,
 	FsFSnarf,
 	/*	Window */
+	FsFKill,
 	FsFLabel,
 	FsFWctl,
 	FsFWinid,

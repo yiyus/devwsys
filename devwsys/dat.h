@@ -82,6 +82,7 @@ struct Window
 	Memimage	*screenimage;
 	Kbdbuf		kbd;
 	void			*kbdp;
+	void			*killp;
 	void			*mousep;
 	Cursor		cursor;
 	Point		orig;

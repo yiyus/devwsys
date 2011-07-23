@@ -53,6 +53,7 @@ dirtab_root[] = {
 	{"pointer",		QTFILE,	FsFMouse,	0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0600 },
 	{"snarf",		QTFILE,	FsFSnarf,		0600 },
+	{"kill",		QTFILE,	FsFKill,		0400 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"wctl",		QTFILE,	FsFWctl,		0600 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
@@ -88,6 +89,7 @@ dirtab_wsysn[] = {
 	{"pointer",		QTFILE,	FsFMouse,	0600 },
 	{"mouse",		QTFILE,	FsFMouse,	0400 },
 	{"snarf",		QTFILE,	FsFSnarf,		0600 },
+	{"kill",		QTFILE,	FsFKill,		0400 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
 	{"wctl",		QTFILE,	FsFWctl,		0600 },
 	{"winid",		QTFILE,	FsFWinid,		0400 },
@@ -243,6 +245,10 @@ fs_attach(Ixp9Req *r) {
 		ixp_respond(r, Enomem);
 		return;
 	}
+	if(!(w->killp = mallocz(sizeof(IxpPending), 1))){
+		ixp_respond(r, Enomem);
+		return;
+	}
 	if(!(w->mousep = mallocz(sizeof(IxpPending), 1))){
 		ixp_respond(r, Enomem);
 		return;
@@ -296,6 +302,9 @@ fs_open(Ixp9Req *r) {
 		break;
 	case FsFCons:
 		ixp_pending_pushfid(w->kbdp, r->fid);
+		break;
+	case FsFKill:
+		ixp_pending_pushfid(w->killp, r->fid);
 		break;
 	case FsFMouse:
 		if(w->mouseopen){

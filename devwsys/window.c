@@ -48,6 +48,11 @@ deletewin(Window *w)
 	w->deleted++;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
+	/*
+	 * Write pid of the process to kill to the kill file.
+	 */
+	if(w->pid != 0)
+		ixppwrite(w->killp, smprint("%d\n", w->pid));
 }
 
 void
