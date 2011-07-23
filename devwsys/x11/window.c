@@ -58,9 +58,13 @@ xdeletewin(Window *w)
 		return;
 
 	XDestroyWindow(xconn.display, xw->drawable);
+	/*
+	 * Free nextscreenpm, screenpm will be freed
+	 * by drawdettach as the pixmap associated to
+	 * w->screenimage.
+	 */
 	if(xw->screenpm != xw->nextscreenpm)
-		XFreePixmap(xconn.display, xw->screenpm);
-	XFreePixmap(xconn.display, xw->nextscreenpm);
+		XFreePixmap(xconn.display, xw->nextscreenpm);
 	free(xw);
 	xw = (void*)nil;
 	XSync(xconn.display, False);

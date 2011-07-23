@@ -1911,6 +1911,7 @@ drawdettach(Draw *d)
 {
 	drawfreedimage(d, d->screendimage);
 	freememimage(d->window->screenimage);
+	d->window->screenimage = nil;
 	free(d->window->name);
 	d->window->name = nil;
 	if(d->dscreen)

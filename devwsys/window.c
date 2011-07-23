@@ -26,6 +26,9 @@ newwin(char *label, char *winsize)
 	return w;
 }
 
+/*
+ * TODO: /sys/src/cmd/rio/wctl.c:/^parsewctl/
+ */
 int
 parsewinsize(char *s, Rectangle *r, int *havemin)
 {
@@ -112,7 +115,7 @@ deletewin(Window *w)
 	drawdettach(w->draw);
 	/*
 	 * TODO
-	 * Do not free w->draw (see devdraw.c:1927)
+	 * Do not free w->draw (see devdraw.c:1920)
 	 */
 	// w->draw = nil;
 	w->x = nil;
