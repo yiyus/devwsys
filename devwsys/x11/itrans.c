@@ -221,6 +221,16 @@ xtoplan9mouse(XEvent *e, Mouse *m)
 	return 0;
 }
 
+void
+xsetmouse(Window *w, Point p)
+{
+	Xwin *xw;
+
+	xw = w->x;
+	XWarpPointer(xconn.display, None, xw->drawable, 0, 0, 0, 0, p.x, p.y);
+	XFlush(xconn.display);
+}
+
 /*
  * Cut and paste.  Just couldn't stand to make this simple...
  */

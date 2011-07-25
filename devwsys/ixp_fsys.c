@@ -29,7 +29,8 @@ const char
 	*Enodrawimage = "unknown id for draw image",
 	*Enomem = "out of memory",
 	*Enoperm = "permission denied",
-	*Eshortread =	"draw read too short";
+	*Eshortread =	"draw read too short",
+	*Eshortwrite =	"draw write too short";
 
 /* Macros */
 #define debug9p(...) if(0) debug(__VA_ARGS__)
@@ -87,7 +88,7 @@ dirtab_wsysn[] = {
 	{"consctl",		QTFILE,	FsFConsctl,	0200 },
 	{"cursor",		QTFILE,	FsFCursor,	0600 },
 	{"pointer",		QTFILE,	FsFMouse,	0600 },
-	{"mouse",		QTFILE,	FsFMouse,	0400 },
+	{"mouse",		QTFILE,	FsFMouse,	0600 },
 	{"snarf",		QTFILE,	FsFSnarf,		0600 },
 	{"kill",		QTFILE,	FsFKill,		0400 },
 	{"label",		QTFILE,	FsFLabel,		0600 },
@@ -470,6 +471,7 @@ fs_write(Ixp9Req *r) {
 	Window *w;
 	Client *cl;
 	IOResponse rwrite;
+	Point pt;
 
 	debug9p("fs_write(%p)\n", r);
 
@@ -522,6 +524,21 @@ fs_write(Ixp9Req *r) {
 		memcpy(label, r->ifcall.twrite.data, r->ofcall.rwrite.count);
 		label[r->ifcall.twrite.count] = 0;
 		setlabel(w, label);
+		break;
+	case FsFMouse:
+		/*
+		 * TODO: as we are using ixp_pending to read,
+		 * there is no way to get the aux field to write.
+		 */
+		break;
+		r->ofcall.io.count = r->ifcall.io.count;
+		pt.x = strtoul(r->ifcall.twrite.data, &p, 0);
+		if(p == 0){
+			ixp_respond(r, Eshortwrite);
+			return;
+		}
+		pt.y = strtoul(p, 0, 0);
+		xsetmouse(w, pt);
 		break;
 	case FsFSnarf:
 		if(r->ifcall.twrite.offset+r->ifcall.twrite.count >= SnarfSize){
