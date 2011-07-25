@@ -287,9 +287,9 @@ wctlmesg(Window *w, char *a, int n, char *err)
 
 	switch(cmd){
 	case New:
-		// return wctlnew(rect, arg, pid, hideit, scrollit, dir, err);
 		w->pid = pid;
 		w->screenr = rect;
+		w->visible = !hideit;
 		return 1;
 	case Set:
 		w->pid = pid;
@@ -298,12 +298,6 @@ wctlmesg(Window *w, char *a, int n, char *err)
 		rect = Rect(rect.min.x, rect.min.y, rect.min.x+Dx(w->screenr), rect.min.y+Dy(w->screenr));
 		/* fall through */
 	case Resize:
-		/*** TODO
-		if(!goodrect(rect)){
-			strcpy(err, Ebadwr);
-			return -1;
-		}
-		***/
 		if(eqrect(rect, rectaddpt(w->screenr, w->orig)))
 			return 1;
 		xresizewindow(w, rect);
@@ -328,33 +322,18 @@ wctlmesg(Window *w, char *a, int n, char *err)
 		xtopwindow(w);
 		return 1;
 	case Hide:
-		/***
-		switch(whide(w)){
-		case -1:
-			strcpy(err, "window already hidden");
-			return -1;
-		case 0:
-			strcpy(err, "hide failed");
-			return -1;
-		default:
-			break;
-		}
-		***/
+		if(!w->visible)
+			return 1;
+		w->visible = 0;
+		rect = rectaddpt(w->screenr, w->orig);
+		xresizewindow(w, rect);
 		return 1;
 	case Unhide:
-		/***
-		for(j=0; j<nhidden; j++)
-			if(hidden[j] == w)
-				break;
-		if(j == nhidden){
-			strcpy(err, "window not hidden");
-			return -1;
-		}
-		if(wunhide(j) == 0){
-			strcpy(err, "hide failed");
-			return -1;
-		}
-		***/
+		if(w->visible)
+			return 1;
+		w->visible = 1;
+		rect = rectaddpt(w->screenr, w->orig);
+		xresizewindow(w, rect);
 		return 1;
 	case Delete:
 		deletewin(w);

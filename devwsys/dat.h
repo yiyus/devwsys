@@ -76,6 +76,7 @@ struct Window
 	int			mousebuttons;
 	int			pid;
 	int			resized;
+	int			visible;
 	char			*label;
 	char			*name;
 	Draw		*draw;

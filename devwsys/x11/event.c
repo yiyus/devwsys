@@ -92,27 +92,27 @@ NextEvent:
 void
 configevent(Window *w, XEvent xev)
 {
+	int rx, ry;
 	Mouse m;
 	Rectangle r;
 	Xwin *xw;
 	XConfigureEvent *xe;
 
 	xe = (XConfigureEvent*)&xev;
-	if(Dx(w->screenr) == xe->width && Dy(w->screenr) == xe->height)
-		return;
 	xw = w->x;
 	if(!w->fullscreen){
-		int rx, ry;
 		XWindow xwin;
 		if(XTranslateCoordinates(xconn.display, xw->drawable, DefaultRootWindow(xconn.display), 0, 0, &rx, &ry, &xwin)) {
 			w->orig.x = rx;
 			w->orig.y = ry;
-			w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
 		}
 	}
 
 	if(xe->width == Dx(xconn.screenrect) && xe->height == Dy(xconn.screenrect))
 		return;
+	if(Dx(w->screenr) == xe->width && Dy(w->screenr) == xe->height)
+		return;
+	w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
 	r = Rect(0, 0, xe->width, xe->height);
 
 	// qlock(&_x.screenlock);

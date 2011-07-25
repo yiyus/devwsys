@@ -36,6 +36,10 @@ xresizewindow(Window *w, Rectangle r)
 	e.width = Dx(r);
 	e.height = Dy(r);
 	XConfigureWindow(xconn.display, xw->drawable, value_mask, &e);
+	if(w->visible)
+		XMapWindow(xconn.display, xw->drawable);
+	else
+		XUnmapWindow(xconn.display, xw->drawable);
 	XFlush(xconn.display);
 }
 

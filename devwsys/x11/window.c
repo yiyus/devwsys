@@ -20,22 +20,31 @@
 #define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
 
 static void* xcreatewin(char*, Rectangle);
-static Rectangle xmapwin(void*, Rectangle);
+static Rectangle xmapwin(Window*);
 static Rectangle xwinrectangle(char*);
 
 int
 xattach(Window *w, char *spec)
 {
 	char err[256];
+	Point orig;
+	Rectangle rect;
 	Xwin *xw;
 
 	w->screenr = xwinrectangle(w->label);
+	w->visible = 1;
 	wctlmesg(w, spec, strlen(spec), err);
-	xw = xcreatewin(w->label, w->screenr);
+	rect = w->screenr;
+	if(!w->visible){	/* move offscreen */
+		orig.x = -50 - Dx(w->screenr);
+		orig.y = -50 - Dy(w->screenr);
+		rect = rectaddpt(w->screenr, orig);
+	}
+	xw = xcreatewin(w->label, rect);
 	if(xw == nil)
 		goto Error;
-	w->screenr = xmapwin(xw, w->screenr);
 	w->x = xw;
+	w->screenr = xmapwin(w);
 	w->screenimage = xallocmemimage(w->screenr, xconn.chan, xw->screenpm);
 	if(w->screenimage == nil)
 		goto Error;
@@ -287,12 +296,14 @@ xcreatewin(char *label, Rectangle r)
 
 static
 Rectangle
-xmapwin(void *x, Rectangle r)
+xmapwin(Window *w)
 {
+	Rectangle r;
 	Xwin *xw;
 	XWindowAttributes wattr;
 
-	xw = x;
+	xw = w->x;
+	r = w->screenr;
 
 	if(r.min.x != 0 || r.min.y != 0){
 		XWindowChanges ch;
@@ -306,15 +317,12 @@ xmapwin(void *x, Rectangle r)
 		 */
 		r = Rect(0,0,Dx(r),Dy(r));
 	}
-	/*
-	 * TODO: Look up clipboard atom.
-	 * plan9port/src/cmd/devdraw/x11-init.c:351
-	 */
 
 	/*
 	 * Put the window on the screen, check to see what size we actually got.
 	 */
-	XMapWindow(xconn.display, xw->drawable);
+	if(w->visible)
+		XMapWindow(xconn.display, xw->drawable);
 	XSync(xconn.display, False);
 
 	if(!XGetWindowAttributes(xconn.display, xw->drawable, &wattr))
