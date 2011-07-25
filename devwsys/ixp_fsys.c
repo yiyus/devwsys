@@ -402,8 +402,9 @@ fs_read(Ixp9Req *r) {
 		ixp_respond(r, nil);
 		return;
 	case FsFWctl:
-		// XXX TODO: visible, current
-		sprint(buf, "%11d %11d %11d %11d %s %s ", w->orig.x +  w->screenr.min.x, w->orig.y + w->screenr.min.y, w->screenr.max.x, w->screenr.max.y, w-> visible ? "visible" : "hidden", "current");
+		// XXX TODO: current
+		s = w-> visible ? "visible" : "hidden";
+		sprint(buf, "%11d %11d %11d %11d %s %s ", w->orig.x +  w->screenr.min.x, w->orig.y + w->screenr.min.y, w->screenr.max.x, w->screenr.max.y, s, "current");
 		ixp_srv_readbuf(r, buf, strlen(buf));
 		ixp_respond(r, nil);
 		return;

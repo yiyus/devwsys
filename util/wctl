@@ -1,7 +1,7 @@
 #!/bin/rc
 
 # Usage
-#	wctl=`{wctl $wsys}
+#	wctl=`{ wctl wsys [defaultcmd] }
 
 fn window-m {
 	dir = /mnt/wsys
@@ -26,11 +26,15 @@ fn window-m {
 				case -hide
 					shift
 				}
-			if(~ $#* 0) cmd = rc
+			if(~ $#* 0) cmd = $defaultcmd
 			if not cmd = $*
 			echo -n `{basename $cmd(1)} > /dev/label >[2] /dev/null
-			{
-				echo kill > /proc/^`{cat $dir/kill}^/note
+			if(test -f $dir/kill){
+				f=/proc/^`{cat $dir/kill}^/note
+				# the proces could have finished on
+				# its own, check it is still there.
+				if(test -f $f)
+					echo kill > $f
 			} &
 			exec $cmd < /dev/cons > /dev/cons >[2] /dev/cons
 		}
@@ -51,12 +55,17 @@ fn wctl {
 		if (~ $a(1) new) $a
 }
 
-if(! ~ $1 '')
+defaultcmd=(rio -i window)
+if(! ~ $1 ''){
 	wsys=$1
+	shift
+}
 if(~ $wsys ''){
 	echo 'wctl: $wsys not defined'
 	exit bad
 }
+if(! ~ $1 '')
+	defaultcmd=$*
 
 service=wctl.$user
 # we want to know the pid of the wctl rc,
