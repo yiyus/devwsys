@@ -1910,7 +1910,11 @@ void
 drawdettach(Draw *d)
 {
 	drawfreedimage(d, d->screendimage);
-	freememimage(d->window->screenimage);
+	/*
+	 * TODO: running freememimage here we could
+	 * double free, but else we could leak memory.
+	 */
+	// freememimage(d->window->screenimage);
 	d->window->screenimage = nil;
 	free(d->window->name);
 	d->window->name = nil;

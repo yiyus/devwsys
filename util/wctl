@@ -7,6 +7,7 @@ fn window-m {
 	dir = /mnt/wsys
 	srv = $wsys
 	rfork ne
+	bind '#|' /n/pipe
 	{
 		unmount /mnt/acme /dev >[2]/dev/null
 		pid=`{cat /dev/ppid}
@@ -35,10 +36,12 @@ fn window-m {
 				# its own, check it is still there.
 				if(test -f $f)
 					echo kill > $f
-			} &
+			}&
+			{exec cat /n/pipe/data1 > $dir/wctl}&
 			exec $cmd < /dev/cons > /dev/cons >[2] /dev/cons
 		}
 	}&
+	wait $apid && echo delete > /n/pipe/data
 }
 
 fn new {
