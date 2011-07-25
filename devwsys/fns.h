@@ -25,6 +25,7 @@ int wctlmesg(Window*, char*, int, char*);
 /* Ixp */
 void ixppwrite(void*, char*);
 int ixpserve(char*);
+void killrespond(Window*);
 
 /* X connection */
 int xinit(void);

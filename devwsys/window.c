@@ -37,22 +37,16 @@ deletewin(Window *w)
 	}
 	if(i == nwindow)
 		return;
-	xdeletewin(w);
-	drawdettach(w->draw);
-	/*
-	 * TODO
-	 * Do not free w->draw (see devdraw.c:1920)
-	 */
-	// w->draw = nil;
-	w->x = nil;
 	w->deleted++;
+	/*
+	 * Write pid of the process to the kill file.
+	 */
+	if(w->killr)
+		killrespond(w);
+	xdeletewin(w);
+	w->x = nil;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
-	/*
-	 * Write pid of the process to kill to the kill file.
-	 */
-	if(w->pid != 0)
-		ixppwrite(w->killp, smprint("%d\n", w->pid));
 }
 
 void

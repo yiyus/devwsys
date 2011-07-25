@@ -67,7 +67,7 @@ xdeletewin(Window *w)
 	if(xw->screenpm != xw->nextscreenpm)
 		XFreePixmap(xconn.display, xw->nextscreenpm);
 	free(xw);
-	xw = (void*)nil;
+	w->x = (void*)nil;
 	XSync(xconn.display, False);
 }
 
@@ -342,6 +342,8 @@ xflushmemscreen(Window *w, Rectangle r)
 	Xwin *xw;
 
 	xw = w->x;
+	if(!xw)
+		return;
 	if(xw->nextscreenpm != xw->screenpm){
 		// qlock(&xw->screenlock);
 		XSync(xconn.display, False);

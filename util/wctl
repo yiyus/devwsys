@@ -3,13 +3,47 @@
 # Usage
 #	wctl=`{wctl $wsys}
 
+fn window-m {
+	dir = /mnt/wsys
+	srv = $wsys
+	rfork ne
+	{
+		unmount /mnt/acme /dev >[2]/dev/null
+		pid=`{cat /dev/ppid}
+		if(mount $srv $dir 'new -pid '^$pid^' '$"*){
+			bind -b $dir /dev
+			# toss geometry parameters to find command
+			while(~ $1 -*)
+				switch($1){
+				case -dx -dy -minx -miny -maxx -maxy
+					shift 2
+				case -r
+					shift 5
+				case -scroll
+					shift
+				case -noscroll
+					shift
+				case -hide
+					shift
+				}
+			if(~ $#* 0) cmd = rc
+			if not cmd = $*
+			echo -n `{basename $cmd(1)} > /dev/label >[2] /dev/null
+			{
+				echo kill > /proc/^`{cat $dir/kill}^/note
+			} &
+			exec $cmd < /dev/cons > /dev/cons >[2] /dev/cons
+		}
+	}&
+}
+
 fn new {
 	if(~ $1 -cd) {
 		d=`{echo $2 | sed 's/-cd//'}
 		cd $d
 		shift 2
 	}
-	window -m $*
+	window-m $*
 }
 
 fn wctl {
@@ -19,8 +53,10 @@ fn wctl {
 
 if(! ~ $1 '')
 	wsys=$1
-if(~ $wsys '')
-	exit '$wsys not set'
+if(~ $wsys ''){
+	echo 'wctl: $wsys not defined'
+	exit bad
+}
 
 service=wctl.$user
 # we want to know the pid of the wctl rc,

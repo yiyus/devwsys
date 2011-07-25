@@ -245,10 +245,6 @@ fs_attach(Ixp9Req *r) {
 		ixp_respond(r, Enomem);
 		return;
 	}
-	if(!(w->killp = mallocz(sizeof(IxpPending), 1))){
-		ixp_respond(r, Enomem);
-		return;
-	}
 	if(!(w->mousep = mallocz(sizeof(IxpPending), 1))){
 		ixp_respond(r, Enomem);
 		return;
@@ -267,7 +263,6 @@ fs_open(Ixp9Req *r) {
 	debug9p("fs_open(%p)\n", r);
 
 	f = r->fid->aux;
-	// print("XXX open %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
@@ -302,9 +297,6 @@ fs_open(Ixp9Req *r) {
 		break;
 	case FsFCons:
 		ixp_pending_pushfid(w->kbdp, r->fid);
-		break;
-	case FsFKill:
-		ixp_pending_pushfid(w->killp, r->fid);
 		break;
 	case FsFMouse:
 		if(w->mouseopen){
@@ -351,7 +343,6 @@ fs_read(Ixp9Req *r) {
 	debug9p("fs_read(%p)\n", r);
 
 	f = r->fid->aux;
-	// print("XXX read %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
@@ -372,7 +363,7 @@ fs_read(Ixp9Req *r) {
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
 		w = drawwindow(cl);
-	if(w->deleted){
+	if(w->deleted && f->tab.type != FsFKill){
 		ixp_respond(r, Edeleted);
 		return;
 	}
@@ -392,6 +383,14 @@ fs_read(Ixp9Req *r) {
 		return;
 	}
 	switch(f->tab.type) {
+	case FsFKill:
+		w->killr = r;
+		if(w->deleted){
+			sprint(buf, "%d", w->pid);
+			ixp_srv_readbuf(r, buf, strlen(buf));
+			ixp_respond(r, nil);
+		}
+		return;
 	case FsFLabel:
 		if(w->label)
 			ixp_srv_readbuf(r, w->label, strlen(w->label));
@@ -474,7 +473,6 @@ fs_write(Ixp9Req *r) {
 	debug9p("fs_write(%p)\n", r);
 
 	f = r->fid->aux;
-	// print("XXX write %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, Enofile);
 		return;
@@ -569,7 +567,6 @@ fs_clunk(Ixp9Req *r) {
 
 	debug9p("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
-	// print("XXX fs_clunk %s\n", f->tab.name);
 	if(!ixp_srv_verifyfile(f, lookup_file)) {
 		ixp_respond(r, nil);
 		return;
@@ -636,12 +633,16 @@ fs_remove(Ixp9Req *r) {
 void
 fs_freefid(IxpFid *f) {
 	IxpFileId *id, *tid;
+	Window *w;
 
 	tid = f->aux;
-	// print("XXX fs_freefid %s\n", tid ? tid->tab.name : "NONE");
 	while((id = tid)) {
-		if(iswindow(tid->tab.type) && tid->nref == 0)
-			deletewin(tid->p.window);
+		if(iswindow(tid->tab.type) && tid->nref == 0){
+			w = tid->p.window;
+			deletewin(w);
+			drawdettach(w->draw);
+			w->draw = nil;
+		}
 		tid = id->next;
 		ixp_srv_freefile(id);
 	}
@@ -669,5 +670,11 @@ ixppwrite(void *v, char *buf)
 
 	p = v;
 	ixp_pending_write(p, buf, strlen(buf));
+}
+
+void
+killrespond(Window *w)
+{
+	fs_read(w->killr);
 }
 

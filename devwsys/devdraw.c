@@ -1916,13 +1916,7 @@ drawdettach(Draw *d)
 	d->window->name = nil;
 	if(d->dscreen)
 		drawfreedscreen(d, d->dscreen);
-	/*
-	 * TODO: we cannot free d because it is needed
-	 * to get the window from a client, and the structures
-	 * of the drawing device will be freed after the
-	 * window has been deleted.
-	 */
-	// free(d);
+	free(d);
 }
 
 Window*
