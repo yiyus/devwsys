@@ -164,8 +164,10 @@ addflush(Draw *d, Rectangle r)
 {
 	int abb, ar, anbb;
 	Rectangle nbb;
+	Memimage *screenimage;
 
-	if(!rectclip(&r, d->window->screenimage->r))
+	screenimage = d->window->screenimage;
+	if(!rectclip(&r, screenimage->r))
 		return;
 
 	if(d->flushrect.min.x >= d->flushrect.max.x){
@@ -473,7 +475,7 @@ void
 drawfreedimage(Draw *d, DImage *dimage)
 {
 	int i;
-	Memimage *l;
+	Memimage *l, *screenimage;
 	DScreen *ds;
 
 	dimage->ref--;
@@ -503,7 +505,8 @@ drawfreedimage(Draw *d, DImage *dimage)
 		 */
 		if(!l->layer)
 			return;
-		if(l->data == d->window->screenimage->data)
+		screenimage = d->window->screenimage;
+		if(l->data == screenimage->data)
 			addflush(d, l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
 			free(l->layer->refreshptr);
@@ -703,7 +706,7 @@ drawchar(Memimage *dst, Point p, Memimage *src, Point *sp, DImage *font, int ind
 	return p;
 }
 
-Draw*
+int
 drawattach(Window *w, char *spec)
 {
 	Draw *d;
@@ -718,7 +721,7 @@ drawattach(Window *w, char *spec)
 	 * xattach sets screenimage, screenr and x
 	 */
 	if(!xattach(w, spec))
-		return nil;
+		return 0;
 	di = allocdimage(w->screenimage);
 	/*
 	 * we must use the name "noborder"
@@ -728,7 +731,8 @@ drawattach(Window *w, char *spec)
 		return 0;
 	d->screendimage = di;
 	w->name = name;
-	return d;
+	w->draw = d;
+	return 1;
 }
 
 const char*
@@ -1071,7 +1075,7 @@ drawmesg(Client *client, void *av, int n)
 				}
 				continue;
 			}
-			i = xallocmemimage(r, chan, PMundef);
+			i = allocmemimage(r, chan);
 			if(i == 0)
 				goto Edrawmem;
 			if(repl)
@@ -1814,24 +1818,29 @@ drawwrite(Client *cl, int type, char *data, int count)
 }
 
 void
-drawreplacescreenimage(Draw *d, Memimage *m)
+drawreplacescreenimage(Window *w)
 {
 	int i;
+	Draw *d;
 	DImage *di;
 
+	d = w->draw;
 	if(d->screendimage == nil)
 		return;
 
+	xreplacescreenimage(w);
+	if(w->screenimage == nil)
+		return;
 	/*
 	 * Replace the screen image because the screen
 	 * was resized.  Clients still have references to the
 	 * old screen image, so we can't free it just yet.
 	 */
 	// drawqlock();
-	di = allocdimage(m);
+	di = allocdimage(w->screenimage);
 	if(di == nil){
 		print("no memory to replace screen image\n");
-		freememimage(m);
+		freememimage(w->screenimage);
 		// drawqunlock();
 		return;
 	}
@@ -1846,7 +1855,6 @@ drawreplacescreenimage(Draw *d, Memimage *m)
 
 	drawfreedimage(d, d->screendimage); // XXX
 	d->screendimage = di;
-	d->window->screenimage = m;
 
 	/*
 	 * Every client, when it starts, gets a copy of the
@@ -1907,8 +1915,11 @@ drawfree(Client *cl)
 }
 
 void
-drawdettach(Draw *d)
+drawdettach(Window *w)
 {
+	Draw *d;
+
+	d = w->draw;
 	drawfreedimage(d, d->screendimage);
 	/*
 	 * TODO: running freememimage here we could

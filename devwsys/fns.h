@@ -2,9 +2,9 @@
 #define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Devdraw */
-Draw* drawattach(Window*, char*);
-void drawdettach(Draw*);
-void drawreplacescreenimage(Draw*, Memimage*);
+int drawattach(Window*, char*);
+void drawdettach(Window*);
+void drawreplacescreenimage(Window*);
 
 /* Keyboard */
 void writekbd(Window*, int);
@@ -14,9 +14,8 @@ void writemouse(Window*, Mouse, int);
 int cursorwrite(Window*, char*, int);
 
 /* Window */
-void deletewin(Window*);
 Window* newwin(char*);
-int parsewinsize(char*, Rectangle*, int*);
+void deletewin(Window*);
 void setlabel(Window*, char*);
 
 /* Wctl */
@@ -34,11 +33,10 @@ void xnextevent(void);
 void xclose(void);
 
 /* X window */
-Memimage* xallocmemimage(Rectangle, ulong, int);
 int xattach(Window*, char*);
 void xdeletewin(Window*);
+void xreplacescreenimage(Window*);
 void xflushmemscreen(Window*, Rectangle);
-void xfreememimage(Memimage*);
 int xupdatelabel(Window*);
 void xtopwindow(Window*);
 void xresizewindow(Window*, Rectangle);

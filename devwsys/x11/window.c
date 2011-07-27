@@ -80,7 +80,7 @@ xdeletewin(Window *w)
 	XSync(xconn.display, False);
 }
 
-int
+void
 xreplacescreenimage(Window *w)
 {
 	Memimage *m;
@@ -96,9 +96,8 @@ xreplacescreenimage(Window *w)
 	if(xw->nextscreenpm != xw->screenpm)
 		XFreePixmap(xconn.display, xw->nextscreenpm);
 	xw->nextscreenpm = pixmap;
+	w->screenimage = m;
 	w->screenr = r;
-	drawreplacescreenimage(w->draw, m);
-	return 1;
 }
 
 int

@@ -80,7 +80,7 @@ struct Window
 	char			*label;
 	char			*name;
 	Draw		*draw;
-	Memimage	*screenimage;
+	void			*screenimage;
 	Kbdbuf		kbd;
 	void			*kbdp;
 	void			*killr;

@@ -4,12 +4,10 @@
 #include <sys/stat.h>
 #include <lib9.h>
 #include <draw.h>
-#include <memdraw.h>
-#include <ixp.h>
-#include <memlayer.h>
 #include <cursor.h>
 #include "dat.h"
 #include "fns.h"
+#include <ixp.h>
 
 extern Ixp9Srv p9srv; /* ixp_fsys.c:/p9srv */
 

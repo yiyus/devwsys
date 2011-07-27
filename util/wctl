@@ -50,7 +50,7 @@ fn new {
 		cd $d
 		shift 2
 	}
-	window-m $*
+	window-m $* &
 }
 
 fn wctl {

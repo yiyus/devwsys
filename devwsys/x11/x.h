@@ -60,12 +60,13 @@ struct Xwin {
 
 extern Xconn xconn;
 
+Memimage* xallocmemimage(Rectangle, ulong, int);
+void xfreememimage(Memimage*);
 int xtoplan9kbd(XEvent*);
 int xtoplan9mouse(XEvent*, Mouse*);
 int xcloadmemimage(Memimage*, Rectangle, uchar*, int);
 void xfillcolor(Memimage*, Rectangle, ulong);
 XImage* xgetxdata(Memimage*, Rectangle);
-int xreplacescreenimage(Window*);
 void xmovewindow(Window*, Rectangle);
 void xputxdata(Memimage*, Rectangle);
 void xmemimagedraw(Memimage*, Rectangle, Memimage*, Point,

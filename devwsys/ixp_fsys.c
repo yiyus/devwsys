@@ -1,8 +1,6 @@
 #include <time.h>
 #include <lib9.h>
 #include <draw.h>
-#include <memdraw.h>
-#include <memlayer.h>
 #include <cursor.h>
 #include "dat.h"
 #include "fns.h"
@@ -216,7 +214,6 @@ void
 fs_attach(Ixp9Req *r) {
 	char *label;
 	IxpFileId *f;
-	Draw *d;
 	Window *w;
 
 	debug9p("fs_attach(%p)\n", r);
@@ -232,7 +229,7 @@ fs_attach(Ixp9Req *r) {
 	r->fid->qid.path = QID(f->tab.type, 0);
 	r->ofcall.rattach.qid = r->fid->qid;
 	label = nil; /* pjw face */
-	if(!(w = newwin(label)) || !(d = drawattach(w, r->ifcall.tattach.aname))) {
+	if(!(w = newwin(label)) || !drawattach(w, r->ifcall.tattach.aname)) {
 		if(w){
 			assert(w == window[nwindow-1]);
 			free(w);
@@ -241,7 +238,6 @@ fs_attach(Ixp9Req *r) {
 		ixp_respond(r, Enomem);
 		return;
 	}
-	w->draw = d;
 	if(!(w->kbdp = mallocz(sizeof(IxpPending), 1))){
 		ixp_respond(r, Enomem);
 		return;
@@ -658,7 +654,7 @@ fs_freefid(IxpFid *f) {
 		if(iswindow(tid->tab.type) && tid->nref == 0){
 			w = tid->p.window;
 			deletewin(w);
-			drawdettach(w->draw);
+			drawdettach(w);
 			w->draw = nil;
 		}
 		tid = id->next;
