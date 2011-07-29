@@ -135,7 +135,7 @@ configevent(Window *w, XEvent xev)
 	 * the window has already been resized, but
 	 * IxpPending does not let us to do that.
 	 */
-	// writemouse(w, m, 1);
+	writemouse(w, m, 1);
 }
 
 void

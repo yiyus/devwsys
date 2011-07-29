@@ -255,7 +255,7 @@ wctlmesg(Window *w, char *a, int n, char *err)
 	cnt = n;
 	a[cnt] = '\0';
 	id = pid = 0;
-	buttons = w->mousebuttons;
+	buttons = w->mouse.m[w->mouse.ri].buttons;
 
 	// print(" XXX wctlmesg: a = %s\n", a);
 	rect = rectaddpt(w->screenr, w->orig);

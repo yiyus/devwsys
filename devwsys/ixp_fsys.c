@@ -31,7 +31,7 @@ const char
 	*Eshortwrite =	"draw write too short";
 
 /* Macros */
-#define debug9p(...) if(0) debug(__VA_ARGS__)
+#define debug9p(...) if(1) debug(__VA_ARGS__)
 #define QID(t, i) (((vlong)((t)&0xFF)<<32)|((i)&0xFFFFFFFF))
 
 /* Global Vars */
@@ -238,14 +238,6 @@ fs_attach(Ixp9Req *r) {
 		ixp_respond(r, Enomem);
 		return;
 	}
-	if(!(w->kbdp = mallocz(sizeof(IxpPending), 1))){
-		ixp_respond(r, Enomem);
-		return;
-	}
-	if(!(w->mousep = mallocz(sizeof(IxpPending), 1))){
-		ixp_respond(r, Enomem);
-		return;
-	}
 	f->p.window = w;
 	ixp_respond(r, nil);
 }
@@ -292,16 +284,12 @@ fs_open(Ixp9Req *r) {
 	switch(f->tab.type) {
 	case FsFNew:
 		break;
-	case FsFCons:
-		ixp_pending_pushfid(w->kbdp, r->fid);
-		break;
 	case FsFMouse:
-		if(w->mouseopen){
+		if(w->mouse.open){
 			ixp_respond(r, Einuse);
 			return;
 		}
-		w->mouseopen = 1;
-		ixp_pending_pushfid(w->mousep, r->fid);
+		w->mouse.open = 1;
 		break;
 	case FsFSnarf:
 		if((r->ifcall.topen.mode&3) == ORDWR){
@@ -352,10 +340,6 @@ fs_read(Ixp9Req *r) {
 		ixp_srv_readdir(r, lookup_file, dostat);
 		return;
 	}
-	if(f->pending) {
-		ixp_pending_respond(r);
-		return;
-	}
 	cl = f->p.client;
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
@@ -380,6 +364,9 @@ fs_read(Ixp9Req *r) {
 		return;
 	}
 	switch(f->tab.type) {
+	case FsFCons:
+		readkbd(w, r);
+		return;
 	case FsFKill:
 		w->killr = r;
 		if(w->deleted){
@@ -392,6 +379,9 @@ fs_read(Ixp9Req *r) {
 		if(w->label)
 			ixp_srv_readbuf(r, w->label, strlen(w->label));
 		ixp_respond(r, nil);
+		return;
+	case FsFMouse:
+		readmouse(w, r);
 		return;
 	case FsFSnarf:
 		s= xgetsnarf(w);
@@ -522,13 +512,13 @@ fs_write(Ixp9Req *r) {
 		setlabel(w, label);
 		break;
 	case FsFMouse:
-		/*
-		 * TODO: as we are using ixp_pending to read,
-		 * there is no way to get the aux field to write.
-		 */
-		break;
 		r->ofcall.io.count = r->ifcall.io.count;
-		pt.x = strtoul(r->ifcall.twrite.data, &p, 0);
+		if(r->ifcall.io.count == 0){
+			ixp_respond(r, Eshortwrite);
+			return;
+		}
+		p = &r->ifcall.twrite.data[1];
+		pt.x = strtoul(p, &p, 0);
 		if(p == 0){
 			ixp_respond(r, Eshortwrite);
 			return;
@@ -590,17 +580,18 @@ fs_clunk(Ixp9Req *r) {
 	w = f->p.window;
 	if(!iswindow(f->tab.type))
 		w = drawwindow(cl);
-	if(f->pending) {
-		/* Should probably be in freefid */
-		if(ixp_pending_clunk(r)) {
-			if(f->tab.type == FsFMouse)
-				w->mouseopen = 0;
-		}
-		return;
-	}
 
 	// TODO: ../../inferno-os/emu/port/devdraw.c:971
 	switch(f->tab.type){
+	case FsFCons:
+		w->kbd.wi = w->kbd.ri;
+		w->kbdreqs.wi = w->kbdreqs.ri;
+		break;
+	case FsFMouse:
+		w->mouse.open = 0;
+		w->mouse.wi = w->mouse.ri;
+		w->mousereqs.wi = w->mousereqs.ri;
+		break;
 	case FsFSnarf:
 		if(r->fid->omode == OWRITE){
 			if(snarfbuf)
@@ -624,9 +615,6 @@ fs_flush(Ixp9Req *r) {
 
 	or = r->oldreq;
 	f = or->fid->aux;
-	if(f->pending)
-		ixp_pending_flush(r);
-	/* else die() ? */
 	ixp_respond(r->oldreq, Einterrupted);
 	ixp_respond(r, nil);
 }
@@ -678,17 +666,33 @@ Ixp9Srv p9srv = {
 };
 
 void
-ixppwrite(void *v, char *buf)
-{
-	IxpPending *p;
-
-	p = v;
-	ixp_pending_write(p, buf, strlen(buf));
-}
-
-void
 killrespond(Window *w)
 {
 	fs_read(w->killr);
+}
+
+/* Reply a read request */
+void
+ixprread(void *v, char *buf)
+{
+	Ixp9Req *r;
+	IxpFileId *f;
+	Client *cl;
+	Window *w;
+
+	r = v;
+	f = r->fid->aux;
+	// print("XXX ixprread %s\n", f->tab.name);
+	cl = f->p.client;
+	w = f->p.window;
+	if(!iswindow(f->tab.type))
+		w = drawwindow(cl);
+	if(w->deleted){
+		ixp_respond(r, Edeleted);
+		return;
+	}
+	r->ifcall.rread.offset = 0;
+	ixp_srv_readbuf(r, buf, strlen(buf));
+	ixp_respond(r, nil);
 }
 

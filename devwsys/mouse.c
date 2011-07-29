@@ -4,25 +4,96 @@
 #include "dat.h"
 #include "fns.h"
 
+static void addmouse(Mousebuf*, Mouse, int);
+static void matchmouse(Mousebuf*, Reqbuf*);
+static void replymouse(Mousebuf*, void*);
+
+void
+readmouse(Window *w, void* r)
+{
+        Mousebuf *mouse;
+        Reqbuf *mousereqs;
+
+        mouse = &w->mouse;
+        mousereqs = &w->mousereqs;
+
+        addreq(mousereqs, r);
+        // fprint(2, "mouse unstall\n");
+        mouse->stall = 0;
+        matchmouse(mouse, mousereqs);
+}
+
 void
 writemouse(Window *w, Mouse m, int resized)
 {
-	char buf[50], c;
+	Mousebuf *mouse;
+	Reqbuf *mousereqs;
 
-	/*
-	 * TODO:
-	 * Continuous resizes will cause too many redraws.
-	 * The solution is to not queue resize events and instead
-	 * change the response, but IxpPending is too opaque
-	 * to do that.
-	 */
-	c = 'm';
-	if(w->resized)
-		c = 'r';
-	sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
-	w->mousebuttons = m.buttons;
-	w->resized = 0;
-	ixppwrite(w->mousep, buf);
+	mouse = &w->mouse;
+	mousereqs = &w->mousereqs;
+
+	addmouse(mouse, m, resized);
+	matchmouse(mouse, mousereqs);
+}
+
+static
+void
+addmouse(Mousebuf *mouse, Mouse m, int resized)
+{
+	int p;
+
+        if(!mouse->open || mouse->stall)
+                return;
+
+	mouse->m[mouse->wi] = m;
+	if(resized){
+		p = mouse->wi - 1;
+		if(p < 0)
+			p = nelem(mouse->m) - 1;
+		mouse->m[mouse->wi] = mouse->m[p];
+		mouse->resized = 1;
+	}
+	mouse->wi++;
+	if(mouse->wi == nelem(mouse->m))
+		mouse->wi = 0;
+	if(mouse->wi == mouse->ri){
+		mouse->stall = 1;
+		mouse->ri = 0;
+		mouse->wi = 1;
+		mouse->m[0] = m;
+		/* fprint(2, "mouse stall\n"); */
+	}
+}
+
+static
+void
+replymouse(Mousebuf *mouse, void *r)
+{
+        int n, resized;
+        char buf[50], c;
+        Mouse m;
+
+        m = mouse->m[mouse->ri];
+        resized = mouse->resized;
+        c = 'm';
+        if(mouse->resized)
+                c = 'r';
+        n = sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
+        buf[n] = '\0';
+        ixprread(r, buf);
+        mouse->resized = 0;
+}
+
+static
+void
+matchmouse(Mousebuf *mouse, Reqbuf *mousereqs)
+{
+        while(mouse->ri != mouse->wi && mousereqs->ri != mousereqs->wi){
+                replymouse(mouse, nextreq(mousereqs));
+                mouse->ri++;
+                if(mouse->ri == nelem(mouse->m))
+                        mouse->ri = 0;
+        }
 }
 
 static int
@@ -145,3 +216,4 @@ cursorwrite(Window *w, char *buf, int n)
 	}
 	return 0;
 }
+

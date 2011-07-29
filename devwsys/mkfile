@@ -26,6 +26,7 @@ OFILES=\
 	latin1.$O\
 	main.$O\
 	mouse.$O\
+	reqbuf.$O\
 	wctl.$O\
 	window.$O\
 	$SYSHOST-$OBJTYPE.$O\
