@@ -32,6 +32,7 @@ enum{
 	CRECV = 04,
 };
 
+typedef struct Styxreq Styxreq;
 typedef struct Walkqid Walkqid;
 
 struct Fid
@@ -44,6 +45,12 @@ struct Fid
 	ulong	offset;	/* in file */
 	int		dri;		/* dirread index */
 	Qid		qid;
+};
+
+struct Styxreq
+{
+	Client *client;
+	Fcall fcall;
 };
 
 struct Walkqid
@@ -618,9 +625,8 @@ newfile(Styxserver *server, Styxfile *parent, int isdir, Path qid, char *name, i
 }
 
 static void
-run(Client *c)
+run(Client *c, Fcall *f)
 {
-	Fcall f;
 	Fid *fp, *nfp;
 	int i, open, mode;
 	char ebuf[EMSGLEN];
@@ -632,305 +638,306 @@ run(Client *c)
 	char strs[128];
 
 	ebuf[0] = 0;
-	if(rd(c, &f) <= 0)
-		return;
-	if(f.type == Tflush){
-		flushtag(f.oldtag);
-		f.type = Rflush;
-		wr(c, &f);
+	if(f->type == Tflush){
+		flushtag(f->oldtag);
+		f->type = Rflush;
 		return;
 	}
 	ops = c->server->ops;
 	file = nil;
-	fp = findfid(c, f.fid);
-	if(f.type != Tversion && f.type != Tauth && f.type != Tattach){
+	fp = findfid(c, f->fid);
+	if(f->type != Tversion && f->type != Tauth && f->type != Tattach){
 		if(fp == nil){
-			f.type = Rerror;
-			f.ename = Enofid;
-			wr(c, &f);
+			f->type = Rerror;
+			f->ename = Enofid;
 			return;
 		}
 		else{
 			file = styxfindfile(c->server, fp->qid.path);
 			if(c->server->needfile && file == nil){
-				f.type = Rerror;
-				f.ename = Enonexist;
-				wr(c, &f);
+				f->type = Rerror;
+				f->ename = Enonexist;
 				return;
 			}
 		}
 	}
-	/* if(fp == nil) fprint(2, "fid not found for %d\n", f.fid); */
-	switch(f.type){
+	/* if(fp == nil) fprint(2, "fid not found for %d\n", f->fid); */
+	switch(f->type){
 	case	Twalk:
 		if(Debug){
-			fprint(2, "Twalk %d %d", f.fid, f.newfid);
-			for(i = 0; i < f.nwname; i++)
-				fprint(2, " %s", f.wname[i]);
+			fprint(2, "Twalk %d %d", f->fid, f->newfid);
+			for(i = 0; i < f->nwname; i++)
+				fprint(2, " %s", f->wname[i]);
 			fprint(2, "\n");
 		}
-		nfp = findfid(c, f.newfid);
-		f.type = Rerror;
+		nfp = findfid(c, f->newfid);
+		f->type = Rerror;
 		if(nfp){
 			deletefid(c, nfp);
 			nfp = nil;
 		}
 		if(nfp){
-			f.ename = "fid in use";
-			if(Debug) fprint(2, "walk: %s\n", f.ename);
-			wr(c, &f);
+			f->ename = "fid in use";
+			if(Debug) fprint(2, "walk: %s\n", f->ename);
 			break;
 		}else if(fp->open){
-			f.ename = "can't clone";
-			wr(c, &f);
+			f->ename = "can't clone";
 			break;
 		}
-		if(f.newfid != f.fid)
-			nfp = fidclone(fp, f.newfid);
+		if(f->newfid != f->fid)
+			nfp = fidclone(fp, f->newfid);
 		else
 			nfp = fp;
-		if((wq = devwalk(c, file, fp, nfp, f.wname, f.nwname, &f.ename)) == nil){
+		if((wq = devwalk(c, file, fp, nfp, f->wname, f->nwname, &f->ename)) == nil){
 			if(nfp != fp)
 				deletefid(c, nfp);
-			f.type = Rerror;
+			f->type = Rerror;
 		}else{
 			if(nfp != fp){
-				if(wq->nqid != f.nwname)
+				if(wq->nqid != f->nwname)
 					deletefid(c, nfp);
 			}
-			f.type = Rwalk;
-			f.nwqid = wq->nqid;
+			f->type = Rwalk;
+			f->nwqid = wq->nqid;
 			for(i = 0; i < wq->nqid; i++)
-				f.wqid[i] = wq->qid[i];
+				f->wqid[i] = wq->qid[i];
 			styxfree(wq);
 		}
-		wr(c, &f);
 		break;
 	case	Topen:
 		if(Debug)
-			fprint(2, "Topen %d\n", f.fid);
-		f.ename = nil;
+			fprint(2, "Topen %d\n", f->fid);
+		f->ename = nil;
 		if(fp->open)
-			f.ename = Eopen;
-		else if((fp->qid.type&QTDIR) && (f.mode&(OWRITE|OTRUNC|ORCLOSE)))
-			f.ename = Eperm;
-		else if(file != nil && !styxperm(file, c->uname, f.mode))
-			f.ename = Eperm;
-		else if((f.mode&ORCLOSE) && file != nil && file->parent != nil && !styxperm(file->parent, c->uname, OWRITE))
-			f.ename = Eperm;
-		if(f.ename != nil){
-			f.type = Rerror;
-			wr(c, &f);
+			f->ename = Eopen;
+		else if((fp->qid.type&QTDIR) && (f->mode&(OWRITE|OTRUNC|ORCLOSE)))
+			f->ename = Eperm;
+		else if(file != nil && !styxperm(file, c->uname, f->mode))
+			f->ename = Eperm;
+		else if((f->mode&ORCLOSE) && file != nil && file->parent != nil && !styxperm(file->parent, c->uname, OWRITE))
+			f->ename = Eperm;
+		if(f->ename != nil){
+			f->type = Rerror;
 			break;
 		}
-		f.ename = Enonexist;
+		f->ename = Enonexist;
 		decreff(fp);
-		if(ops->open == nil || (f.ename = ops->open(&fp->qid, f.mode)) == nil){
-			f.type = Ropen;
-			f.qid = fp->qid;
-			fp->mode = f.mode;
+		if(ops->open == nil || (f->ename = ops->open(&fp->qid, f->mode)) == nil){
+			f->type = Ropen;
+			f->qid = fp->qid;
+			fp->mode = f->mode;
 			fp->open = 1;
 			fp->offset = 0;
 			incopen(fp);
 		}
 		else
-			f.type = Rerror;
+			f->type = Rerror;
 		increff(fp);
-		wr(c, &f);
 		break;
 	case	Tcreate:
 		if(Debug)
-			fprint(2, "Tcreate %d %s\n", f.fid, f.name);
-		f.ename = nil;
+			fprint(2, "Tcreate %d %s\n", f->fid, f->name);
+		f->ename = nil;
 		if(fp->open)
-			f.ename = Eopen;
+			f->ename = Eopen;
 		else if(!(fp->qid.type&QTDIR))
-			f.ename = Enotdir;
-		else if((f.perm&DMDIR) && (f.mode&(OWRITE|OTRUNC|ORCLOSE)))
-			f.ename = Eperm;
+			f->ename = Enotdir;
+		else if((f->perm&DMDIR) && (f->mode&(OWRITE|OTRUNC|ORCLOSE)))
+			f->ename = Eperm;
 		else if(file != nil && !styxperm(file, c->uname, OWRITE))
-			f.ename = Eperm;
-		if(f.ename != nil){
-			f.type = Rerror;
-			wr(c, &f);
+			f->ename = Eperm;
+		if(f->ename != nil){
+			f->type = Rerror;
 			break;
 		}
-		f.ename = Eperm;
+		f->ename = Eperm;
 		decreff(fp);
 		if(file != nil){
-			if(f.perm&DMDIR)
-				f.perm = (f.perm&~0777) | (file->d.mode&f.perm&0777) | DMDIR;
+			if(f->perm&DMDIR)
+				f->perm = (f->perm&~0777) | (file->d.mode&f->perm&0777) | DMDIR;
 			else
-				f.perm = (f.perm&(~0777|0111)) | (file->d.mode&f.perm&0666);
+				f->perm = (f->perm&(~0777|0111)) | (file->d.mode&f->perm&0666);
 		}
-		if(ops->create && (f.ename = ops->create(&fp->qid, f.name, f.perm, f.mode)) == nil){
-			f.type = Rcreate;
-			f.qid = fp->qid;
-			fp->mode = f.mode;
+		if(ops->create && (f->ename = ops->create(&fp->qid, f->name, f->perm, f->mode)) == nil){
+			f->type = Rcreate;
+			f->qid = fp->qid;
+			fp->mode = f->mode;
 			fp->open = 1;
 			fp->offset = 0;
 			incopen(fp);
 		}
 		else
-			f.type = Rerror;
+			f->type = Rerror;
 		increff(fp);
-		wr(c, &f);
 		break;
 	case	Tread:
 		if(Debug)
-			fprint(2, "Tread %d\n", f.fid);
+			fprint(2, "Tread %d\n", f->fid);
 		if(!fp->open){
-			f.type = Rerror;
-			f.ename = Ebadfid;
-			wr(c, &f);
+			f->type = Rerror;
+			f->ename = Ebadfid;
 			break;
 		}
 		if(fp->qid.type&QTDIR || (file != nil && file->d.qid.type&QTDIR)){
-			f.type = Rread;
+			f->type = Rread;
 			if(file == nil){
-				f.ename = Eperm;
-				if(ops->read && (f.ename = ops->read(fp->qid, c->data, (ulong*)(&f.count), fp->dri)) == nil){
-					f.data = c->data;
+				f->ename = Eperm;
+				if(ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil){
+					f->data = c->data;
 				}
 				else
-					f.type = Rerror;
+					f->type = Rerror;
 			}
 			else{
-				f.count = devdirread(fp, file, c->data, f.count);
-				f.data = c->data;
+				f->count = devdirread(fp, file, c->data, f->count);
+				f->data = c->data;
 			}		
 		}else{
-			f.ename = Eperm;
-			f.type = Rerror;
-			if(ops->read && (f.ename = ops->read(fp->qid, c->data, (ulong*)(&f.count), f.offset)) == nil){
-				f.type = Rread;
-				f.data = c->data;			
+			f->ename = Eperm;
+			f->type = Rerror;
+			if(ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil){
+				f->type = Rread;
+				f->data = c->data;			
 			}
 		}
-		wr(c, &f);
 		break;
 	case	Twrite:
 		if(Debug)
-			fprint(2, "Twrite %d\n", f.fid);
+			fprint(2, "Twrite %d\n", f->fid);
 		if(!fp->open){
-			f.type = Rerror;
-			f.ename = Ebadfid;
-			wr(c, &f);
+			f->type = Rerror;
+			f->ename = Ebadfid;
 			break;
 		}
-		f.ename = Eperm;
-		f.type = Rerror;
-		if(ops->write && (f.ename = ops->write(fp->qid, f.data, (ulong*)(&f.count), f.offset)) == nil){
-			f.type = Rwrite;
+		f->ename = Eperm;
+		f->type = Rerror;
+		if(ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil){
+			f->type = Rwrite;
 		}
-		wr(c, &f);
 		break;
 	case	Tclunk:
 		if(Debug)
-			fprint(2, "Tclunk %d\n", f.fid);
+			fprint(2, "Tclunk %d\n", f->fid);
 		open = fp->open;
 		mode = fp->mode;
 		qid = fp->qid;
 		deletefid(c, fp);
-		f.type = Rclunk;
-		if(open && ops->close && (f.ename = ops->close(qid, mode)) != nil)
-			f.type = Rerror;
-		wr(c, &f);
+		f->type = Rclunk;
+		if(open && ops->close && (f->ename = ops->close(qid, mode)) != nil)
+			f->type = Rerror;
 		break;
 	case	Tremove:
 		if(Debug)
-			fprint(2, "Tremove %d\n", f.fid);
+			fprint(2, "Tremove %d\n", f->fid);
 		if(file != nil && file->parent != nil && !styxperm(file->parent, c->uname, OWRITE)){
-			f.type = Rerror;
-			f.ename = Eperm;
+			f->type = Rerror;
+			f->ename = Eperm;
 			deletefid(c, fp);
-			wr(c, &f);
 			break;
 		}
-		f.ename = Eperm;
-		if(ops->remove && (f.ename = ops->remove(fp->qid)) == nil) 
-			f.type = Rremove;
+		f->ename = Eperm;
+		if(ops->remove && (f->ename = ops->remove(fp->qid)) == nil) 
+			f->type = Rremove;
 		else
-			f.type = Rerror;
+			f->type = Rerror;
 		deletefid(c, fp);
-		wr(c, &f);
 		break;
 	case	Tstat:
 		if(Debug)
-			fprint(2, "Tstat %d qid=%llx\n", f.fid, fp->qid.path);
-		f.stat = styxmalloc(MAXSTAT);
-		f.ename = "stat error";
+			fprint(2, "Tstat %d qid=%llx\n", f->fid, fp->qid.path);
+		f->stat = styxmalloc(MAXSTAT);
+		f->ename = "stat error";
 		if(ops->stat == nil && file != nil){
-			f.type = Rstat;
-			f.nstat = convD2M(&file->d, f.stat, MAXSTAT);
+			f->type = Rstat;
+			f->nstat = convD2M(&file->d, f->stat, MAXSTAT);
 		}
-		else if(ops->stat && (f.ename = ops->stat(fp->qid, &dir)) == nil){
-			f.type = Rstat;
-			f.nstat = convD2M(&dir, f.stat, MAXSTAT);
+		else if(ops->stat && (f->ename = ops->stat(fp->qid, &dir)) == nil){
+			f->type = Rstat;
+			f->nstat = convD2M(&dir, f->stat, MAXSTAT);
 		}
 		else
-			f.type = Rerror;
-		wr(c, &f);
-		styxfree(f.stat);
+			f->type = Rerror;
+		styxfree(f->stat);
 		break;
 	case	Twstat:
 		if(Debug)
-			fprint(2, "Twstat %d\n", f.fid);
-		f.ename = Eperm;
-		convM2D(f.stat, f.nstat, &dir, strs);
+			fprint(2, "Twstat %d\n", f->fid);
+		f->ename = Eperm;
+		convM2D(f->stat, f->nstat, &dir, strs);
 		dir.name = nilconv(dir.name);
 		dir.uid = nilconv(dir.uid);
 		dir.gid = nilconv(dir.gid);
 		dir.muid = nilconv(dir.muid);
-		if(ops->wstat && (f.ename = ops->wstat(fp->qid, &dir)) == nil)
-			f.type = Rwstat;
+		if(ops->wstat && (f->ename = ops->wstat(fp->qid, &dir)) == nil)
+			f->type = Rwstat;
 		else
-			f.type = Rerror;
-		wr(c, &f);
+			f->type = Rerror;
 		break;
 	case	Tversion:
 		if(Debug)
 			fprint(2, "Tversion\n");
-		f.type = Rversion;
-		f.tag = NOTAG;
-		wr(c, &f);
+		f->type = Rversion;
+		f->tag = NOTAG;
 		break;
 	case Tauth:
 		if(Debug)
 			fprint(2, "Tauth\n");
-		f.type = Rauth;
-		wr(c, &f);
+		f->type = Rauth;
 		break;
 	case	Tattach:
 		if(Debug)
-			fprint(2, "Tattach %d %s %s\n", f.fid, f.uname[0] ? f.uname : c->uname, f.aname[0]? f.aname: c->aname);
+			fprint(2, "Tattach %d %s %s\n", f->fid, f->uname[0] ? f->uname : c->uname, f->aname[0]? f->aname: c->aname);
 		if(fp){
-			f.type = Rerror;
-			f.ename = "fid in use";
+			f->type = Rerror;
+			f->ename = "fid in use";
 		}else{
 			Qid q;
 
-			if(f.uname[0]){
+			if(f->uname[0]){
 				free(c->uname);
-				c->uname = strdup(f.uname);
+				c->uname = strdup(f->uname);
 			}
-			if(f.aname[0]){
+			if(f->aname[0]){
 				free(c->aname);
-				c->aname = strdup(f.aname);
+				c->aname = strdup(f->aname);
 			}
 			q.path = Qroot;
 			q.type = QTDIR;
 			q.vers = 0;
-			fp = newfid(c, f.fid, q);
-			f.type = Rattach;
-			f.fid = fp->fid;
-			f.qid = q;
-			if(ops->attach && (f.ename = ops->attach(c->uname, c->aname)) != nil)
-				f.type = Rerror;
+			fp = newfid(c, f->fid, q);
+			f->type = Rattach;
+			f->fid = fp->fid;
+			f->qid = q;
+			if(ops->attach && (f->ename = ops->attach(c->uname, c->aname)) != nil)
+				f->type = Rerror;
 		}
-		wr(c, &f);
 		break;
 	}
+}
+
+Styxreq*
+styxhold(void)
+{
+	Styxreq *r;
+
+	r = styxmalloc(sizeof(Styxreq));
+	r->client = server->curc;
+	r->fcall = *server->curc->curf;
+	server->curc->curf = nil;
+	return f;
+}
+
+void
+styxrespond(Styxreq *r)
+{
+	Client *c;
+	Fcall *f;
+
+	c = r->client;
+	f = r->fcall;
+	c->curf = nil;
+	run(c, f);
+	wr(c, f);
 }
 
 char *
@@ -978,6 +985,7 @@ char *
 styxprocess(Styxserver *server)
 {
 	Client *c;
+	Fcall f;
 	int s;
 
 	if(styxnewcall(server)){
@@ -998,9 +1006,14 @@ styxprocess(Styxserver *server)
 				styxfreeclient(server, c->fd);
 				freeclient(c);
 			}else
-				do
-					run(c);
-				while(c->state&CNREAD);
+				do{
+					if(rd(c, &f) <= 0)
+						return;
+					c.curf = f;
+					run(c, &f);
+					if(c.curf != nil)
+						wr(c, &f);
+				}while(c->state&CNREAD);
 		}
 		c = next;
 	}

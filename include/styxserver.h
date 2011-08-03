@@ -42,6 +42,7 @@ struct Client
 	int		nc;			/* bytes consumed from front of msg by convM2S */
 	char	data[MSGMAX];	/* Tread/Rread data */
 	int		state;
+	Fcall 	*curf;
 	Fid		*fids;
 	char		*uname;	/* uid */
 	char		*aname;	/* attach name */
