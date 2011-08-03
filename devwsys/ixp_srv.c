@@ -15,7 +15,7 @@ void endconnection(IxpConn*);
 void eventfdready(IxpConn*);
 
 int
-ixpserve(char *address)
+fsloop(char *address)
 {
 	char buf[512];
 	int fd;

@@ -673,7 +673,7 @@ killrespond(Window *w)
 
 /* Reply a read request */
 void
-ixprread(void *v, char *buf)
+readreply(void *v, char *buf)
 {
 	Ixp9Req *r;
 	IxpFileId *f;

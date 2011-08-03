@@ -80,7 +80,7 @@ replymouse(Mousebuf *mouse, void *r)
                 c = 'r';
         n = sprint(buf, "%c%11d %11d %11d %11ld ", c, m.xy.x, m.xy.y, m.buttons, m.msec);
         buf[n] = '\0';
-        ixprread(r, buf);
+        readreply(r, buf);
         mouse->resized = 0;
 }
 

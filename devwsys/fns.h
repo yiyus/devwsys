@@ -27,10 +27,10 @@ void setlabel(Window*, char*);
 /* Wctl */
 int wctlmesg(Window*, char*, int, char*);
 
-/* Ixp */
-void ixprread(void*, char*);
-int ixpserve(char*);
+/* Fsys */
+int fsloop(char*);
 void killrespond(Window*);
+void readreply(void*, char*);
 
 /* X connection */
 int xinit(void);

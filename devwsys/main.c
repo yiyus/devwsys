@@ -62,7 +62,7 @@ main(int argc, char **argv)
 	memimageinit();
 
 	/* Start the 9p server */
-	return ixpserve(address);
+	return fsloop(address);
 }
 
 void

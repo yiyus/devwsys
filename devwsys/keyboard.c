@@ -79,7 +79,7 @@ replykbd(Kbdbuf *kbd, void *r)
 
 	rune = kbd->r[kbd->ri];
 	sprint(buf, "%C", rune);
-	ixprread(r, buf);
+	readreply(r, buf);
 }
 
 static
