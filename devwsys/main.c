@@ -30,6 +30,7 @@ iprint(char* fmt, ...)
 int
 main(int argc, char **argv)
 {
+	int xfd;
 	char *address, *cp;
 	char *argv0;
 
@@ -57,8 +58,13 @@ main(int argc, char **argv)
 
 	memimageinit();
 
+	/* Connect to X */
+	xfd = xinit();
+	if(!xfd)
+		fatal("unable to connect to X server");
+
 	/* Start the 9p server */
-	return fsloop(address);
+	return fsloop(address, xfd);
 }
 
 void

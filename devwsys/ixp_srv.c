@@ -15,10 +15,10 @@ void endconnection(IxpConn*);
 void eventfdready(IxpConn*);
 
 int
-fsloop(char *address)
+fsloop(char *address, int xfd)
 {
 	char buf[512];
-	int fd, xfd;
+	int fd;
 	IxpServer srv = {0};
 
 	if(!address)
@@ -35,10 +35,6 @@ fsloop(char *address)
 	fd = ixp_announce(address);
 	if(fd < 0) {
 		err(1, "ixp_announce");
-	}
-	xfd = xinit();
-	if(xfd < 0) {
-		fatal("unable to connect to X server");
 	}
 
 	ixp_listen(&srv, fd, &p9srv, ixp_serve9conn, NULL);

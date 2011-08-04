@@ -13,7 +13,7 @@ void styxnewclient(Styxserver*, int);
 void styxfreeclient(Styxserver*, int);
 
 int
-fsloop(char *address)
+fsloop(char *address, int xfd)
 {
 	int xfd;
 	Styxserver s;
@@ -21,10 +21,6 @@ fsloop(char *address)
 	server = &s;
 	styxinit(&s, &ops, address, 0555, 0);
 	fsysinit(&s);
-	/* Connect to X */
-	xfd = xinit();
-	if(!xfd)
-		fatal("unable to connect to X server");
 	for(;;) {
 		styxnewclient(&s, xfd);
 		styxwait(&s);

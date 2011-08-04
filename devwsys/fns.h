@@ -21,6 +21,7 @@ void* nextreq(Reqbuf *reqs);
 
 /* Window */
 Window* newwin(void);
+Window* lookupwin(int);
 void deletewin(Window*);
 void setlabel(Window*, char*);
 
@@ -28,7 +29,7 @@ void setlabel(Window*, char*);
 int wctlmesg(Window*, char*, int, char*);
 
 /* Fsys */
-int fsloop(char*);
+int fsloop(char*, int);
 void killrespond(Window*);
 void readreply(void*, char*);
 
