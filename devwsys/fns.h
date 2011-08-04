@@ -34,7 +34,6 @@ void readreply(void*, char*);
 
 /* X connection */
 int xinit(void);
-int xfd(void);
 void xnextevent(void);
 void xclose(void);
 

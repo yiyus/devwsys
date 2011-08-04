@@ -30,7 +30,7 @@ enum {
 
 /* Datatypes: */
 typedef struct Draw Draw;	/* Defined in devdraw.c: */
-typedef struct Client Client;	/* Defined in devdraw.c: */
+typedef struct DClient DClient;	/* Defined in devdraw.c: */
 typedef struct Kbdbuf Kbdbuf;
 typedef struct Cursor Cursor;
 typedef struct Clip Clip;
@@ -120,6 +120,6 @@ int		debuglevel;
 int		nwindow;
 Window	**window;
 int		nclient;
-Client	**client;
+DClient	**client;
 Clip clip;
 

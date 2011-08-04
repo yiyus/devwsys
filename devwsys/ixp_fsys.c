@@ -10,7 +10,7 @@
 #define bool int
 typedef union IxpFileIdU IxpFileIdU;
 union IxpFileIdU {
-	Client*	client;
+	DClient*	client;
 	Window*	window;
 	void*	ref;
 };
@@ -134,7 +134,7 @@ lookup_file(IxpFileId *parent, char *name)
 	int i, id, clientid;
 	IxpFileId *ret, *file, **last;
 	IxpDirtab *dir;
-	Client *cl;
+	DClient *cl;
 	Window *w;
 
 	if(!(parent->tab.perm & DMDIR))
@@ -247,7 +247,7 @@ fs_open(Ixp9Req *r) {
 	const char *err;
 	IxpFileId *f;
 	Window *w;
-	Client *cl;
+	DClient *cl;
 
 	debug9p("fs_open(%p)\n", r);
 
@@ -321,7 +321,7 @@ void
 fs_read(Ixp9Req *r) {
 	char buf[512], *s;
 	IxpFileId *f;
-	Client *cl;
+	DClient *cl;
 	Window *w;
 	IOResponse rread;
 
@@ -417,7 +417,7 @@ fs_stat(Ixp9Req *r) {
 	char *buf;
 	IxpFileId *f;
 	Window *w;
-	Client *cl;
+	DClient *cl;
 
 	debug9p("fs_stat(%p)\n", r);
 
@@ -455,7 +455,7 @@ fs_write(Ixp9Req *r) {
 	char err[256];
 	IxpFileId *f;
 	Window *w;
-	Client *cl;
+	DClient *cl;
 	IOResponse rwrite;
 	Point pt;
 
@@ -567,7 +567,7 @@ void
 fs_clunk(Ixp9Req *r) {
 	IxpFileId *f;
 	Window *w;
-	Client *cl;
+	DClient *cl;
 
 	debug9p("fs_clunk(%p)\n", r);
 	f = r->fid->aux;
@@ -677,7 +677,7 @@ readreply(void *v, char *buf)
 {
 	Ixp9Req *r;
 	IxpFileId *f;
-	Client *cl;
+	DClient *cl;
 	Window *w;
 
 	r = v;

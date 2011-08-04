@@ -19,7 +19,7 @@ typedef struct Refx Refx;
 #define	NHASH		(1<<5)
 #define	HASHMASK	(NHASH-1)
 
-struct Client
+struct DClient
 {
 	int		r;	// Ref
 	DImage*	dimage[NHASH];
@@ -46,7 +46,7 @@ struct Refresh
 
 struct Refx
 {
-	Client*		client;
+	DClient*		client;
 	DImage*		dimage;
 };
 
@@ -78,7 +78,7 @@ struct DImage
 struct DName
 {
 	char		*name;
-	Client	*client;
+	DClient	*client;
 	DImage*	dimage;
 	int		vers;
 };
@@ -97,7 +97,7 @@ struct DScreen
 	DImage	*dimage;
 	DImage	*dfill;
 	Memscreen*	screen;
-	Client*	owner;
+	DClient*	owner;
 	DScreen*	next;
 };
 
@@ -121,7 +121,7 @@ int		vers = 0;
 
 static
 void
-drawrefreshscreen(DImage *l, Client *client)
+drawrefreshscreen(DImage *l, DClient *client)
 {
 	while(l != nil && l->dscreen == nil)
 		l = l->fromname;
@@ -135,7 +135,7 @@ drawrefresh(Memimage *l, Rectangle r, void *v)
 {
 	Refx *x;
 	DImage *d;
-	Client *c;
+	DClient *c;
 	Refresh *ref;
 
 	USED(l);
@@ -287,7 +287,7 @@ drawgoodname(DImage *d)
 
 static
 DImage*
-drawlookup(Client *client, int id, int checkname)
+drawlookup(DClient *client, int id, int checkname)
 {
 	DImage *d;
 
@@ -320,7 +320,7 @@ drawlookupdscreen(Draw *draw, int id)
 
 static
 DScreen*
-drawlookupscreen(Client *client, int id, CScreen **cs)
+drawlookupscreen(DClient *client, int id, CScreen **cs)
 {
 	CScreen *s;
 
@@ -358,7 +358,7 @@ allocdimage(Memimage *i)
 
 static
 Memimage*
-drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
+drawinstall(DClient *client, int id, Memimage *i, DScreen *dscreen)
 {
 	DImage *d;
 
@@ -374,7 +374,7 @@ drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 
 static
 Memscreen*
-drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *dfill, int public)
+drawinstallscreen(DClient *client, DScreen *d, int id, DImage *dimage, DImage *dfill, int public)
 {
 	Memscreen *s;
 	CScreen *c;
@@ -526,7 +526,7 @@ drawfreedimage(Draw *d, DImage *dimage)
 
 static
 void
-drawuninstallscreen(Client *client, CScreen *this)
+drawuninstallscreen(DClient *client, CScreen *this)
 {
 	CScreen *cs, *next;
 
@@ -550,7 +550,7 @@ drawuninstallscreen(Client *client, CScreen *this)
 
 static
 int
-drawuninstall(Client *client, int id)
+drawuninstall(DClient *client, int id)
 {
 	DImage *d, *next;
 
@@ -575,7 +575,7 @@ drawuninstall(Client *client, int id)
 
 static
 int
-drawaddname(Client *client, DImage *di, int n, char *str, char **err)
+drawaddname(DClient *client, DImage *di, int n, char *str, char **err)
 {
 	DName *name, *ename, *new, *t;
 	char *ns;
@@ -611,11 +611,11 @@ drawaddname(Client *client, DImage *di, int n, char *str, char **err)
 	return 0;
 }
 
-Client*
+DClient*
 drawnewclient(Draw *draw)
 {
 	static int clientid = 0;
-	Client *cl, **cp;
+	DClient *cl, **cp;
 	int i;
 
 	for(i=0; i<nclient; i++){
@@ -624,16 +624,16 @@ drawnewclient(Draw *draw)
 			break;
 	}
 	if(i == nclient){
-		cp = malloc((nclient+1)*sizeof(Client*));
+		cp = malloc((nclient+1)*sizeof(DClient*));
 		if(cp == 0)
 			return 0;
-		memmove(cp, client, nclient*sizeof(Client*));
+		memmove(cp, client, nclient*sizeof(DClient*));
 		free(client);
 		client = cp;
 		nclient++;
 		cp[i] = 0;
 	}
-	cl = mallocz(sizeof(Client), 1);
+	cl = mallocz(sizeof(DClient), 1);
 	if(cl == 0)
 		return 0;
 	cl->slot = i;
@@ -646,7 +646,7 @@ drawnewclient(Draw *draw)
 
 static
 int
-drawclientop(Client *cl)
+drawclientop(DClient *cl)
 {
 	int op;
 
@@ -657,7 +657,7 @@ drawclientop(Client *cl)
 
 static
 Memimage*
-drawimage(Client *client, uchar *a)
+drawimage(DClient *client, uchar *a)
 {
 	DImage *d;
 
@@ -736,7 +736,7 @@ drawattach(Window *w, char *spec)
 }
 
 const char*
-drawopen(Client *cl, uint type)
+drawopen(DClient *cl, uint type)
 {
 	char *name;
 	DImage *di;
@@ -779,7 +779,7 @@ drawopen(Client *cl, uint type)
 
 static
 int
-drawreadctl(char *a, Client *cl)
+drawreadctl(char *a, DClient *cl)
 {
 	int n;
 	DImage *di;
@@ -809,7 +809,7 @@ drawreadctl(char *a, Client *cl)
 
 static
 int
-drawreadrefresh(char *buf, long n, Client *cl)
+drawreadrefresh(char *buf, long n, DClient *cl)
 {
 	Refresh *r;
 	uchar *p;
@@ -834,7 +834,7 @@ drawreadrefresh(char *buf, long n, Client *cl)
 }
 
 IOResponse
-drawread(Client *cl, int type, char *data, int count)
+drawread(DClient *cl, int type, char *data, int count)
 {
 	int n;
 	IOResponse r;
@@ -971,7 +971,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 
 static
 const char*
-drawmesg(Client *client, void *av, int n)
+drawmesg(DClient *client, void *av, int n)
 {
 	char *fmt, *err, *s;
 	int c, ci, doflush, dstid, e0, e1, esize, j, m;
@@ -1787,7 +1787,7 @@ error:
 }
 
 IOResponse
-drawwrite(Client *cl, int type, char *data, int count)
+drawwrite(DClient *cl, int type, char *data, int count)
 {
 	IOResponse r;
 
@@ -1833,7 +1833,7 @@ drawreplacescreenimage(Window *w)
 		return;
 	/*
 	 * Replace the screen image because the screen
-	 * was resized.  Clients still have references to the
+	 * was resized.  DClients still have references to the
 	 * old screen image, so we can't free it just yet.
 	 */
 	// drawqlock();
@@ -1858,7 +1858,7 @@ drawreplacescreenimage(Window *w)
 
 	/*
 	 * Every client, when it starts, gets a copy of the
-	 * screen image as image 0.  Clients only use it 
+	 * screen image as image 0.  DClients only use it 
 	 * for drawing if there is no /dev/winname, but
 	 * this /dev/draw provides a winname (early ones
 	 * didn't; winname originated in rio), so the
@@ -1877,7 +1877,7 @@ drawreplacescreenimage(Window *w)
 
 static
 void
-drawfree(Client *cl)
+drawfree(DClient *cl)
 {
 	int i;
 	Draw *draw;
@@ -1935,20 +1935,20 @@ drawdettach(Window *w)
 }
 
 Window*
-drawwindow(Client *cl)
+drawwindow(DClient *cl)
 {
 	return cl->draw->window;
 }
 
 /* This is easier than implementing a drawwalk. */
 int
-drawclientid(Client *cl)
+drawclientid(DClient *cl)
 {
 	return cl->clientid;
 }
 
 void
-drawclose(Client *cl, int type)
+drawclose(DClient *cl, int type)
 {
 	if(type == FsFCtl)
 		cl->busy = 0;

@@ -50,14 +50,8 @@ xioerror(XDisplay *d)
 	return -1;
 }
 
-int
-xfd(void)
-{
-	return xconn.fd;
-}
-
 /*
- * Connect to the X server.
+ * Connect to the X server and returns the fd or -1 on error
  */
 int
 xinit(void)
@@ -69,7 +63,7 @@ xinit(void)
 	XVisualInfo xvi;
 
 	if(xconn.display != nil) /* already connected */
-		return 0;
+		return xconn.fd;;
 
 	/*
 	 * Connect to X server.
@@ -229,7 +223,7 @@ xinit(void)
 
 	xinitclipboard();
 
-	return 0;
+	return xconn.fd;
 }
 
 void

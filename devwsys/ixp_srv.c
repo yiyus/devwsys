@@ -18,7 +18,7 @@ int
 fsloop(char *address)
 {
 	char buf[512];
-	int fd;
+	int fd, xfd;
 	IxpServer srv = {0};
 
 	if(!address)
@@ -36,9 +36,13 @@ fsloop(char *address)
 	if(fd < 0) {
 		err(1, "ixp_announce");
 	}
+	xfd = xinit();
+	if(xfd < 0) {
+		fatal("unable to connect to X server");
+	}
 
 	ixp_listen(&srv, fd, &p9srv, ixp_serve9conn, NULL);
-	ixp_listen(&srv, xfd(), nil, eventfdready, endconnection);
+	ixp_listen(&srv, xfd, nil, eventfdready, endconnection);
 
 	return ixp_serverloop(&srv);
 }

@@ -55,10 +55,6 @@ main(int argc, char **argv)
 	}
 	drawdebug = 0; // debuglevel;
 
-	/* Connect to X */
-	if(xinit() != 0)
-		fatal("unable to connect to X server");
-
 	memimageinit();
 
 	/* Start the 9p server */

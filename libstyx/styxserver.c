@@ -32,7 +32,6 @@ enum{
 	CRECV = 04,
 };
 
-typedef struct Styxreq Styxreq;
 typedef struct Walkqid Walkqid;
 
 struct Fid

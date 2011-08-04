@@ -63,10 +63,10 @@ const char
  */
 
 /* Devdraw */
-const char* drawopen(Client*, uint);
-Client* drawnewclient(Draw*);
-Window* drawwindow(Client*);
-int drawclientid(Client*);
-IOResponse drawread(Client*, int, char*, int);
-IOResponse drawwrite(Client*, int, char*, int);
-void drawclose(Client*, int);
+const char* drawopen(DClient*, uint);
+DClient* drawnewclient(Draw*);
+Window* drawwindow(DClient*);
+int drawclientid(DClient*);
+IOResponse drawread(DClient*, int, char*, int);
+IOResponse drawwrite(DClient*, int, char*, int);
+void drawclose(DClient*, int);

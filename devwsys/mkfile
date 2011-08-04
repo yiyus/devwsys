@@ -27,6 +27,7 @@ OFILES=\
 	main.$O\
 	mouse.$O\
 	reqbuf.$O\
+	#styxserver.$O\
 	wctl.$O\
 	window.$O\
 	$SYSHOST-$OBJTYPE.$O\
