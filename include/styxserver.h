@@ -16,6 +16,7 @@ typedef uvlong	Path;
 typedef struct Styxserver	Styxserver;
 typedef struct Styxops Styxops;
 typedef struct Styxfile Styxfile;
+typedef struct Styxreq Styxreq;
 typedef struct Client Client;
 typedef struct Fid Fid;
 
@@ -42,7 +43,6 @@ struct Client
 	int		nc;			/* bytes consumed from front of msg by convM2S */
 	char	data[MSGMAX];	/* Tread/Rread data */
 	int		state;
-	Fcall 	*curf;
 	Fid		*fids;
 	char		*uname;	/* uid */
 	char		*aname;	/* attach name */
@@ -89,6 +89,9 @@ Styxfile *styxaddfile(Styxserver *server, Path pqid, Path qid, char *name, int m
 Styxfile *styxadddir(Styxserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
 int styxrmfile(Styxserver *server, Path qid);
 Styxfile *styxfindfile(Styxserver *server, Path qid);
+
+Styxreq *styxhold(void);
+void styxrespond(Styxreq*);
 
 int	styxperm(Styxfile *file, char *uid, int mode);
 long styxreadstr(ulong off, char *buf, ulong n, char *str);

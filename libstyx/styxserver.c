@@ -915,31 +915,6 @@ run(Client *c, Fcall *f)
 	}
 }
 
-Styxreq*
-styxhold(void)
-{
-	Styxreq *r;
-
-	r = styxmalloc(sizeof(Styxreq));
-	r->client = server->curc;
-	r->fcall = *server->curc->curf;
-	server->curc->curf = nil;
-	return f;
-}
-
-void
-styxrespond(Styxreq *r)
-{
-	Client *c;
-	Fcall *f;
-
-	c = r->client;
-	f = r->fcall;
-	c->curf = nil;
-	run(c, f);
-	wr(c, f);
-}
-
 char *
 styxinit(Styxserver *server, Styxops *ops, char *port, int perm, int needfile)
 {
@@ -981,11 +956,23 @@ styxwait(Styxserver *server)
 	return styxwaitmsg(server);
 }
 
+static Styxreq*
+curreq(Styxreq* r)
+{
+	static Styxreq *curr;
+	Styxreq *oldr;
+
+	oldr = curr;
+	curr = r;
+	return oldr;
+}
+
 char *
 styxprocess(Styxserver *server)
 {
 	Client *c;
 	Fcall f;
+	Styxreq r;
 	int s;
 
 	if(styxnewcall(server)){
@@ -1008,10 +995,12 @@ styxprocess(Styxserver *server)
 			}else
 				do{
 					if(rd(c, &f) <= 0)
-						return;
-					c.curf = f;
+						return nil;
+					r.client = c;
+					r.fcall = f;
+					curreq(&r);
 					run(c, &f);
-					if(c.curf != nil)
+					if(curreq(nil) == &r)
 						wr(c, &f);
 				}while(c->state&CNREAD);
 		}
@@ -1019,6 +1008,34 @@ styxprocess(Styxserver *server)
 	}
 	
 	return nil;
+}
+
+Styxreq*
+styxhold(void)
+{
+	Styxreq *r, *curr;
+
+	curr = curreq(nil);
+	if(!curr)
+		return nil;
+	r = styxmalloc(sizeof(Styxreq));
+	r->client = curr->client;
+	r->fcall = curr->fcall;
+	return r;
+}
+
+void
+styxrespond(Styxreq *r)
+{
+	Client *c;
+	Fcall *f;
+
+	c = r->client;
+	f = &r->fcall;
+	curreq(nil);
+	run(c, f);
+	wr(c, f);
+	styxfree(r);
 }
 
 Client*
