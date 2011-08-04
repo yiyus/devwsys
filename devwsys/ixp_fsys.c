@@ -212,7 +212,6 @@ LastItem:
 /* Service Functions */
 void
 fs_attach(Ixp9Req *r) {
-	char *label;
 	IxpFileId *f;
 	Window *w;
 
@@ -228,8 +227,7 @@ fs_attach(Ixp9Req *r) {
 	r->fid->qid.type = f->tab.qtype;
 	r->fid->qid.path = QID(f->tab.type, 0);
 	r->ofcall.rattach.qid = r->fid->qid;
-	label = nil; /* pjw face */
-	if(!(w = newwin(label)) || !drawattach(w, r->ifcall.tattach.aname)) {
+	if(!(w = newwin()) || !drawattach(w, r->ifcall.tattach.aname)) {
 		if(w){
 			assert(w == window[nwindow-1]);
 			free(w);

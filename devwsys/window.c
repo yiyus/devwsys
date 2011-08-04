@@ -8,7 +8,7 @@
 int nwindow = 0;
 
 Window*
-newwin(char *label)
+newwin(void)
 {
 	static int id = 0;
 	Window *w;
@@ -20,7 +20,6 @@ newwin(char *label)
 	window[nwindow-1] = w;
 
 	w->id = ++id;
-	w->label = label;
 	return w;
 }
 

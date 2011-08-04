@@ -30,6 +30,35 @@ enum {
 	FsFRefresh,
 };
 
+enum {
+	/* Dirs */
+	Qroot,
+	Qdraw,
+	Qwsys,
+
+	/* Files */
+	/*	Keyboard */
+	Qcons,
+	Qconsctl,
+	/*	Mouse */
+	Qcursor,
+	Qmouse,
+	Qsnarf,
+	/*	Window */
+	Qkill,
+	Qlabel,
+	Qwctl,
+	Qwinid,
+	Qwinname,
+	/*	draw/ */
+	Qnew,
+	/*	draw/n/ */
+	Qctl,
+	Qdata,
+	Qcolormap,
+	Qrefresh,
+};
+
 /* Read response */
 typedef struct IOResponse IOResponse;
 struct IOResponse
@@ -56,6 +85,12 @@ const char
 #define incref(r)	((*r) = ++(*r))
 #define decref(r)	((*r) = --(*r))
 #define iswindow(t) ((t) == FsRoot || (t) > FsDDrawn && (t) < FsFCtl)
+
+/* styxfsys */
+//void fsysinit(Styxserver*);
+
+//Styxops ops;
+//Styxserver *server;
 
 /*
  * TODO: These functions should be standard device

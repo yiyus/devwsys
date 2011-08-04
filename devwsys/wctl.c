@@ -288,6 +288,8 @@ wctlmesg(Window *w, char *a, int n, char *err)
 		w->pid = pid;
 		w->screenr = rect;
 		w->visible = !hideit;
+		if(arg)
+			w->label = strdup(arg);
 		return 1;
 	case Set:
 		w->pid = pid;

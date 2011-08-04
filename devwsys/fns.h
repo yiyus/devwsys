@@ -20,7 +20,7 @@ void addreq(Reqbuf*, void*);
 void* nextreq(Reqbuf *reqs);
 
 /* Window */
-Window* newwin(char*);
+Window* newwin(void);
 void deletewin(Window*);
 void setlabel(Window*, char*);
 
