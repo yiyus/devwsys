@@ -25,7 +25,7 @@ OFILES=\
 	main.$O\
 	mouse.$O\
 	#ninepfsys.$O\
-	#ninepserver.$O\
+	ninepserver.$O\
 	reqbuf.$O\
 	wctl.$O\
 	window.$O\
