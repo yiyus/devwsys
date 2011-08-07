@@ -1,9 +1,9 @@
 <../mkconfig
 
-LIB=libstyx.a
+LIB=libninep.a
 
 OFILES=\
-	styxserver.$O\
+	ninepserver.$O\
 	$TARGMODEL.$O\
 
 HFILES=\

@@ -4,6 +4,8 @@
 #include <memdraw.h>
 #include <memlayer.h>
 #include <cursor.h>
+#include <ninep.h>
+#include <ninepserver.h>
 #include "dat.h"
 #include "fns.h"
 #include "fsys.h"

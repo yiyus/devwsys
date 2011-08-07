@@ -63,8 +63,11 @@ main(int argc, char **argv)
 	if(!xfd)
 		fatal("unable to connect to X server");
 
-	/* Start the 9p server */
-	return fsloop(address, xfd);
+	/* 9p server loop */
+	fsloop(address, xfd);
+
+	xclose();
+	return 0;
 }
 
 void

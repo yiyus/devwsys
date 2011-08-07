@@ -20,18 +20,16 @@ XFILES=\
 OFILES=\
 	alloc.$O\
 	devdraw.$O\
-	ixp_fsys.$O\
-	ixp_srv.$O\
 	keyboard.$O\
 	latin1.$O\
 	main.$O\
 	mouse.$O\
+	#ninepfsys.$O\
+	#ninepserver.$O\
 	reqbuf.$O\
-	#styxserver.$O\
 	wctl.$O\
 	window.$O\
 	$SYSHOST-$OBJTYPE.$O\
-	$LIBIXP\
 	${XFILES:%=x11/%}\
 
 XHFILES=\
@@ -46,7 +44,7 @@ HFILES=\
 	latin1.h\
 	${XHFILES:%=x11/%}\
 
-LIBS=	memlayer memdraw draw kern 9
+LIBS=	ninep memlayer memdraw draw kern 9
 
 BIN=$ROOT/$OBJDIR/bin
 

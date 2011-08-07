@@ -12,7 +12,7 @@ int styxnewmsg(Styxserver*, int);
 void styxnewclient(Styxserver*, int);
 void styxfreeclient(Styxserver*, int);
 
-int
+void
 fsloop(char *address, int xfd)
 {
 	int xfd;
@@ -30,6 +30,5 @@ fsloop(char *address, int xfd)
 		}
 		styxprocess(&s);
 	}
-	xclose();
 	return 0;
 }

@@ -1,12 +1,12 @@
 #include <lib9.h>
-#include <styx.h>
-#include "styxserver.h"
-#include "styxaux.h"
+#include "ninep.h"
+#include "ninepserver.h"
+#include "ninepaux.h"
 
 #define MAXSTAT	512
 #define EMSGLEN			256		/* %r */
 
-#define TABSZ	32	/* power of 2 */
+#define HASHSZ	32	/* power of 2 */
 
 static	unsigned long		boottime;
 static	char*	eve = "inferno";
@@ -25,7 +25,8 @@ char Enotdir[] =		"not a directory";
 char	Eopen[] =			"already open";
 char	Ebadfid[] =		"bad fid";
 
-/* client state */
+#define OP(x, arg...) (ops && ops->x && (f->ename = ops->x(arg)) == nil)
+
 enum{
 	CDISC = 01,
 	CNREAD = 02,
@@ -46,12 +47,6 @@ struct Fid
 	Qid		qid;
 };
 
-struct Styxreq
-{
-	Client *client;
-	Fcall fcall;
-};
-
 struct Walkqid
 {
 	Fid	*clone;
@@ -59,13 +54,14 @@ struct Walkqid
 	Qid	qid[1];
 };
 
-#define ASSERT(A,B) styxassert((int)A,B)
+#define ASSERT(A,B) ninepassert((int)A,B)
 
-static int hash(Path);
+static int hash(int);
 static void deletefids(Client *);
 
-static void
-styxfatal(char *fmt, ...)
+static
+void
+ninepfatal(char *fmt, ...)
 {
 	char buf[1024], *out;
 	va_list arg;
@@ -74,51 +70,54 @@ styxfatal(char *fmt, ...)
 	out = vseprint(out, buf+sizeof(buf), fmt, arg);
 	va_end(arg);
 	write(2, buf, out-buf);
-	styxexit(1);
+	ninepexit(1);
 }
 
-static void
-styxassert(int true, char *reason)
+static
+void
+ninepassert(int true, char *reason)
 {
 	if(!true)
-		styxfatal("assertion failed: %s\n", reason);
+		ninepfatal("assertion failed: %s\n", reason);
 }
 
 void *
-styxmalloc(int bytes)
+ninepmalloc(int bytes)
 {
 	char *m = malloc(bytes);
 	if(m == nil)
-		styxfatal(Enomem);
+		ninepfatal(Enomem);
 	memset(m, 0, bytes);
 	return m;
 }
 
 void
-styxfree(void *p)
+ninepfree(void *p)
 {
 	free(p);
 }
 
 void
-styxdebug()
+ninepdebug()
 {
 	Debug = 1;
 }
 
-static Client *
-newclient(Styxserver *server, int fd)
+static
+Client *
+newclient(Ninepserver *server, int fd)
 {
-	Client *c = (Client *)styxmalloc(sizeof(Client));
+	Client *c = (Client *)ninepmalloc(sizeof(Client));
 
 	if(Debug)
-		fprint(2, "New client at %lux\n", (ulong)c);
+		fprint(2, "New client at fd %d\n", fd);
 	c->server = server;
 	c->fd = fd;
 	c->nread = 0;
 	c->nc = 0;
 	c->state = 0;
 	c->fids = nil;
+	c->pending = (Pending**)ninepmalloc(HASHSZ*sizeof(Pending*));
 	c->uname = strdup(eve);
 	c->aname = strdup("");
 	c->next = server->clients;
@@ -128,37 +127,39 @@ newclient(Styxserver *server, int fd)
 	return c;
 }
 
-static void
+static
+void
 freeclient(Client *c)
 {
 	Client **p;
-	Styxserver *server;
+	Ninepserver *server;
 
 	if(Debug)
-		fprint(2, "Freeing client at %lux\n", (ulong)c);
+		fprint(2, "Freeing client at fd %d\n", c->fd);
 	server = c->server;
 	if(server->ops->freeclient)
 		server->ops->freeclient(c);
 	for(p = &server->clients; *p; p = &(*p)->next)
 		if(*p == c){
-			styxclosesocket(c->fd);
+			ninepclosesocket(c->fd);
 			*p = c->next;
 			deletefids(c);
 			free(c->uname);
 			free(c->aname);
-			styxfree(c);
+			ninepfree(c);
 			return;
 		}
 }
 
-static int
+static
+int
 nbread(Client *c, int nr)
 {
 	int nb;
 
 	if(c->state&CDISC)
 		return -1;
-	nb = styxrecv(c->server, c->fd, c->msg + c->nread, nr, 0);
+	nb = nineprecv(c->server, c->fd, c->msg + c->nread, nr, 0);
 	if(nb <= 0){
 		c->nread = 0;
 		c->state |= CDISC;
@@ -168,7 +169,8 @@ nbread(Client *c, int nr)
 	return 0;
 }
 
-static int
+static
+int
 rd(Client *c, Fcall *r)
 {
 	if(c->nc > 0){	/* last convM2S consumed nc bytes */
@@ -207,7 +209,8 @@ rd(Client *c, Fcall *r)
 	return 1;
 }
 
-static int
+static
+int
 wr(Client *c, Fcall *r)
 {
 	int n;
@@ -219,18 +222,17 @@ wr(Client *c, Fcall *r)
 		return -1;
 	}
 	/* fprint(2, "wr: %F\n", r); */
-	return styxsend(c->server, c->fd, buf, n, 0);
+	return ninepsend(c->server, c->fd, buf, n, 0);
 }
 
-static void
-sremove(Styxserver *server, Styxfile *f)
+static
+void
+sremove(Ninepserver *server, Ninepfile *f)
 {
-	Styxfile *s, *next, **p;
+	Ninepfile *s, *next, **p;
 
 	if(f == nil)
 		return;
-	if(Debug)
-		fprint(2, "Remove file %s Qid=%llx\n", f->d.name, f->d.qid.path);
 	if(f->d.qid.type&QTDIR)
 		for(s = f->child; s != nil; s = next){
 			next = s->sibling;
@@ -246,18 +248,18 @@ sremove(Styxserver *server, Styxfile *f)
 			*p = f->sibling;
 			break;
 		}
-	styxfree(f->d.name);
-	styxfree(f->d.uid);
-	styxfree(f->d.gid);
-	styxfree(f);
+	ninepfree(f->d.name);
+	ninepfree(f->d.uid);
+	ninepfree(f->d.gid);
+	ninepfree(f);
 }
 
 int
-styxrmfile(Styxserver *server, Path qid)
+nineprmfile(Ninepserver *server, Path qid)
 {
-	Styxfile *f;
+	Ninepfile *f;
 
-	f = styxfindfile(server, qid);
+	f = ninepfindfile(server, qid);
 	if(f != nil){
 		if(f->parent == nil)
 			return -1;
@@ -267,52 +269,58 @@ styxrmfile(Styxserver *server, Path qid)
 	return -1;
 }
 
-static void
-incref(Styxfile *f)
+static
+void
+incref(Ninepfile *f)
 {
 	if(f != nil)
 		f->ref++;
 }
 
-static void
-decref(Styxfile *f)
+static
+void
+decref(Ninepfile *f)
 {
 	if(f != nil)
 		--f->ref;
 }
 
-static void
+static
+void
 increff(Fid *f)
 {
-	incref(styxfindfile(f->client->server, f->qid.path));
+	incref(ninepfindfile(f->client->server, f->qid.path));
 }
 
-static void
+static
+void
 decreff(Fid *f)
 {
-	decref(styxfindfile(f->client->server, f->qid.path));
+	decref(ninepfindfile(f->client->server, f->qid.path));
 }
 
-static void
+static
+void
 incopen(Fid *f)
 {
-	Styxfile *file;
+	Ninepfile *file;
 
-	if(f->open && (file = styxfindfile(f->client->server, f->qid.path)) != nil)
+	if(f->open && (file = ninepfindfile(f->client->server, f->qid.path)) != nil)
 		file->open++;
 }
 
-static void
+static
+void
 decopen(Fid *f)
 {
-	Styxfile *file;
+	Ninepfile *file;
 
-	if(f->open && (file = styxfindfile(f->client->server, f->qid.path)) != nil)
+	if(f->open && (file = ninepfindfile(f->client->server, f->qid.path)) != nil)
 		file->open--;
 }
 
 int
-styxperm(Styxfile *f, char *uid, int mode)
+ninepperm(Ninepfile *f, char *uid, int mode)
 {
 	int m, p;
 
@@ -341,16 +349,17 @@ styxperm(Styxfile *f, char *uid, int mode)
 	return 0;
 }
 
-static int
-hash(Path path)
+static
+int
+hash(int n)
 {
-	return path&(TABSZ-1);
+	return n&(HASHSZ-1);
 }
 
-Styxfile *
-styxfindfile(Styxserver *server, Path path)
+Ninepfile *
+ninepfindfile(Ninepserver *server, Path path)
 {
-	Styxfile *f;
+	Ninepfile *f;
 
 	for(f = server->ftab[hash(path)]; f != nil; f = f->next){
 		if(f->d.qid.path == path)
@@ -359,7 +368,8 @@ styxfindfile(Styxserver *server, Path path)
 	return nil;
 }
 
-static Fid *
+static
+Fid *
 findfid(Client *c, short fid)
 {
 	Fid *f;
@@ -368,7 +378,8 @@ findfid(Client *c, short fid)
 	return f;
 }
 
-static void
+static
+void
 deletefid(Client *c, Fid *d)
 {
 	/* TODO: end any outstanding reads on this fid */
@@ -379,12 +390,13 @@ deletefid(Client *c, Fid *d)
 			decreff(d);
 			decopen(d);
 			*f = d->next;
-			styxfree(d);
+			ninepfree(d);
 			return;
 		}
 }
 
-static void
+static
+void
 deletefids(Client *c)
 {
 	Fid *f, *g;
@@ -393,7 +405,7 @@ deletefids(Client *c)
 		decreff(f);
 		decopen(f);
 		g = f->next;
-		styxfree(f);
+		ninepfree(f);
 	}
 }
 
@@ -401,7 +413,7 @@ Fid *
 newfid(Client *c, short fid, Qid qid){
 	Fid *f;
 
-	f = styxmalloc(sizeof(Fid));
+	f = ninepmalloc(sizeof(Fid));
 	ASSERT(f, "newfid");
 	f->client = c;
 	f->fid = fid;
@@ -414,19 +426,14 @@ newfid(Client *c, short fid, Qid qid){
 	return f;
 }
 
-static void
-flushtag(int oldtag)
-{
-	USED(oldtag);
-}
-
 int
 eqqid(Qid a, Qid b)
 {
 	return a.path == b.path && a.vers == b.vers;
 }
 
-static Fid *
+static
+Fid *
 fidclone(Fid *old, short fid)
 {
 	Fid *new;
@@ -435,22 +442,23 @@ fidclone(Fid *old, short fid)
 	return new;
 }
 
-static Walkqid*
-devwalk(Client *c, Styxfile *file, Fid *fp, Fid *nfp, char **name, int nname, char **err)
+static
+Walkqid*
+devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, char **err)
 {
-	Styxserver *server;
+	Ninepserver *server;
 	long j;
 	Walkqid *wq;
 	char *n;
-	Styxfile *p, *f;
-	Styxops *ops;
+	Ninepfile *p, *f;
+	Ninepops *ops;
 	Qid qid;
 
 	*err = nil;
 	server = c->server;
 	ops = server->ops;
 
-	wq = styxmalloc(sizeof(Walkqid)+(nname-1)*sizeof(Qid));
+	wq = ninepmalloc(sizeof(Walkqid)+(nname-1)*sizeof(Qid));
 	wq->nqid = 0;
 
 	p = file;
@@ -458,11 +466,11 @@ devwalk(Client *c, Styxfile *file, Fid *fp, Fid *nfp, char **name, int nname, ch
 	for(j = 0; j < nname; j++){
 		if(!(qid.type&QTDIR)){
 			if(j == 0)
-				styxfatal("devwalk error");
+				ninepfatal("devwalk error");
 			*err = Enotdir;
 			goto Done;
 		}
-		if(p != nil && !styxperm(p, c->uname, OEXEC)){
+		if(p != nil && !ninepperm(p, c->uname, OEXEC)){
 			*err = Eperm;
 			goto Done;
 		}
@@ -491,7 +499,7 @@ devwalk(Client *c, Styxfile *file, Fid *fp, Fid *nfp, char **name, int nname, ch
 				decreff(nfp);
 				nfp->qid = qid;
 				increff(nfp);
-				p = styxfindfile(server, qid.path);
+				p = ninepfindfile(server, qid.path);
 				if(server->needfile && p == nil)
 					goto Done;
 				qid = p != nil ? p->d.qid : nfp->qid;
@@ -518,17 +526,18 @@ devwalk(Client *c, Styxfile *file, Fid *fp, Fid *nfp, char **name, int nname, ch
 	}
 Done:
 	if(*err != nil){
-		styxfree(wq);
+		ninepfree(wq);
 		return nil;
 	}
 	return wq;
 }
 
-static long
-devdirread(Fid *fp, Styxfile *file, char *d, long n)
+static
+long
+devdirread(Fid *fp, Ninepfile *file, char *d, long n)
 {
 	long dsz, m;
-	Styxfile *f;
+	Ninepfile *f;
 	int i;
 
 	struct{
@@ -555,7 +564,8 @@ devdirread(Fid *fp, Styxfile *file, char *d, long n)
 	return m;
 }
 
-static char*
+static
+char*
 nilconv(char *s)
 {
 	if(s != nil && s[0] == '\0')
@@ -563,16 +573,17 @@ nilconv(char *s)
 	return s;
 }
 
-static Styxfile *
-newfile(Styxserver *server, Styxfile *parent, int isdir, Path qid, char *name, int mode, char *owner)
+static
+Ninepfile *
+newfile(Ninepserver *server, Ninepfile *parent, int isdir, Path qid, char *name, int mode, char *owner)
 {
-	Styxfile *file;
+	Ninepfile *file;
 	Dir d;
 	int h;
 
 	if(qid == -1)
 		qid = server->qidgen++;
-	file = styxfindfile(server, qid);
+	file = ninepfindfile(server, qid);
 	if(file != nil)
 		return nil;
 	if(parent != nil){
@@ -580,7 +591,7 @@ newfile(Styxserver *server, Styxfile *parent, int isdir, Path qid, char *name, i
 			if(strcmp(name, file->d.name) == 0)
 				return nil;
 	}
-	file = (Styxfile *)styxmalloc(sizeof(Styxfile));
+	file = (Ninepfile *)ninepmalloc(sizeof(Ninepfile));
 	file->parent = parent;
 	file->child = nil;
 	h = hash(qid);
@@ -618,44 +629,130 @@ newfile(Styxserver *server, Styxfile *parent, int isdir, Path qid, char *name, i
 	file->d = d;
 	file->ref = 0;
 	file->open = 0;
-	if(Debug)
-		fprint(2, "New file %s Qid=%llx\n", name, qid);
 	return file;
 }
 
-static void
-run(Client *c, Fcall *f)
+Pending*
+ninepreplylater(Request *req)
+{
+	int h;
+	Pending *p;
+	Client *c;
+
+	c = req->c;
+	p = ninepmalloc(sizeof(Pending));
+	h = hash(req->f.tag);
+	p->req = req;
+	p->flushed = 0;
+	p->next = c->pending[h];
+	c->pending[h] = p;
+	c->server->curc = nil;
+	return p;
+}
+
+static
+Pending*
+findpending(Request *req)
+{
+	int h;
+	Pending *p;
+
+	h = hash(req->f.tag);
+	for(p = req->c->pending[h]; p != nil; p = p->next)
+		if(p->req == req)
+			return p;
+	return nil;
+}
+
+static
+void
+deletepending(Pending *pend)
+{
+	int h;
+	Pending *p;
+	Client *c;
+
+	h = hash(pend->req->f.tag);
+	c = pend->req->c;
+	p = c->pending[h];
+	if(p == pend){
+		c->pending[h] = pend->next;
+		return;
+	}
+	for(; p != nil; p = p->next)
+		if(p->next == pend){
+			p->next = pend->next;
+			break;
+		}
+	ninepfree(pend);
+}
+
+void
+ninepcompleted(Pending *pend)
+{
+	if(!pend->flushed){
+		ninepreply(pend->req, nil);
+		pend->flushed = 1;
+		if(pend->flush != nil){
+			ninepreply(pend->flush, nil);
+			pend->flush = nil;
+		}
+	}
+	deletepending(pend);
+}
+
+static
+void
+flushtag(Request *r)
+{
+	int tag, oldtag;
+	Pending *p;
+
+	tag = r->f.tag;
+	oldtag = r->f.oldtag;
+	if(oldtag == tag || (p = findpending(r)) == nil || p->flushed){
+		/* `synchronous, so easy' */
+		ninepreply(r, nil);
+		return;
+	}
+	p->flush = r;
+}
+
+void
+ninepdefault(Request *req)
 {
 	Fid *fp, *nfp;
 	int i, open, mode;
 	char ebuf[EMSGLEN];
 	Walkqid *wq;
-	Styxfile *file;
+	Ninepfile *file;
 	Dir dir;
 	Qid qid;
-	Styxops *ops;
 	char strs[128];
+	Client *c;
+	Fcall *f;
+	Ninepops *ops;
 
+	c = req->c;
+	f = &req->f;
+	ops = c->server->ops;
 	ebuf[0] = 0;
 	if(f->type == Tflush){
-		flushtag(f->oldtag);
+		flushtag(req);
 		f->type = Rflush;
 		return;
 	}
-	ops = c->server->ops;
 	file = nil;
 	fp = findfid(c, f->fid);
 	if(f->type != Tversion && f->type != Tauth && f->type != Tattach){
 		if(fp == nil){
-			f->type = Rerror;
-			f->ename = Enofid;
+			ninepreply(req, Enofid);
 			return;
 		}
 		else{
-			file = styxfindfile(c->server, fp->qid.path);
+			file = ninepfindfile(c->server, fp->qid.path);
 			if(c->server->needfile && file == nil){
-				f->type = Rerror;
-				f->ename = Enonexist;
+				ninepreply(req, Enonexist);
 				return;
 			}
 		}
@@ -663,12 +760,6 @@ run(Client *c, Fcall *f)
 	/* if(fp == nil) fprint(2, "fid not found for %d\n", f->fid); */
 	switch(f->type){
 	case	Twalk:
-		if(Debug){
-			fprint(2, "Twalk %d %d", f->fid, f->newfid);
-			for(i = 0; i < f->nwname; i++)
-				fprint(2, " %s", f->wname[i]);
-			fprint(2, "\n");
-		}
 		nfp = findfid(c, f->newfid);
 		f->type = Rerror;
 		if(nfp){
@@ -677,7 +768,6 @@ run(Client *c, Fcall *f)
 		}
 		if(nfp){
 			f->ename = "fid in use";
-			if(Debug) fprint(2, "walk: %s\n", f->ename);
 			break;
 		}else if(fp->open){
 			f->ename = "can't clone";
@@ -700,20 +790,18 @@ run(Client *c, Fcall *f)
 			f->nwqid = wq->nqid;
 			for(i = 0; i < wq->nqid; i++)
 				f->wqid[i] = wq->qid[i];
-			styxfree(wq);
+			ninepfree(wq);
 		}
 		break;
 	case	Topen:
-		if(Debug)
-			fprint(2, "Topen %d\n", f->fid);
 		f->ename = nil;
 		if(fp->open)
 			f->ename = Eopen;
 		else if((fp->qid.type&QTDIR) && (f->mode&(OWRITE|OTRUNC|ORCLOSE)))
 			f->ename = Eperm;
-		else if(file != nil && !styxperm(file, c->uname, f->mode))
+		else if(file != nil && !ninepperm(file, c->uname, f->mode))
 			f->ename = Eperm;
-		else if((f->mode&ORCLOSE) && file != nil && file->parent != nil && !styxperm(file->parent, c->uname, OWRITE))
+		else if((f->mode&ORCLOSE) && file != nil && file->parent != nil && !ninepperm(file->parent, c->uname, OWRITE))
 			f->ename = Eperm;
 		if(f->ename != nil){
 			f->type = Rerror;
@@ -721,7 +809,7 @@ run(Client *c, Fcall *f)
 		}
 		f->ename = Enonexist;
 		decreff(fp);
-		if(ops->open == nil || (f->ename = ops->open(&fp->qid, f->mode)) == nil){
+		if(ops == nil || ops->open == nil || (f->ename = ops->open(&fp->qid, f->mode)) == nil){
 			f->type = Ropen;
 			f->qid = fp->qid;
 			fp->mode = f->mode;
@@ -734,8 +822,6 @@ run(Client *c, Fcall *f)
 		increff(fp);
 		break;
 	case	Tcreate:
-		if(Debug)
-			fprint(2, "Tcreate %d %s\n", f->fid, f->name);
 		f->ename = nil;
 		if(fp->open)
 			f->ename = Eopen;
@@ -743,7 +829,7 @@ run(Client *c, Fcall *f)
 			f->ename = Enotdir;
 		else if((f->perm&DMDIR) && (f->mode&(OWRITE|OTRUNC|ORCLOSE)))
 			f->ename = Eperm;
-		else if(file != nil && !styxperm(file, c->uname, OWRITE))
+		else if(file != nil && !ninepperm(file, c->uname, OWRITE))
 			f->ename = Eperm;
 		if(f->ename != nil){
 			f->type = Rerror;
@@ -757,7 +843,7 @@ run(Client *c, Fcall *f)
 			else
 				f->perm = (f->perm&(~0777|0111)) | (file->d.mode&f->perm&0666);
 		}
-		if(ops->create && (f->ename = ops->create(&fp->qid, f->name, f->perm, f->mode)) == nil){
+		if(OP(create, &fp->qid, f->name, f->perm, f->mode)){
 			f->type = Rcreate;
 			f->qid = fp->qid;
 			fp->mode = f->mode;
@@ -770,8 +856,6 @@ run(Client *c, Fcall *f)
 		increff(fp);
 		break;
 	case	Tread:
-		if(Debug)
-			fprint(2, "Tread %d\n", f->fid);
 		if(!fp->open){
 			f->type = Rerror;
 			f->ename = Ebadfid;
@@ -781,7 +865,7 @@ run(Client *c, Fcall *f)
 			f->type = Rread;
 			if(file == nil){
 				f->ename = Eperm;
-				if(ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil){
+				if(OP(read, fp->qid, c->data, (ulong*)(&f->count), fp->dri)){
 					f->data = c->data;
 				}
 				else
@@ -794,15 +878,13 @@ run(Client *c, Fcall *f)
 		}else{
 			f->ename = Eperm;
 			f->type = Rerror;
-			if(ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil){
+			if(OP(read, fp->qid, c->data, (ulong*)(&f->count), f->offset)){
 				f->type = Rread;
 				f->data = c->data;			
 			}
 		}
 		break;
 	case	Twrite:
-		if(Debug)
-			fprint(2, "Twrite %d\n", f->fid);
 		if(!fp->open){
 			f->type = Rerror;
 			f->ename = Ebadfid;
@@ -810,82 +892,68 @@ run(Client *c, Fcall *f)
 		}
 		f->ename = Eperm;
 		f->type = Rerror;
-		if(ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil){
+		if(OP(write,fp->qid, f->data, (ulong*)(&f->count), f->offset)){
 			f->type = Rwrite;
 		}
 		break;
 	case	Tclunk:
-		if(Debug)
-			fprint(2, "Tclunk %d\n", f->fid);
 		open = fp->open;
 		mode = fp->mode;
 		qid = fp->qid;
 		deletefid(c, fp);
 		f->type = Rclunk;
-		if(open && ops->close && (f->ename = ops->close(qid, mode)) != nil)
+		if(open && OP(close,qid, mode))
 			f->type = Rerror;
 		break;
 	case	Tremove:
-		if(Debug)
-			fprint(2, "Tremove %d\n", f->fid);
-		if(file != nil && file->parent != nil && !styxperm(file->parent, c->uname, OWRITE)){
+		if(file != nil && file->parent != nil && !ninepperm(file->parent, c->uname, OWRITE)){
 			f->type = Rerror;
 			f->ename = Eperm;
 			deletefid(c, fp);
 			break;
 		}
 		f->ename = Eperm;
-		if(ops->remove && (f->ename = ops->remove(fp->qid)) == nil) 
+		if(OP(remove, fp->qid))
 			f->type = Rremove;
 		else
 			f->type = Rerror;
 		deletefid(c, fp);
 		break;
 	case	Tstat:
-		if(Debug)
-			fprint(2, "Tstat %d qid=%llx\n", f->fid, fp->qid.path);
-		f->stat = styxmalloc(MAXSTAT);
+		f->stat = ninepmalloc(MAXSTAT);
 		f->ename = "stat error";
 		if(ops->stat == nil && file != nil){
 			f->type = Rstat;
 			f->nstat = convD2M(&file->d, f->stat, MAXSTAT);
 		}
-		else if(ops->stat && (f->ename = ops->stat(fp->qid, &dir)) == nil){
+		else if(OP(stat, fp->qid, &dir)){
 			f->type = Rstat;
 			f->nstat = convD2M(&dir, f->stat, MAXSTAT);
 		}
 		else
 			f->type = Rerror;
-		styxfree(f->stat);
+		ninepfree(f->stat);
 		break;
 	case	Twstat:
-		if(Debug)
-			fprint(2, "Twstat %d\n", f->fid);
 		f->ename = Eperm;
 		convM2D(f->stat, f->nstat, &dir, strs);
 		dir.name = nilconv(dir.name);
 		dir.uid = nilconv(dir.uid);
 		dir.gid = nilconv(dir.gid);
 		dir.muid = nilconv(dir.muid);
-		if(ops->wstat && (f->ename = ops->wstat(fp->qid, &dir)) == nil)
+		if(OP(wstat, fp->qid, &dir))
 			f->type = Rwstat;
 		else
 			f->type = Rerror;
 		break;
 	case	Tversion:
-		if(Debug)
-			fprint(2, "Tversion\n");
 		f->type = Rversion;
 		f->tag = NOTAG;
 		break;
 	case Tauth:
-		if(Debug)
-			fprint(2, "Tauth\n");
 		f->type = Rauth;
 		break;
 	case	Tattach:
-		if(Debug)
-			fprint(2, "Tattach %d %s %s\n", f->fid, f->uname[0] ? f->uname : c->uname, f->aname[0]? f->aname: c->aname);
 		if(fp){
 			f->type = Rerror;
 			f->ename = "fid in use";
@@ -907,160 +975,170 @@ run(Client *c, Fcall *f)
 			f->type = Rattach;
 			f->fid = fp->fid;
 			f->qid = q;
-			if(ops->attach && (f->ename = ops->attach(c->uname, c->aname)) != nil)
+			if(OP(attach, c->uname, c->aname))
 				f->type = Rerror;
 		}
 		break;
 	}
+	if(c->server->curc == c)
+		ninepreply(req, nil);
 }
 
 char *
-styxinit(Styxserver *server, Styxops *ops, char *port, int perm, int needfile)
+ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile)
 {
-	int i;
-
-	if(Debug)
-		fprint(2, "Initialising Styx server on port %s\n", port);
+	fmtinstall('F', fcallfmt);
 	if(perm == -1)
 		perm = 0555;
 	server->ops = ops;
 	server->clients = nil;
 	server->root = nil;
-	server->ftab = (Styxfile**)malloc(TABSZ*sizeof(Styxfile*));
-	for(i = 0; i < TABSZ; i++)
-		server->ftab[i] = nil;
+	server->ftab = (Ninepfile**)ninepmalloc(HASHSZ*sizeof(Ninepfile*));
 	server->qidgen = Qroot+1;
-	if(styxinitsocket() < 0)
-		return "styxinitsocket failed";
-	server->connfd = styxannounce(server, port);
+	if(ninepinitsocket() < 0)
+		return "ninepinitsocket failed";
+	server->connfd = ninepannounce(server, address);
 	if(server->connfd < 0)
 		return "can't announce on network port";
-	styxinitwait(server);
+	ninepinitwait(server);
 	server->root = newfile(server, nil, 1, Qroot, "/", perm|DMDIR, eve);
 	server->needfile = needfile;
 	return nil;
 }
 
 char*
-styxend(Styxserver *server)
+ninepend(Ninepserver *server)
 {
 	USED(server);
-	styxendsocket();
+	ninependsocket();
 	return nil;
 }
 
 char *
-styxwait(Styxserver *server)
+ninepwait(Ninepserver *server)
 {
-	return styxwaitmsg(server);
-}
-
-static Styxreq*
-curreq(Styxreq* r)
-{
-	static Styxreq *curr;
-	Styxreq *oldr;
-
-	oldr = curr;
-	curr = r;
-	return oldr;
-}
-
-char *
-styxprocess(Styxserver *server)
-{
-	Client *c;
-	Fcall f;
-	Styxreq r;
-	int s;
-
-	if(styxnewcall(server)){
-		s = styxaccept(server);
-		if(s >= 0){
-			newclient(server, s);
-			styxnewclient(server, s);
-		}
-	}
-	for(c = server->clients; c != nil; ){
-		Client *next = c->next;
-
-		server->curc = c;
-		if(c->fd >= 0 && styxnewmsg(server, c->fd))
-			c->state |= CRECV;
-		if(c->state&(CNREAD|CRECV)){
-			if(c->state&CDISC){
-				styxfreeclient(server, c->fd);
-				freeclient(c);
-			}else
-				do{
-					if(rd(c, &f) <= 0)
-						return nil;
-					r.client = c;
-					r.fcall = f;
-					curreq(&r);
-					run(c, &f);
-					if(curreq(nil) == &r)
-						wr(c, &f);
-				}while(c->state&CNREAD);
-		}
-		c = next;
-	}
-	
-	return nil;
-}
-
-Styxreq*
-styxhold(void)
-{
-	Styxreq *r, *curr;
-
-	curr = curreq(nil);
-	if(!curr)
-		return nil;
-	r = styxmalloc(sizeof(Styxreq));
-	r->client = curr->client;
-	r->fcall = curr->fcall;
-	return r;
+	return ninepwaitmsg(server);
 }
 
 void
-styxrespond(Styxreq *r)
+nineplisten(Ninepserver *server, int fd)
+{
+	ninepnewclient(server, fd);
+}
+
+int
+ninepready(Ninepserver *server, int fd)
+{
+	return ninepnewmsg(server, fd);
+}
+
+char *
+ninepprocess(Ninepserver *server)
+{
+	Request *r;
+
+	r = nineprequest(server);
+	for(; r != nil; r = nineprequest(server))
+		ninepdefault(r);
+	return nil;
+}
+
+Request*
+newrequest(Client *c, Fcall *f)
+{
+	Request *r;
+
+	r = ninepmalloc(sizeof(Request));
+	r->c = c;
+	r->f = *f;
+	return r;
+}
+
+Request*
+nineprequest(Ninepserver *server)
+{
+	Client *c;
+	static Client *next;
+	Fcall f;
+	Request *r;
+	int s;
+
+	if(ninepnewcall(server)){
+		s = ninepaccept(server);
+		if(s >= 0){
+			newclient(server, s);
+			ninepnewclient(server, s);
+		}
+	}
+	if(next == nil)
+		next = server->clients;
+	for(c = next; c != nil; c = next){
+		next = c->next;
+		if(c->fd >= 0 && ninepnewmsg(server, c->fd))
+			c->state |= CRECV;
+		if(c->state&(CNREAD|CRECV)){
+			if(c->state&CDISC){
+				ninepfreeclient(server, c->fd);
+				freeclient(c);
+				continue;
+			}
+			if(rd(c, &f) <= 0)
+				return nil;
+			server->curc = c;
+			r = newrequest(c, &f);
+			if(Debug)
+				fprint(2, "<-%d- %F\n", c->fd, &f);
+			return r;
+		}
+	}
+	return nil;
+}
+
+void
+ninepreply(Request *req, char *err)
 {
 	Client *c;
 	Fcall *f;
 
-	c = r->client;
-	f = &r->fcall;
-	curreq(nil);
-	run(c, f);
+	c = req->c;
+	f = &req->f;
+	if(err){
+		f->type = Rerror;
+		f->ename = err;
+	}
+	else if(f->type % 2 == 0)
+		f->type++;
+	if(Debug)
+		fprint(2, "-%d-> %F\n", c->fd, f);
 	wr(c, f);
-	styxfree(r);
+	c->server->curc = nil;
+	ninepfree(req);
 }
 
 Client*
-styxclient(Styxserver *server)
+ninepclient(Ninepserver *server)
 {
 	return server->curc;
 }
 
-Styxfile*
-styxaddfile(Styxserver *server, Path pqid, Path qid, char *name, int mode, char *owner)
+Ninepfile*
+ninepaddfile(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner)
 {
-	Styxfile *f, *parent;
+	Ninepfile *f, *parent;
 
-	parent = styxfindfile(server, pqid);
+	parent = ninepfindfile(server, pqid);
 	if(parent == nil || (parent->d.qid.type&QTDIR) == 0)
 		return nil;
 	f = newfile(server, parent, 0, qid, name, mode, owner);
 	return f;
 }
 
-Styxfile*
-styxadddir(Styxserver *server, Path pqid, Path qid, char *name, int mode, char *owner)
+Ninepfile*
+ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner)
 {
-	Styxfile *f, *parent;
+	Ninepfile *f, *parent;
 
-	parent = styxfindfile(server, pqid);
+	parent = ninepfindfile(server, pqid);
 	if(parent == nil || (parent->d.qid.type&QTDIR) == 0)
 		return nil;
 	f = newfile(server, parent, 1, qid, name, mode|DMDIR, owner);
@@ -1068,7 +1146,7 @@ styxadddir(Styxserver *server, Path pqid, Path qid, char *name, int mode, char *
 }
 
 long
-styxreadstr(ulong off, char *buf, ulong n, char *str)
+ninepreadstr(ulong off, char *buf, ulong n, char *str)
 {
 	int size;
 
@@ -1082,7 +1160,7 @@ styxreadstr(ulong off, char *buf, ulong n, char *str)
 }
 
 Qid
-styxqid(int path, int isdir)
+ninepqid(int path, int isdir)
 {
 	Qid q;
 
@@ -1096,7 +1174,7 @@ styxqid(int path, int isdir)
 }
 
 void
-styxsetowner(char *name)
+ninepsetowner(char *name)
 {
 	eve = name;
 }

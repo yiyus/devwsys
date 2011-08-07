@@ -70,14 +70,11 @@ struct IOResponse
 
 /* Error messages */
 const char
-	*Ebadarg,
 	*Edeleted,
 	*Einterrupted,
 	*Einuse,
-	*Enodev,
 	*Enofile,
 	*Enodrawimage,
-	*Enomem,
 	*Enoperm,
 	*Eshortread;
 
@@ -86,11 +83,10 @@ const char
 #define decref(r)	((*r) = --(*r))
 #define iswindow(t) ((t) == FsRoot || (t) > FsDDrawn && (t) < FsFCtl)
 
-/* styxfsys */
-//void fsysinit(Styxserver*);
+void fsysinit(Ninepserver*);
 
-//Styxops ops;
-//Styxserver *server;
+Ninepops ops;
+Ninepserver *server;
 
 /*
  * TODO: These functions should be standard device

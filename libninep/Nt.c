@@ -1,13 +1,8 @@
-#define	__EXTENSIONS__
-#define	_BSD_COMPAT
+#include <windows.h>
 #include <lib9.h>
-#include 	<sys/types.h>
-#include	<sys/time.h>
-#include	<sys/socket.h>
-#include	<netinet/in.h>
-
-#include "styxserver.h"
-#include "styxaux.h"
+#include <ninep.h>
+#include "ninepserver.h"
+#include "ninepaux.h"
 
 typedef struct Fdset Fdset;
 
@@ -17,24 +12,38 @@ struct Fdset
 };
 
 int
-styxinitsocket(void)
+ninepinitsocket(void)
 {
+	WSADATA wsaData;
+	WORD wVersionRequired=MAKEWORD(1,1);
+	
+	int rv = WSAStartup(wVersionRequired, &wsaData);	
+
+	if(rv != 0){
+		fprint(2, "Unable to Find winsock.dll");
+		return -1;
+	}
+	if(LOBYTE(wsaData.wVersion) != 1 || HIBYTE(wsaData.wVersion) != 1 ){
+	   	fprint(2, "Unable to find winsock.dll V1.1 or later");
+		return -1;
+	}
 	return 0;
 }
 
 void
-styxendsocket(void)
+ninependsocket(void)
 {
+	WSACleanup( );
 }
 
 void
-styxclosesocket(int fd)
+ninepclosesocket(int fd)
 {
-	close(fd);
+	closesocket(fd);
 }
 
 int
-styxannounce(Styxserver *server, char *port)
+ninepannounce(Ninepserver *server, char *address)
 {
 	struct sockaddr_in sin;
 	int s, one;
@@ -49,7 +58,7 @@ styxannounce(Styxserver *server, char *port)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
-	sin.sin_port = htons(atoi(port));
+	sin.sin_port = htons(atoi(address));
 	if(bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0){
 		close(s);
 		return -1;
@@ -62,7 +71,7 @@ styxannounce(Styxserver *server, char *port)
 }
 
 int
-styxaccept(Styxserver *server)
+ninepaccept(Ninepserver *server)
 {
 	struct sockaddr_in sin;
 	int len, s;
@@ -79,7 +88,7 @@ styxaccept(Styxserver *server)
 }
 
 void
-styxinitwait(Styxserver *server)
+ninepinitwait(Ninepserver *server)
 {
 	Fdset *fs;
 
@@ -91,7 +100,7 @@ styxinitwait(Styxserver *server)
 }
 
 int
-styxnewcall(Styxserver *server)
+ninepnewcall(Ninepserver *server)
 {
 	Fdset *fs;
 
@@ -100,7 +109,7 @@ styxnewcall(Styxserver *server)
 }
 
 void
-styxnewclient(Styxserver *server, int s)
+ninepnewclient(Ninepserver *server, int s)
 {
 	Fdset *fs;
 
@@ -109,7 +118,7 @@ styxnewclient(Styxserver *server, int s)
 }
 
 void
-styxfreeclient(Styxserver *server, int s)
+ninepfreeclient(Ninepserver *server, int s)
 {
 	Fdset *fs;
 
@@ -118,7 +127,7 @@ styxfreeclient(Styxserver *server, int s)
 }
 
 int
-styxnewmsg(Styxserver *server, int s)
+ninepnewmsg(Ninepserver *server, int s)
 {
 	Fdset *fs;
 
@@ -127,7 +136,7 @@ styxnewmsg(Styxserver *server, int s)
 }
 
 char*
-styxwaitmsg(Styxserver *server)
+ninepwaitmsg(Ninepserver *server)
 {
 	struct timeval seltime;
 	int nfds;
@@ -146,19 +155,19 @@ styxwaitmsg(Styxserver *server)
 }
 
 int
-styxrecv(Styxserver *server, int fd, char *buf, int n, int m)
+nineprecv(Ninepserver *server, int fd, char *buf, int n, int m)
 {
 	return recv(fd, buf, n, m);
 }
 
 int
-styxsend(Styxserver *server, int fd, char *buf, int n, int m)
+ninepsend(Ninepserver *server, int fd, char *buf, int n, int m)
 {
 	return send(fd, buf, n, m);
 }
 
 void
-styxexit(int n)
+ninepexit(int n)
 {
 	exit(n);
 }

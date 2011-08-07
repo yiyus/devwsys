@@ -1,6 +1,7 @@
 #include <lib9.h>
-#include "styxserver.h"
-#include "styxaux.h"
+#include <ninep.h>
+#include "ninepserver.h"
+#include "ninepaux.h"
 
 typedef struct Listener Listener;
 typedef struct Reader Reader;
@@ -35,7 +36,7 @@ void xlock(Lock *l){ lock(l); }
 void xunlock(Lock *l){ unlock(l); }
 
 static Reader*
-findr(Styxserver *server, int fd)
+findr(Ninepserver *server, int fd)
 {
 	Reader *r;
 	Union *u;
@@ -50,24 +51,24 @@ findr(Styxserver *server, int fd)
 }
 
 int
-styxinitsocket(void)
+ninepinitsocket(void)
 {
 	return 0;
 }
 
 void
-styxendsocket(void)
+ninependsocket(void)
 {
 }
 
 void
-styxclosesocket(int fd)
+ninepclosesocket(int fd)
 {
 	close(fd);
 }
 
 static void
-listener(Styxserver *server, int afd, char *adir)
+listener(Ninepserver *server, int afd, char *adir)
 {
 	int s;
 	Listener *l;
@@ -94,19 +95,18 @@ listener(Styxserver *server, int afd, char *adir)
 }
 
 int
-styxannounce(Styxserver *server, char *port)
+ninepannounce(Ninepserver *server, char *address)
 {
 	int s, pid;
 	Union *u;
-	char adr[32], adir[40];
+	char adir[40];
 
 	server->priv = u = malloc(sizeof(Union));
 	u->lock.val = 0;
 	u->lr = nil;
 	u->rr = nil;
-	sprint(adr, "tcp!*!%s", port);
-	s = announce(adr, adir);
-	/* fprint(2, "announce %d %s %s\n", s, adr, adir); */
+	s = announce(address, adir);
+	/* fprint(2, "announce %d %s %s\n", s, address, adir); */
 	if(s < 0)
 		return s;
 	switch((pid = rfork(RFPROC|RFREND|RFMEM))){
@@ -121,7 +121,7 @@ styxannounce(Styxserver *server, char *port)
 }
 
 static void
-reader(Styxserver *server, Reader *r)
+reader(Ninepserver *server, Reader *r)
 {
 	int m, n, s;
 	Union *u;
@@ -148,7 +148,7 @@ reader(Styxserver *server, Reader *r)
 }
 
 int
-styxaccept(Styxserver *server)
+ninepaccept(Ninepserver *server)
 {
 	int s, fd, pid;
 	Reader *r;
@@ -191,13 +191,13 @@ styxaccept(Styxserver *server)
 }
 
 void
-styxinitwait(Styxserver *server)
+ninepinitwait(Ninepserver *server)
 {
 	USED(server);
 }
 
 int
-styxnewcall(Styxserver *server)
+ninepnewcall(Ninepserver *server)
 {
 	Union *u;
 
@@ -206,7 +206,7 @@ styxnewcall(Styxserver *server)
 }
 
 int
-styxnewmsg(Styxserver *server, int fd)
+ninepnewmsg(Ninepserver *server, int fd)
 {
 	Reader *r;
 
@@ -215,14 +215,14 @@ styxnewmsg(Styxserver *server, int fd)
 }
 
 void
-styxnewclient(Styxserver *server, int fd)
+ninepnewclient(Ninepserver *server, int fd)
 {
 	USED(server);
 	USED(fd);
 }
 
 void
-styxfreeclient(Styxserver *server, int fd)
+ninepfreeclient(Ninepserver *server, int fd)
 {
 	Reader *r, **rp;
 	Union *u;
@@ -244,7 +244,7 @@ styxfreeclient(Styxserver *server, int fd)
 }
 
 char*
-styxwaitmsg(Styxserver *server)
+ninepwaitmsg(Ninepserver *server)
 {
 	int i;
 	Reader *r;
@@ -267,7 +267,7 @@ styxwaitmsg(Styxserver *server)
 }
 
 int
-styxrecv(Styxserver *server, int fd, char *buf, int n, int m)
+nineprecv(Ninepserver *server, int fd, char *buf, int n, int m)
 {
 	Reader *r;
 	Union *u;
@@ -297,7 +297,7 @@ styxrecv(Styxserver *server, int fd, char *buf, int n, int m)
 }
 
 int
-styxsend(Styxserver *server, int fd, char *buf, int n, int m)
+ninepsend(Ninepserver *server, int fd, char *buf, int n, int m)
 {
 	USED(server);
 	USED(m);
@@ -305,7 +305,7 @@ styxsend(Styxserver *server, int fd, char *buf, int n, int m)
 }
 
 void
-styxexit(int n)
+ninepexit(int n)
 {
 	if(n)
 		exits("error");
