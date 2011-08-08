@@ -103,7 +103,7 @@ struct Window
 	char			*name;
 	Draw		*draw;
 	void			*screenimage;
-	void			*killr;
+	void			*killpend;
 	Kbdbuf		kbd;
 	Mousebuf		mouse;
 	Reqbuf		kbdreqs;

@@ -1,39 +1,8 @@
 /* Constants */
 enum {
 	/* Dirs */
-	FsRoot,
-	FsDDraw,
-	FsDDrawn,
-	FsDWsys,
-	FsDWsysn,
-
-	/* Files */
-	/*	Keyboard */
-	FsFCons,
-	FsFConsctl,
-	/*	Mouse */
-	FsFCursor,
-	FsFMouse,
-	FsFSnarf,
-	/*	Window */
-	FsFKill,
-	FsFLabel,
-	FsFWctl,
-	FsFWinid,
-	FsFWinname,
-	/*	draw/ */
-	FsFNew,
-	/*	draw/n/ */
-	FsFCtl,
-	FsFData,
-	FsFColormap,
-	FsFRefresh,
-};
-
-enum {
-	/* Dirs */
-	Qroot,
-	Qdraw,
+	/* Qroot is defined in ninepserver.h */
+	Qdraw = 1,
 	Qwsys,
 
 	/* Files */
@@ -81,9 +50,11 @@ const char
 /* Macros */
 #define incref(r)	((*r) = ++(*r))
 #define decref(r)	((*r) = --(*r))
+#define curwindow	((Window*)server->curc->u)
+#define curdraw	(((Window*)server->curc->u)->draw)
 #define iswindow(t) ((t) == FsRoot || (t) > FsDDrawn && (t) < FsFCtl)
 
-void fsysinit(Ninepserver*);
+void fsinit(Ninepserver*);
 
 Ninepops ops;
 Ninepserver *server;
@@ -94,10 +65,8 @@ Ninepserver *server;
  */
 
 /* Devdraw */
-const char* drawopen(DClient*, uint);
+char* drawopen(Qid *qid, int mode);
+char* drawread(Qid qid, char *buf, ulong *n, vlong offset);
+char* drawwrite(Qid qid, char *buf, ulong *n, vlong offset);
 DClient* drawnewclient(Draw*);
-Window* drawwindow(DClient*);
-int drawclientid(DClient*);
-IOResponse drawread(DClient*, int, char*, int);
-IOResponse drawwrite(DClient*, int, char*, int);
 void drawclose(DClient*, int);

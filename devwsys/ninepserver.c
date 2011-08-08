@@ -11,18 +11,24 @@
 void
 fsloop(char *address, int xfd)
 {
+	char *err;
 	Ninepserver s;
 
 	server = &s;
 	ninepinit(&s, &ops, address, 0555, 0);
-	fsysinit(&s);
+	if(debuglevel > 0)
+		ninepdebug();
+	fsinit(&s);
 	for(;;) {
 		nineplisten(&s, xfd);
-		ninepwait(&s);
+		err = ninepwait(&s);
+		if(err != nil)
+			fprintf(2, err);
 		if(ninepready(&s, xfd))
 			xnextevent();
 		ninepprocess(&s);
 	}
+	ninepend(&s);
 	return;
 }
 

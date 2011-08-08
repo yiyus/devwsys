@@ -737,14 +737,18 @@ drawattach(Window *w, char *spec)
 	return 1;
 }
 
-const char*
-drawopen(DClient *cl, uint type)
+char*
+drawopen(Qid *qid, int mode)
 {
+	int type;
 	char *name;
+	DClient *cl;
 	DImage *di;
 	DName *dn;
 	Draw *d;
 
+	cl = client[SLOT(qid->path)-1];
+	type = TYPE(qid->path)];
 	d = cl->draw;
 	name = d->window->name;
 	switch(type) {
@@ -835,45 +839,40 @@ drawreadrefresh(char *buf, long n, DClient *cl)
 	return p-(uchar*)buf;
 }
 
-IOResponse
-drawread(DClient *cl, int type, char *data, int count)
+char*
+drawread(Qid qid, char *buf, ulong *n, vlong offset)
 {
-	int n;
-	IOResponse r;
+	int type;
+	ulong count;
+	DClient *cl;
 
-	r.data = data;
-	r.count = 0;
-	r.err = nil;
+	cl = client[SLOT(qid->path)-1];
+	type = TYPE(qid->path)];
+	count = *n;
 	switch(type) {
 	case FsFCtl:
-		if(count < 12*12) {
-			r.err = Eshortread;
-			return r;
-		}
-		n = drawreadctl(data, cl);
-		if(n == 0) {
-			r.err = Enodrawimage;
-			return r;
-		}
-		r.count = strlen(data);
+		if(count < 12*12)
+			return Eshortread;
+		*n = drawreadctl(buf, cl);
+		if(*n == 0)
+			return Enodrawimage;
 		break;
 	case FsFData:
-		if(cl->readdata == nil) {
-			r.err = "no draw data";
-			return r;
-		}
+		if(cl->readdata == nil)
+			return "no draw data";
 		if(count == -1) {
 			free(cl->readdata);
 			cl->readdata = nil;
 			cl->nreaddata = 0;
-			return r;
+			return nil;
 		}
-		if(count < cl->nreaddata) {
-			r.err = Eshortread;
-			return r;
-		}
-		r.data = cl->readdata;
-		r.count = cl->nreaddata;
+		if(count < cl->nreaddata)
+			return Eshortread;
+		*n = cl->nreaddata;
+		memmove(buf, cl->readdata, cl->nreaddata);
+		free(cl->readdata);
+		cl->readdata = nil;
+		cl->nreaddata = 0;
 		break;
 	case FsFColormap:
 		r.count = 0;
@@ -1936,17 +1935,21 @@ drawdettach(Window *w)
 	free(d);
 }
 
-Window*
-drawwindow(DClient *cl)
+DClient*
+drawlookupclient(int id)
 {
-	return cl->draw->window;
-}
+	/*
+	 * TODO: clients should use a hash table
+	 */
+	int i;
+	Client *cl;
 
-/* This is easier than implementing a drawwalk. */
-int
-drawclientid(DClient *cl)
-{
-	return cl->clientid;
+	for(i = 0; i < nclient; i++){
+		cl = clients[i];
+		if(cl->clientid == id)
+			return cl;
+	}
+	return nil;
 }
 
 void

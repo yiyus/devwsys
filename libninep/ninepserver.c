@@ -57,7 +57,8 @@ struct Walkqid
 #define ASSERT(A,B) ninepassert((int)A,B)
 
 static int hash(int);
-static void deletefids(Client *);
+static void deletefids(Client*);
+static Pending* findpending(Client*, ushort);
 
 static
 void
@@ -632,34 +633,156 @@ newfile(Ninepserver *server, Ninepfile *parent, int isdir, Path qid, char *name,
 	return file;
 }
 
+char *
+ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile)
+{
+	fmtinstall('F', fcallfmt);
+	if(perm == -1)
+		perm = 0555;
+	server->ops = ops;
+	server->clients = nil;
+	server->root = nil;
+	server->ftab = (Ninepfile**)ninepmalloc(HASHSZ*sizeof(Ninepfile*));
+	server->qidgen = Qroot+1;
+	if(ninepinitsocket() < 0)
+		return "ninepinitsocket failed";
+	server->connfd = ninepannounce(server, address);
+	if(server->connfd < 0)
+		return "can't announce on network port";
+	ninepinitwait(server);
+	server->root = newfile(server, nil, 1, Qroot, "/", perm|DMDIR, eve);
+	server->needfile = needfile;
+	return nil;
+}
+
+char*
+ninepend(Ninepserver *server)
+{
+	USED(server);
+	ninependsocket();
+	return nil;
+}
+
+void
+nineplisten(Ninepserver *server, int fd)
+{
+	ninepnewclient(server, fd);
+}
+
+int
+ninepready(Ninepserver *server, int fd)
+{
+	return ninepnewmsg(server, fd);
+}
+
+static
+char *
+nineprequest(Ninepserver *server)
+{
+	Client *c;
+	static Client *next;
+	Fcall *f;
+	int s;
+
+	f = &server->fcall;
+	if(ninepnewcall(server)){
+		s = ninepaccept(server);
+		if(s >= 0){
+			newclient(server, s);
+			ninepnewclient(server, s);
+		}
+	}
+	if(next == nil)
+		next = server->clients;
+	server->curc = nil;
+	for(c = next; c != nil; c = next){
+		next = c->next;
+		if(c->fd >= 0 && ninepnewmsg(server, c->fd))
+			c->state |= CRECV;
+		if(c->state&(CNREAD|CRECV)){
+			if(c->state&CDISC){
+				ninepfreeclient(server, c->fd);
+				freeclient(c);
+				continue;
+			}
+			if(rd(c, f) <= 0)
+				return "error reading 9p request";
+			server->curc = c;
+			if(Debug)
+				fprint(2, "<-%d- %F\n", c->fd, &f);
+			return nil;
+		}
+	}
+	return nil;
+}
+
+char *
+ninepwait(Ninepserver *server)
+{
+	Client *c;
+	char *err;
+
+	c = server->curc;
+	if(c == nil || !c->state&CNREAD)
+		if((err = ninepwaitmsg(server)) != nil)
+			return err;
+	if((err = nineprequest(server)) != nil)
+		return err;
+	return nil;
+}
+
+static
+void
+reply(Client *c, Fcall *f, char *err)
+{
+	if(err){
+		f->type = Rerror;
+		f->ename = err;
+	}
+	else if(f->type % 2 == 0)
+		f->type++;
+	if(Debug)
+		fprint(2, "-%d-> %F\n", c->fd, f);
+	wr(c, f);
+}
+
+void
+ninepreply(Ninepserver *server, char *err)
+{
+	reply(server->curc, &server->fcall, err);
+	server->curc = nil;
+}
+
 Pending*
-ninepreplylater(Request *req)
+ninepreplylater(Ninepserver *server)
 {
 	int h;
-	Pending *p;
 	Client *c;
+	Pending *p;
 
-	c = req->c;
+	c = server->curc;
 	p = ninepmalloc(sizeof(Pending));
-	h = hash(req->f.tag);
-	p->req = req;
+	h = hash(server->fcall.tag);
+	p->c = c;
+	p->fcall = server->fcall;
 	p->flushed = 0;
+	p->flushtag = NOTAG;
 	p->next = c->pending[h];
 	c->pending[h] = p;
-	c->server->curc = nil;
+	server->curc = nil;
 	return p;
 }
 
 static
 Pending*
-findpending(Request *req)
+findpending(Client *c, ushort tag)
 {
 	int h;
 	Pending *p;
 
-	h = hash(req->f.tag);
-	for(p = req->c->pending[h]; p != nil; p = p->next)
-		if(p->req == req)
+	h = hash(tag);
+	for(p = c->pending[h]; p != nil; p = p->next)
+		if(p->fcall.tag == tag)
 			return p;
 	return nil;
 }
@@ -672,8 +795,8 @@ deletepending(Pending *pend)
 	Pending *p;
 	Client *c;
 
-	h = hash(pend->req->f.tag);
-	c = pend->req->c;
+	h = hash(pend->fcall.tag);
+	c = pend->c;
 	p = c->pending[h];
 	if(p == pend){
 		c->pending[h] = pend->next;
@@ -690,36 +813,48 @@ deletepending(Pending *pend)
 void
 ninepcompleted(Pending *pend)
 {
+	Client *c;
+	Fcall *f;
+
 	if(!pend->flushed){
-		ninepreply(pend->req, nil);
+		c = pend->c;
+		f = &pend->fcall;
+		reply(c, f, nil);
 		pend->flushed = 1;
-		if(pend->flush != nil){
-			ninepreply(pend->flush, nil);
-			pend->flush = nil;
+		if(pend->flushtag != NOTAG){
+			f->type = Rflush;
+			f->tag = pend->flushtag;
+			reply(c, f, nil);
 		}
 	}
 	deletepending(pend);
 }
 
-static
 void
-flushtag(Request *r)
+ninepcompleteio(Pending *pend, char* (*fn)(Qid, char*, ulong*, vlong))
 {
-	int tag, oldtag;
-	Pending *p;
+	char *err;
+	Client *c;
+	Fcall *f;
+	Ninepserver *s;
 
-	tag = r->f.tag;
-	oldtag = r->f.oldtag;
-	if(oldtag == tag || (p = findpending(r)) == nil || p->flushed){
-		/* `synchronous, so easy' */
-		ninepreply(r, nil);
+	c = pend->c;
+	s = c->server;
+	f = &pend->fcall;
+	if(f->type != Tread && f->type != Twrite)
 		return;
+	s->curc = c;
+	err = fn(f->qid, f->data, (ulong*)(&f->count), f->offset);
+	if(err != nil){
+		f->type = Rerror;
+		f->ename = err;
 	}
-	p->flush = r;
+	s->curc = nil;
+	ninepcompleted(pend);
 }
 
 void
-ninepdefault(Request *req)
+ninepdefault(Ninepserver *server)
 {
 	Fid *fp, *nfp;
 	int i, open, mode;
@@ -732,27 +867,30 @@ ninepdefault(Request *req)
 	Client *c;
 	Fcall *f;
 	Ninepops *ops;
+	Pending *p;
 
-	c = req->c;
-	f = &req->f;
-	ops = c->server->ops;
+	p = nil;
+	c = server->curc;
+	f = &server->fcall;
+	ops = server->ops;
 	ebuf[0] = 0;
 	if(f->type == Tflush){
-		flushtag(req);
-		f->type = Rflush;
+		if(f->oldtag == f->tag || (p = findpending(c, f->oldtag)) == nil || p->flushed)
+			reply(c, f, nil);
+		p->flushtag = f->tag;		
 		return;
 	}
 	file = nil;
 	fp = findfid(c, f->fid);
 	if(f->type != Tversion && f->type != Tauth && f->type != Tattach){
 		if(fp == nil){
-			ninepreply(req, Enofid);
+			ninepreply(server, Enofid);
 			return;
 		}
 		else{
 			file = ninepfindfile(c->server, fp->qid.path);
 			if(c->server->needfile && file == nil){
-				ninepreply(req, Enonexist);
+				ninepreply(server, Enonexist);
 				return;
 			}
 		}
@@ -981,144 +1119,7 @@ ninepdefault(Request *req)
 		break;
 	}
 	if(c->server->curc == c)
-		ninepreply(req, nil);
-}
-
-char *
-ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile)
-{
-	fmtinstall('F', fcallfmt);
-	if(perm == -1)
-		perm = 0555;
-	server->ops = ops;
-	server->clients = nil;
-	server->root = nil;
-	server->ftab = (Ninepfile**)ninepmalloc(HASHSZ*sizeof(Ninepfile*));
-	server->qidgen = Qroot+1;
-	if(ninepinitsocket() < 0)
-		return "ninepinitsocket failed";
-	server->connfd = ninepannounce(server, address);
-	if(server->connfd < 0)
-		return "can't announce on network port";
-	ninepinitwait(server);
-	server->root = newfile(server, nil, 1, Qroot, "/", perm|DMDIR, eve);
-	server->needfile = needfile;
-	return nil;
-}
-
-char*
-ninepend(Ninepserver *server)
-{
-	USED(server);
-	ninependsocket();
-	return nil;
-}
-
-char *
-ninepwait(Ninepserver *server)
-{
-	return ninepwaitmsg(server);
-}
-
-void
-nineplisten(Ninepserver *server, int fd)
-{
-	ninepnewclient(server, fd);
-}
-
-int
-ninepready(Ninepserver *server, int fd)
-{
-	return ninepnewmsg(server, fd);
-}
-
-char *
-ninepprocess(Ninepserver *server)
-{
-	Request *r;
-
-	r = nineprequest(server);
-	for(; r != nil; r = nineprequest(server))
-		ninepdefault(r);
-	return nil;
-}
-
-Request*
-newrequest(Client *c, Fcall *f)
-{
-	Request *r;
-
-	r = ninepmalloc(sizeof(Request));
-	r->c = c;
-	r->f = *f;
-	return r;
-}
-
-Request*
-nineprequest(Ninepserver *server)
-{
-	Client *c;
-	static Client *next;
-	Fcall f;
-	Request *r;
-	int s;
-
-	if(ninepnewcall(server)){
-		s = ninepaccept(server);
-		if(s >= 0){
-			newclient(server, s);
-			ninepnewclient(server, s);
-		}
-	}
-	if(next == nil)
-		next = server->clients;
-	for(c = next; c != nil; c = next){
-		next = c->next;
-		if(c->fd >= 0 && ninepnewmsg(server, c->fd))
-			c->state |= CRECV;
-		if(c->state&(CNREAD|CRECV)){
-			if(c->state&CDISC){
-				ninepfreeclient(server, c->fd);
-				freeclient(c);
-				continue;
-			}
-			if(rd(c, &f) <= 0)
-				return nil;
-			server->curc = c;
-			r = newrequest(c, &f);
-			if(Debug)
-				fprint(2, "<-%d- %F\n", c->fd, &f);
-			return r;
-		}
-	}
-	return nil;
-}
-
-void
-ninepreply(Request *req, char *err)
-{
-	Client *c;
-	Fcall *f;
-
-	c = req->c;
-	f = &req->f;
-	if(err){
-		f->type = Rerror;
-		f->ename = err;
-	}
-	else if(f->type % 2 == 0)
-		f->type++;
-	if(Debug)
-		fprint(2, "-%d-> %F\n", c->fd, f);
-	wr(c, f);
-	c->server->curc = nil;
-	ninepfree(req);
-}
-
-Client*
-ninepclient(Ninepserver *server)
-{
-	return server->curc;
+		ninepreply(server, nil);
 }
 
 Ninepfile*

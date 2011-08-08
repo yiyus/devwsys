@@ -1,4 +1,5 @@
 
+#define Qroot		0
 #define MSGMAX	((((8192+128)*2)+3) & ~3)
 
 extern char Enomem[];	/* out of memory */
@@ -16,7 +17,6 @@ typedef struct Ninepops Ninepops;
 typedef struct Ninepfile Ninepfile;
 typedef struct Ninepreq Ninepreq;
 typedef struct Client Client;
-typedef struct Request Request;
 typedef struct Pending Pending;
 typedef struct Fid Fid;
 
@@ -28,6 +28,7 @@ struct Ninepserver
 	int needfile;
 	Client *clients;
 	Client *curc;
+	Fcall fcall;
 	Ninepfile *root;
 	Ninepfile **ftab;
 	void	*priv;	/* private */
@@ -50,17 +51,12 @@ struct Client
 	void		*u;
 };
 
-struct Request
-{
-	Client *c;
-	Fcall f;
-};
-
 struct Pending
 {
-	Request *req;
+	Client *c;
+	Fcall fcall;
 	int flushed;
-	Request *flush;
+	ushort flushtag;
 	Pending *next;
 };
 
@@ -94,20 +90,18 @@ struct Ninepfile
 };
 
 char *ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile);
-char *ninepwait(Ninepserver *server);
 char *ninepend(Ninepserver *server);
 
 void nineplisten(Ninepserver *server, int fd);
 int ninepready(Ninepserver *server, int fd);
 
-Request *nineprequest(Ninepserver *server);
-char *ninepprocess(Ninepserver *server);
-Client *ninepclient(Ninepserver *server);
+char *ninepwait(Ninepserver *server);
+void ninepreply(Ninepserver *server, char *err);
+void ninepdefault(Ninepserver *server);
 
-void ninepreply(Request *req, char *err);
-void ninepdefault(Request *req);
-Pending *ninepreplylater(Request *req);
+Pending *ninepreplylater(Ninepserver *server);
 void ninepcompleted(Pending *pend);
+void ninepcompleteio(Pending *pend, char* (*fn)(Qid qid, char *buf, ulong *n, vlong offset));
 
 Ninepfile *ninepaddfile(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
 Ninepfile *ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
