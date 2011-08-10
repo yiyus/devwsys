@@ -6,7 +6,7 @@ DIRS=\
 	libkern\
 	libmemdraw\
 	libmemlayer\
-	libstyx\
+	libninep\
 	devwsys\
 
 all:V:		all-$HOSTMODEL

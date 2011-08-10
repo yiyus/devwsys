@@ -72,6 +72,15 @@ static char *params[] = {
 	nil
 };
 
+/* Error messages */
+char
+//	Ebadcmd[] =	"unrecognized wctl command",
+	Ebadparam[] =	"missing or bad wctl parameter",
+	Ebadmsg[] =	"invalid wctl message",
+	Emouse[] =	"action disallowed when mouse active",
+	Enowinid[] =	"no such window id";
+//	Edeleted[] =	"window deleted";
+
 static
 int
 word(char **sp, char *tab[])
@@ -141,11 +150,11 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 	*cdp = nil;
 	cmd = word(&s, cmds);
 	if(cmd < 0){
-		strcpy(err, "unrecognized wctl command");
+		err = "unrecognized wctl command";
 		return -1;
 	}
 
-	strcpy(err, "missing or bad wctl parameter");
+	err = "missing or bad wctl parameter";
 	while((param = word(&s, params)) >= 0){
 		switch(param){	/* special cases */
 		case Hidden:
@@ -199,7 +208,7 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 		xy = riostrtol(s, &s);
 		switch(param){
 		case -1:
-			strcpy(err, "unrecognized wctl parameter");
+			err = "unrecognized wctl parameter";
 			return -1;
 		case Minx:
 			r.min.x = set(sign, r.min.x-xy, xy, r.min.x+xy);
@@ -235,7 +244,7 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 	while(isspace(*s))
 		s++;
 	if(cmd!=New && *s!='\0'){
-		strcpy(err, "extraneous text in wctl message");
+		err = "extraneous text in wctl message";
 		return -1;
 	}
 
@@ -245,42 +254,37 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 	return cmd;
 }
 
-int
-wctlmesg(Window *w, char *a, int n, char *err)
+char*
+wctlmesg(Window *w, char *a, int n)
 {
 	int buttons, cnt, cmd, j, id, hideit, scrollit, pid;
-	char *arg, *dir;
+	char *arg, *dir, *err;
 	Rectangle rect;
 
 	cnt = n;
 	a[cnt] = '\0';
 	id = pid = 0;
+	err = nil;
 	buttons = w->mouse.m[w->mouse.ri].buttons;
 
 	// print(" XXX wctlmesg: a = %s\n", a);
 	rect = rectaddpt(w->screenr, w->orig);
 	cmd = parsewctl(&arg, rect, &rect, &pid, &id, &hideit, &scrollit, &dir, a, err);
 	if(cmd < 0)
-		return -1;
+		return err;
 
-	if(buttons!=0 && cmd>=Top){
-		strcpy(err, "action disallowed when mouse active");
-		return -1;
-	}
+	if(buttons!=0 && cmd>=Top)
+		return "action disallowed when mouse active";
 
 	if(id != 0){
 		for(j=0; j<nwindow; j++)
 			if(window[j]->id == id)
 				break;
-		if(j == nwindow){
-			strcpy(err, "no such window id");
-			return -1;
-		}
+		if(j == nwindow)
+			return "no such window id";
 		w = window[j];
-		if(w->deleted){
-			strcpy(err, "window deleted");
-			return -1;
-		}
+		if(w->deleted)
+			return "window deleted";
 	}
 
 	switch(cmd){
@@ -290,55 +294,54 @@ wctlmesg(Window *w, char *a, int n, char *err)
 		w->visible = !hideit;
 		if(arg)
 			w->label = strdup(arg);
-		return 1;
+		return nil;
 	case Set:
 		w->pid = pid;
-		return 1;
+		return nil;
 	case Move:
 		rect = Rect(rect.min.x, rect.min.y, rect.min.x+Dx(w->screenr), rect.min.y+Dy(w->screenr));
 		/* fall through */
 	case Resize:
 		if(eqrect(rect, rectaddpt(w->screenr, w->orig)))
-			return 1;
+			return nil;
 		xresizewindow(w, rect);
-		return 1;
+		return nil;
 	case Scroll:
 		// w->scrolling = 1;
 		// wshow(w, w->nr);
 		// wsendctlmesg(w, Wakeup, ZR, nil);
-		return 1;
+		return nil;
 	case Noscroll:
 		// w->scrolling = 0;
 		// wsendctlmesg(w, Wakeup, ZR, nil);
-		return 1;
+		return nil;
 	case Top:
 		xtopwindow(w);
-		return 1;
+		return nil;
 	case Bottom:
 		// wbottomme(w);
-		return 1;
+		return nil;
 	case Current:
 		// wcurrent(w);
 		xtopwindow(w);
-		return 1;
+		return nil;
 	case Hide:
 		if(!w->visible)
-			return 1;
+			return nil;
 		w->visible = 0;
 		rect = rectaddpt(w->screenr, w->orig);
 		xresizewindow(w, rect);
-		return 1;
+		return nil;
 	case Unhide:
 		if(w->visible)
-			return 1;
+			return nil;
 		w->visible = 1;
 		rect = rectaddpt(w->screenr, w->orig);
 		xresizewindow(w, rect);
-		return 1;
+		return nil;
 	case Delete:
 		deletewin(w);
-		return 1;
+		return nil;
 	}
-	strcpy(err, "invalid wctl message");
-	return -1;
+	return "invalid wctl message";
 }

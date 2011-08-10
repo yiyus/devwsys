@@ -24,7 +24,7 @@ OFILES=\
 	latin1.$O\
 	main.$O\
 	mouse.$O\
-	#ninepfsys.$O\
+	ninepfsys.$O\
 	ninepserver.$O\
 	reqbuf.$O\
 	wctl.$O\

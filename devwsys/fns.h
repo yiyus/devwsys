@@ -26,7 +26,7 @@ void deletewin(Window*);
 void setlabel(Window*, char*);
 
 /* Wctl */
-int wctlmesg(Window*, char*, int, char*);
+char* wctlmesg(Window*, char*, int);
 
 /* Fsys */
 void fsloop(char*, int);

@@ -38,7 +38,7 @@ deletewin(Window *w)
 	/*
 	 * Write pid of the process to the kill file.
 	 */
-	if(w->killr)
+	if(w->killpend)
 		killrespond(w);
 	xdeletewin(w);
 	w->x = nil;

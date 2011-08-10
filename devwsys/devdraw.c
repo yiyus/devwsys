@@ -747,12 +747,12 @@ drawopen(Qid *qid, int mode)
 	DName *dn;
 	Draw *d;
 
-	cl = client[SLOT(qid->path)-1];
-	type = TYPE(qid->path)];
+	cl = client[QSLOT(qid->path)-1];
+	type = QTYPE(qid->path);
 	d = cl->draw;
 	name = d->window->name;
 	switch(type) {
-	case FsFCtl:
+	case Qctl:
 		if(cl->busy)
 			return Einuse;
 		cl->busy = 1;
@@ -774,9 +774,9 @@ drawopen(Qid *qid, int mode)
 		di->fromname->ref++;
 		incref(&cl->r);
 		break;
-	case FsFColormap:
-	case FsFData:
-	case FsFRefresh:
+	case Qcolormap:
+	case Qdata:
+	case Qrefresh:
 		incref(&cl->r);
 		break;
 	}
@@ -846,18 +846,18 @@ drawread(Qid qid, char *buf, ulong *n, vlong offset)
 	ulong count;
 	DClient *cl;
 
-	cl = client[SLOT(qid->path)-1];
-	type = TYPE(qid->path)];
+	cl = client[QSLOT(qid.path)-1];
+	type = QTYPE(qid.path);
 	count = *n;
 	switch(type) {
-	case FsFCtl:
+	case Qctl:
 		if(count < 12*12)
 			return Eshortread;
 		*n = drawreadctl(buf, cl);
 		if(*n == 0)
 			return Enodrawimage;
 		break;
-	case FsFData:
+	case Qdata:
 		if(cl->readdata == nil)
 			return "no draw data";
 		if(count == -1) {
@@ -874,22 +874,23 @@ drawread(Qid qid, char *buf, ulong *n, vlong offset)
 		cl->readdata = nil;
 		cl->nreaddata = 0;
 		break;
-	case FsFColormap:
-		r.count = 0;
+	case Qcolormap:
+		*n = 0;
 		break;
-	case FsFRefresh:
-		if(count < 5*4) {
-			r.err = Ebadarg;
-			return r;
-		}
-		n = drawreadrefresh(data, count, cl);
-		if(n > 0) {
-			r.count = n;
-			return r;
+	case Qrefresh:
+		if(count == 0)
+			return nil;
+		if(count < 5*4)
+			return Ebadarg;
+		count = drawreadrefresh(buf, count, cl);
+		if(count > 0) {
+			*n = count;
+			return nil;
 		}
 		break;
 	}
-	return r;
+	// unreachable
+	return "Read called on an unreadable file";
 }
 
 static
@@ -971,7 +972,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 }
 
 static
-const char*
+char*
 drawmesg(DClient *client, void *av, int n)
 {
 	char *fmt, *err, *s;
@@ -1787,35 +1788,30 @@ error:
 	return err;
 }
 
-IOResponse
-drawwrite(DClient *cl, int type, char *data, int count)
+char*
+drawwrite(Qid qid, char *buf, ulong *n, vlong offset)
 {
-	IOResponse r;
+	int type;
+	DClient *cl;
 
-	r.data = data;
-	r.count = 0;
-	r.err = nil;
+	cl = client[QSLOT(qid.path)-1];
+	type = QTYPE(qid.path);
 	switch(type) {
-	case FsFData:
-		r.err = drawmesg(cl,data, count);
-		r.count = count;
-		// drawwakeall();
-		break;
-	case FsFCtl:
-		if(count != 4){
-			r.err = "unknown draw control request";
-			break;
-		}
-		cl->infoid = BGLONG((uchar*)data);
-		r.count = count;
-		break;
-	case FsFColormap:
-		r.count = 0;
-		break;
-	case FsFRefresh:
-		break;
+	case Qdata:
+		return drawmesg(cl, buf, *n);
+	case Qctl:
+		if(*n != 4)
+			return "unknown draw control request";
+		cl->infoid = BGLONG((uchar*)buf);
+		return nil;
+	case Qcolormap:
+		*n =  0;
+		return nil;
+	case Qrefresh:
+		return nil;
 	}
-	return r;
+	// unreachable
+	return "Write called on an unwritable file";
 }
 
 void
@@ -1942,21 +1938,33 @@ drawlookupclient(int id)
 	 * TODO: clients should use a hash table
 	 */
 	int i;
-	Client *cl;
+	DClient *cl;
 
 	for(i = 0; i < nclient; i++){
-		cl = clients[i];
+		cl = client[i];
 		if(cl->clientid == id)
 			return cl;
 	}
 	return nil;
 }
 
-void
-drawclose(DClient *cl, int type)
+char*
+drawclose(Qid qid, int mode)
 {
-	if(type == FsFCtl)
+	int type;
+	DClient *cl;
+
+	cl = client[QSLOT(qid.path)-1];
+	type = QTYPE(qid.path);
+	if(type == Qctl)
 		cl->busy = 0;
 	if(decref(&cl->r) == 0)
 		drawfree(cl);
+	return nil;
+}
+
+int
+drawid(DClient *cl)
+{
+	return cl->clientid;
 }

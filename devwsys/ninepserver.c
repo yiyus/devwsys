@@ -23,10 +23,10 @@ fsloop(char *address, int xfd)
 		nineplisten(&s, xfd);
 		err = ninepwait(&s);
 		if(err != nil)
-			fprintf(2, err);
+			fprint(2, err);
 		if(ninepready(&s, xfd))
 			xnextevent();
-		ninepprocess(&s);
+		ninepdefault(&s);
 	}
 	ninepend(&s);
 	return;

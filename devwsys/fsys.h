@@ -28,45 +28,33 @@ enum {
 	Qrefresh,
 };
 
-/* Read response */
-typedef struct IOResponse IOResponse;
-struct IOResponse
-{
-	char * data;
-	int count;
-	const char *err;
-};
-
 /* Error messages */
-const char
-	*Edeleted,
-	*Einterrupted,
-	*Einuse,
-	*Enofile,
-	*Enodrawimage,
-	*Enoperm,
-	*Eshortread;
+extern char
+	Edeleted[],
+	Einterrupted[],
+	Einuse[],
+	Enofile[],
+	Enodrawimage[],
+	Enoperm[],
+	Eshortread[];
 
 /* Macros */
+#define curwindow	((Window*)server->curc->u)
+#define PATH(s, t)	((Path)((s)<<8)|((t)&0xFF))
+#define QSLOT(p)	((p)>>32)
+#define QTYPE(p)	((p)&0xFFFFFFFF)
 #define incref(r)	((*r) = ++(*r))
 #define decref(r)	((*r) = --(*r))
-#define curwindow	((Window*)server->curc->u)
-#define curdraw	(((Window*)server->curc->u)->draw)
-#define iswindow(t) ((t) == FsRoot || (t) > FsDDrawn && (t) < FsFCtl)
 
 void fsinit(Ninepserver*);
 
 Ninepops ops;
 Ninepserver *server;
 
-/*
- * TODO: These functions should be standard device
- * file functions taken directly from Inferno devices.
- */
-
 /* Devdraw */
+DClient* drawnewclient(Draw*);
 char* drawopen(Qid *qid, int mode);
 char* drawread(Qid qid, char *buf, ulong *n, vlong offset);
 char* drawwrite(Qid qid, char *buf, ulong *n, vlong offset);
-DClient* drawnewclient(Draw*);
-void drawclose(DClient*, int);
+char* drawclose(Qid qid, int mode);
+int drawid(DClient *cl);

@@ -831,29 +831,6 @@ ninepcompleted(Pending *pend)
 }
 
 void
-ninepcompleteio(Pending *pend, char* (*fn)(Qid, char*, ulong*, vlong))
-{
-	char *err;
-	Client *c;
-	Fcall *f;
-	Ninepserver *s;
-
-	c = pend->c;
-	s = c->server;
-	f = &pend->fcall;
-	if(f->type != Tread && f->type != Twrite)
-		return;
-	s->curc = c;
-	err = fn(f->qid, f->data, (ulong*)(&f->count), f->offset);
-	if(err != nil){
-		f->type = Rerror;
-		f->ename = err;
-	}
-	s->curc = nil;
-	ninepcompleted(pend);
-}
-
-void
 ninepdefault(Ninepserver *server)
 {
 	Fid *fp, *nfp;
@@ -871,6 +848,8 @@ ninepdefault(Ninepserver *server)
 
 	p = nil;
 	c = server->curc;
+	if(c == nil)
+		return;
 	f = &server->fcall;
 	ops = server->ops;
 	ebuf[0] = 0;

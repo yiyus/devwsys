@@ -33,7 +33,8 @@ xattach(Window *w, char *spec)
 
 	w->screenr = xwinrectangle(w->label);
 	w->visible = 1;
-	wctlmesg(w, spec, strlen(spec), err);
+	/* ignore errors returned by wctlmesg */
+	wctlmesg(w, spec, strlen(spec));
 	rect = w->screenr;
 	if(!w->visible){	/* move offscreen */
 		orig.x = -50 - Dx(w->screenr);

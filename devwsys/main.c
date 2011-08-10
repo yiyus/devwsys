@@ -60,7 +60,7 @@ main(int argc, char **argv)
 
 	/* Connect to X */
 	xfd = xinit();
-	if(!xfd)
+	if(xfd < 0)
 		fatal("unable to connect to X server");
 
 	/* 9p server loop */

@@ -101,7 +101,6 @@ void ninepdefault(Ninepserver *server);
 
 Pending *ninepreplylater(Ninepserver *server);
 void ninepcompleted(Pending *pend);
-void ninepcompleteio(Pending *pend, char* (*fn)(Qid qid, char *buf, ulong *n, vlong offset));
 
 Ninepfile *ninepaddfile(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
 Ninepfile *ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
