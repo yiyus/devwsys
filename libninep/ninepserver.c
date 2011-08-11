@@ -12,18 +12,18 @@ static	unsigned long		boottime;
 static	char*	eve = "inferno";
 static	int		Debug = 0;
 
-char Enomem[] =		"out of memory";
-char Eperm[] =			"permission denied";
+char Enomem[] =	"out of memory";
+char Eperm[] =		"permission denied";
 char Enodev[] =		"no free devices";
-char Ehungup[] =		"write to hungup channel";
-char	Eexist[] =			"file exists";
-char Enonexist[] =		"file does not exist";
-char Ebadcmd[] =		"bad command";
-char Ebadarg[] =			"bad arg in system call";
-char Enofid[] =			"no such fid";
+char Ehungup[] =	"write to hungup channel";
+char	Eexist[] =		"file exists";
+char Enonexist[] =	"file does not exist";
+char Ebadcmd[] =	"bad command";
+char Ebadarg[] =	"bad arg in system call";
+char Enofid[] =		"no such fid";
 char Enotdir[] =		"not a directory";
-char	Eopen[] =			"already open";
-char	Ebadfid[] =		"bad fid";
+char	Eopen[] =		"already open";
+char	Ebadfid[] =	"bad fid";
 
 #define OP(x, arg...) (ops && ops->x && (f->ename = ops->x(arg)) == nil)
 
@@ -709,7 +709,7 @@ nineprequest(Ninepserver *server)
 				return "error reading 9p request";
 			server->curc = c;
 			if(Debug)
-				fprint(2, "<-%d- %F\n", c->fd, &f);
+				fprint(2, "<-%d- %F\n", c->fd, f);
 			return nil;
 		}
 	}
@@ -1020,7 +1020,8 @@ ninepdefault(Ninepserver *server)
 		deletefid(c, fp);
 		f->type = Rclunk;
 		if(open && OP(close,qid, mode))
-			f->type = Rerror;
+			break;
+		f->type = Rerror;
 		break;
 	case	Tremove:
 		if(file != nil && file->parent != nil && !ninepperm(file->parent, c->uname, OWRITE)){
@@ -1093,7 +1094,8 @@ ninepdefault(Ninepserver *server)
 			f->fid = fp->fid;
 			f->qid = q;
 			if(OP(attach, c->uname, c->aname))
-				f->type = Rerror;
+				break;
+			f->type = Rerror;
 		}
 		break;
 	}

@@ -8,7 +8,7 @@
 #include "inc.h"
 #include "x.h"
 
-#define debugev(...) if(1) debug(__VA_ARGS__)
+#define debugev(...) if(0) debug(__VA_ARGS__)
 
 void configevent(Window*, XEvent);
 void exposeevent(Window*, XEvent);
