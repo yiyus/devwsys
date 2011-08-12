@@ -25,27 +25,27 @@ static char *snarfbuf;
 void
 fsinit(Ninepserver *s)
 {
-	ninepadddir(s, Qroot, Qdraw, "draw", 0500, "inferno");
-	ninepaddfile(s, Qdraw, Qnew, "new", 0600, "inferno");
-	ninepadddir(s, Qroot, Qwsys, "wsys", 0500, "inferno");
+	ninepadddir(s, Qroot, Qdraw, "draw", 0555, "inferno");
+	ninepaddfile(s, Qdraw, Qnew, "new", 0666, "inferno");
+	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, "inferno");
 }
 
 static
 void
 drawaddfiles(Ninepserver *s, DClient *c)
 {
-	int id;
+	int i;
 	char n[12];
 	Path p;
 
-	id = drawid(c);
-	p = PATH(id, Qdraw);
-	n[sprint(n, "%d", id)] = 0;
-	ninepadddir(s, Qdraw, p, n, 0500, "inferno");
-	ninepaddfile(s, p, p|Qctl, "ctl", 0600, "inferno");
-	ninepaddfile(s, p, p|Qdata, "data", 0600, "inferno");
-	ninepaddfile(s, p, p|Qcolormap, "colormap", 0400, "inferno");
-	ninepaddfile(s, p, p|Qrefresh, "refresh", 0400, "inferno");
+	i = drawpath(c);
+	p = PATH(i, Qdraw);
+	n[sprint(n, "%d", i)] = 0;
+	ninepadddir(s, Qdraw, p, n, 0555, "inferno");
+	ninepaddfile(s, p, p|Qctl, "ctl", 0666, "inferno");
+	ninepaddfile(s, p, p|Qdata, "data", 0666, "inferno");
+	ninepaddfile(s, p, p|Qcolormap, "colormap", 0444, "inferno");
+	ninepaddfile(s, p, p|Qrefresh, "refresh", 0444, "inferno");
 }
 
 static
@@ -57,20 +57,20 @@ wsysaddfiles(Ninepserver *s, Window *w)
 
 	p = PATH(w->id, 0);
 	n[sprint(n, "%d", w->id)] = 0;
-	ninepadddir(s, Qwsys, p, n, 0500, "inferno");
-	ninepaddfile(s, p, p|Qcons, "cons", 0600, "inferno");
-	ninepaddfile(s, p, p|Qcons, "keyboard", 0600, "inferno");
-	ninepaddfile(s, p, p|Qconsctl, "consctl", 0200, "inferno");
-	ninepaddfile(s, p, p|Qcursor, "cursor", 0600, "inferno");
-	ninepaddfile(s, p, p|Qmouse, "mouse", 0600, "inferno");
-	ninepaddfile(s, p, p|Qmouse, "pointer", 0600, "inferno");
-	ninepaddfile(s, p, p|Qsnarf, "snarf", 0600, "inferno");
-	ninepaddfile(s, p, p|Qkill, "kill", 0600, "inferno");
-	ninepaddfile(s, p, p|Qlabel, "label", 0600, "inferno");
-	ninepaddfile(s, p, p|Qwctl, "wctl", 0600, "inferno");
-	ninepaddfile(s, p, p|Qwinid, "winid", 0600, "inferno");
-	ninepaddfile(s, p, p|Qwinname, "winname", 0600, "inferno");
-	ninepadddir(s, p, Qwsys, "wsys", 0500, "inferno");
+	ninepadddir(s, Qwsys, p, n, 0555, "inferno");
+	ninepaddfile(s, p, p|Qcons, "cons", 0666, "inferno");
+	ninepaddfile(s, p, p|Qcons, "keyboard", 0666, "inferno");
+	ninepaddfile(s, p, p|Qconsctl, "consctl", 0222, "inferno");
+	ninepaddfile(s, p, p|Qcursor, "cursor", 0666, "inferno");
+	ninepaddfile(s, p, p|Qmouse, "mouse", 0666, "inferno");
+	ninepaddfile(s, p, p|Qmouse, "pointer", 0666, "inferno");
+	ninepaddfile(s, p, p|Qsnarf, "snarf", 0666, "inferno");
+	ninepaddfile(s, p, p|Qkill, "kill", 0666, "inferno");
+	ninepaddfile(s, p, p|Qlabel, "label", 0666, "inferno");
+	ninepaddfile(s, p, p|Qwctl, "wctl", 0666, "inferno");
+	ninepaddfile(s, p, p|Qwinid, "winid", 0666, "inferno");
+	ninepaddfile(s, p, p|Qwinname, "winname", 0666, "inferno");
+	ninepadddir(s, p, Qwsys, "wsys", 0555, "inferno");
 }
 
 /* Service Functions */
@@ -286,7 +286,7 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 		return drawwrite(qid, buf, n, offset);
 	}
 	// unreachable
-	return "Read called on an unreadable file";
+	return "Read called on an unwritable file";
 }
 
 char*

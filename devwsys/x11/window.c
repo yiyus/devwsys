@@ -26,7 +26,6 @@ static Rectangle xwinrectangle(char*);
 int
 xattach(Window *w, char *spec)
 {
-	char err[256];
 	Point orig;
 	Rectangle rect;
 	Xwin *xw;

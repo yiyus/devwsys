@@ -41,8 +41,8 @@ extern char
 /* Macros */
 #define curwindow	((Window*)server->curc->u)
 #define PATH(s, t)	((Path)((s)<<8)|((t)&0xFF))
-#define QSLOT(p)	((p)>>32)
-#define QTYPE(p)	((p)&0xFFFFFFFF)
+#define QSLOT(p)	((p)>>8)
+#define QTYPE(p)	((p)&0xFF)
 #define incref(r)	((*r) = ++(*r))
 #define decref(r)	((*r) = --(*r))
 
@@ -57,4 +57,4 @@ char* drawopen(Qid *qid, int mode);
 char* drawread(Qid qid, char *buf, ulong *n, vlong offset);
 char* drawwrite(Qid qid, char *buf, ulong *n, vlong offset);
 char* drawclose(Qid qid, int mode);
-int drawid(DClient *cl);
+int drawpath(DClient *cl);

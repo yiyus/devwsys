@@ -1964,7 +1964,7 @@ drawclose(Qid qid, int mode)
 }
 
 int
-drawid(DClient *cl)
+drawpath(DClient *cl)
 {
-	return cl->clientid;
+	return cl->slot+1;
 }

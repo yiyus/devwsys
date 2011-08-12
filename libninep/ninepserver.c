@@ -25,8 +25,6 @@ char Enotdir[] =		"not a directory";
 char	Eopen[] =		"already open";
 char	Ebadfid[] =	"bad fid";
 
-#define OP(x, arg...) (ops && ops->x && (f->ename = ops->x(arg)) == nil)
-
 enum{
 	CDISC = 01,
 	CNREAD = 02,
@@ -55,6 +53,8 @@ struct Walkqid
 };
 
 #define ASSERT(A,B) ninepassert((int)A,B)
+
+extern time_t time(time_t *t);
 
 static int hash(int);
 static void deletefids(Client*);
@@ -744,6 +744,8 @@ reply(Client *c, Fcall *f, char *err)
 	if(Debug)
 		fprint(2, "-%d-> %F\n", c->fd, f);
 	wr(c, f);
+	if(f->type == Tstat)
+		ninepfree(f->stat);
 }
 
 void
@@ -960,7 +962,7 @@ ninepdefault(Ninepserver *server)
 			else
 				f->perm = (f->perm&(~0777|0111)) | (file->d.mode&f->perm&0666);
 		}
-		if(OP(create, &fp->qid, f->name, f->perm, f->mode)){
+		if(ops && ops->create && (f->ename = ops->create(&fp->qid, f->name, f->perm, f->mode)) == nil){
 			f->type = Rcreate;
 			f->qid = fp->qid;
 			fp->mode = f->mode;
@@ -982,7 +984,7 @@ ninepdefault(Ninepserver *server)
 			f->type = Rread;
 			if(file == nil){
 				f->ename = Eperm;
-				if(OP(read, fp->qid, c->data, (ulong*)(&f->count), fp->dri)){
+				if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil){
 					f->data = c->data;
 				}
 				else
@@ -995,7 +997,7 @@ ninepdefault(Ninepserver *server)
 		}else{
 			f->ename = Eperm;
 			f->type = Rerror;
-			if(OP(read, fp->qid, c->data, (ulong*)(&f->count), f->offset)){
+			if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil){
 				f->type = Rread;
 				f->data = c->data;			
 			}
@@ -1009,7 +1011,7 @@ ninepdefault(Ninepserver *server)
 		}
 		f->ename = Eperm;
 		f->type = Rerror;
-		if(OP(write,fp->qid, f->data, (ulong*)(&f->count), f->offset)){
+		if(ops && ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil){
 			f->type = Rwrite;
 		}
 		break;
@@ -1019,9 +1021,8 @@ ninepdefault(Ninepserver *server)
 		qid = fp->qid;
 		deletefid(c, fp);
 		f->type = Rclunk;
-		if(open && OP(close,qid, mode))
-			break;
-		f->type = Rerror;
+		if(open && ops && ops->close && (f->ename = ops->close(qid, mode)) != nil)
+			f->type = Rerror;
 		break;
 	case	Tremove:
 		if(file != nil && file->parent != nil && !ninepperm(file->parent, c->uname, OWRITE)){
@@ -1031,7 +1032,7 @@ ninepdefault(Ninepserver *server)
 			break;
 		}
 		f->ename = Eperm;
-		if(OP(remove, fp->qid))
+		if(ops && ops->remove && (f->ename = ops->remove(fp->qid)) == nil)
 			f->type = Rremove;
 		else
 			f->type = Rerror;
@@ -1040,17 +1041,13 @@ ninepdefault(Ninepserver *server)
 	case	Tstat:
 		f->stat = ninepmalloc(MAXSTAT);
 		f->ename = "stat error";
-		if(ops->stat == nil && file != nil){
-			f->type = Rstat;
+		f->type = Rstat;
+		if((ops == nil || ops->stat == nil) && file != nil)
 			f->nstat = convD2M(&file->d, f->stat, MAXSTAT);
-		}
-		else if(OP(stat, fp->qid, &dir)){
-			f->type = Rstat;
+		else if(ops && ops->stat && (f->ename = ops->stat(fp->qid, &dir)) == nil)
 			f->nstat = convD2M(&dir, f->stat, MAXSTAT);
-		}
 		else
 			f->type = Rerror;
-		ninepfree(f->stat);
 		break;
 	case	Twstat:
 		f->ename = Eperm;
@@ -1059,7 +1056,7 @@ ninepdefault(Ninepserver *server)
 		dir.uid = nilconv(dir.uid);
 		dir.gid = nilconv(dir.gid);
 		dir.muid = nilconv(dir.muid);
-		if(OP(wstat, fp->qid, &dir))
+		if(ops && ops->wstat && (f->ename = ops->wstat(fp->qid, &dir)) == nil)
 			f->type = Rwstat;
 		else
 			f->type = Rerror;
@@ -1093,9 +1090,8 @@ ninepdefault(Ninepserver *server)
 			f->type = Rattach;
 			f->fid = fp->fid;
 			f->qid = q;
-			if(OP(attach, c->uname, c->aname))
-				break;
-			f->type = Rerror;
+			if(ops && ops->attach && (f->ename = ops->attach(c->uname, c->aname)) != nil)
+				f->type = Rerror;
 		}
 		break;
 	}
