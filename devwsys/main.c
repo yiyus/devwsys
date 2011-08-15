@@ -31,7 +31,7 @@ int
 main(int argc, char **argv)
 {
 	int xfd;
-	char *address, *cp;
+	char *address, *cp, *err;
 	char *argv0;
 
 	address = nil;
@@ -64,9 +64,11 @@ main(int argc, char **argv)
 		fatal("unable to connect to X server");
 
 	/* 9p server loop */
-	fsloop(address, xfd);
+	err = fsloop(address, xfd);
 
 	xclose();
+	if(err != nil)
+		fatal("%s", err);
 	return 0;
 }
 

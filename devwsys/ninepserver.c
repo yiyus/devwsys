@@ -8,16 +8,25 @@
 #include "fns.h"
 #include "fsys.h"
 
-void
+char*
 fsloop(char *address, int xfd)
 {
-	char *err;
+	char *ns, *err;
 	Ninepserver s;
 
 	server = &s;
-	ninepinit(&s, &ops, address, 0555, 0);
+	if(address == nil){
+		ns = ninepnamespace();
+		if(ns == nil)
+			address = "tcp!*!564";
+		else
+			address = smprint("%s/wsys", ns);
+	}
 	if(debuglevel > 0)
 		ninepdebug();
+	err = ninepinit(&s, &ops, address, 0555, 0);
+	if(err != nil)
+		return err;
 	fsinit(&s);
 	for(;;) {
 		nineplisten(&s, xfd);
@@ -29,6 +38,10 @@ fsloop(char *address, int xfd)
 		ninepdefault(&s);
 	}
 	ninepend(&s);
-	return;
+	if(ns != nil){
+		ninepfree(address);
+		ninepfree(ns);
+	}
+	return nil;
 }
 

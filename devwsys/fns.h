@@ -29,7 +29,7 @@ void setlabel(Window*, char*);
 char* wctlmesg(Window*, char*, int);
 
 /* Fsys */
-void fsloop(char*, int);
+char* fsloop(char*, int);
 void killrespond(Window*);
 void readreply(void*, char*);
 

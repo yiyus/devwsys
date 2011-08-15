@@ -312,3 +312,9 @@ ninepexit(int n)
 	else
 		exits(nil);
 }
+
+char*
+ninepnamespace(void)
+{
+	return "/srv";
+}

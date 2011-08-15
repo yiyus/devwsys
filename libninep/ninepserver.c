@@ -705,6 +705,8 @@ ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needf
 	server->connfd = ninepannounce(server, address);
 	if(server->connfd < 0)
 		return "can't announce on network port";
+	if(Debug)
+		fprint(2, "Announced at %s\n", address);
 	ninepinitwait(server);
 	server->root = newfile(server, nil, 1, Qroot, "/", perm|DMDIR, eve);
 	server->needfile = needfile;

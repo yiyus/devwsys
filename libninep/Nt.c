@@ -171,3 +171,10 @@ ninepexit(int n)
 {
 	exit(n);
 }
+
+char*
+ninepnamespace(void)
+{
+	/* TODO */
+	return nil;
+}

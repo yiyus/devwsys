@@ -91,6 +91,7 @@ struct Ninepfile
 	void	*u;
 };
 
+char *ninepnamespace(void);
 char *ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile);
 char *ninepend(Ninepserver *server);
 
