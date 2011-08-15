@@ -21,7 +21,7 @@ void* nextreq(Reqbuf *reqs);
 
 /* Window */
 Window* newwin(void);
-Window* lookupwin(int);
+Window* winlookup(int);
 void deletewin(Window*);
 void setlabel(Window*, char*);
 

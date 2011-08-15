@@ -23,25 +23,40 @@ newwin(void)
 	return w;
 }
 
+Window*
+winlookup(int id)
+{
+	int i;
+	Window *w;
+
+	for(i = 0; i < nwindow; i++){
+		w = window[i];
+		if(w->id == id)
+			return w;
+	}
+	return nil;
+}
+
 void
 deletewin(Window *w)
 {
 	int i;
 
+	w->deleted++;
+	xdeletewin(w);
+	/*
+	 * Write pid of the process to the kill file.
+	 */
+	if(w->killpend)
+		killrespond(w);
+	if(w->ref > 0)
+		return;
 	for(i = 0; i < nwindow; i++){
 		if(window[i] == w)
 			break;
 	}
 	if(i == nwindow)
 		return;
-	w->deleted++;
-	/*
-	 * Write pid of the process to the kill file.
-	 */
-	if(w->killpend)
-		killrespond(w);
-	xdeletewin(w);
-	w->x = nil;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
 }

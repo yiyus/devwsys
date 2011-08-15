@@ -65,13 +65,13 @@ struct Ninepops
 	char *(*newclient)(Client *c);
 	char *(*freeclient)(Client *c);
 
-	char *(*attach)(char *uname, char *aname);
+	char *(*attach)(Qid *qid, char *uname, char *aname);
 	char *(*walk)(Qid *qid, char *name);
 	char *(*open)(Qid *qid, int mode);
 	char *(*create)(Qid *qid, char *name, int perm, int mode);
 	char *(*read)(Qid qid, char *buf, ulong *n, vlong offset);
 	char *(*write)(Qid qid, char *buf, ulong *n, vlong offset);
-	char *(*close)(Qid qid, int mode);
+	char *(*clunk)(Qid qid, int mode);
 	char *(*remove)(Qid qid);
 	char *(*stat)(Qid qid, Dir *d);
 	char *(*wstat)(Qid qid, Dir *d);
@@ -84,6 +84,8 @@ struct Ninepfile
 	Ninepfile *child;
 	Ninepfile *sibling;
 	Ninepfile *next;
+	Ninepfile *bind;
+	Ninepfile *nf;
 	int ref;
 	int open;
 	void	*u;
@@ -104,6 +106,7 @@ void ninepcompleted(Pending *pend);
 
 Ninepfile *ninepaddfile(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
 Ninepfile *ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
+Ninepfile *ninepbind(Ninepserver *server, Path pqid, Path qid);
 int nineprmfile(Ninepserver *server, Path qid);
 Ninepfile *ninepfindfile(Ninepserver *server, Path qid);
 

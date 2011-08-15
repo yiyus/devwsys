@@ -99,6 +99,7 @@ struct Window
 	int			pid;
 	int			resized;
 	int			visible;
+	int			ref;
 	char			*label;
 	char			*name;
 	Draw		*draw;

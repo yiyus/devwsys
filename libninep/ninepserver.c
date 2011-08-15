@@ -31,18 +31,26 @@ enum{
 	CRECV = 04,
 };
 
+typedef struct Parent Parent;
 typedef struct Walkqid Walkqid;
 
 struct Fid
 {
 	Client 	*client;
-	Fid *next;
-	short	fid;
+	Fid 		*next;
+	Parent	*parent;
+	short		fid;
 	ushort	open;
 	ushort	mode;	/* read/write */
 	ulong	offset;	/* in file */
 	int		dri;		/* dirread index */
 	Qid		qid;
+};
+
+struct Parent
+{
+	Ninepfile	*file;
+	Parent	*parent;
 };
 
 struct Walkqid
@@ -172,12 +180,14 @@ nbread(Client *c, int nr)
 
 static
 int
-rd(Client *c, Fcall *r)
+rd(Client *c, Fcall *f)
 {
+	memset(f, 0, sizeof(f));
+	memset(c->data, 0, sizeof(c->data));
 	if(c->nc > 0){	/* last convM2S consumed nc bytes */
 		c->nread -= c->nc;
 		if((int)c->nread < 0){
-			r->ename = "negative size in rd";
+			f->ename = "negative size in rd";
 			return -1;
 		}
 		memmove(c->msg, c->msg+c->nc, c->nread);
@@ -185,14 +195,14 @@ rd(Client *c, Fcall *r)
 	}
 	if(c->state&CRECV){
 		if(nbread(c, MSGMAX - c->nread) != 0){
-			r->ename = "unexpected EOF";
+			f->ename = "unexpected EOF";
 			return -1;
 		}
 		c->state &= ~CRECV;
 	}
-	c->nc = convM2S((uchar*)(c->msg), c->nread, r);
+	c->nc = convM2S((uchar*)(c->msg), c->nread, f);
 	if(c->nc < 0){
-		r->ename = "bad message format";
+		f->ename = "bad message format";
 		return -1;
 	}
 	if(c->nc == 0 && c->nread > 0){
@@ -444,6 +454,32 @@ fidclone(Fid *old, short fid)
 }
 
 static
+Ninepfile *
+nextfile(Ninepfile *f)
+{
+	static Ninepfile *nf = nil;
+
+Nextfile:
+	if(f == nil){
+		f = nf;
+		nf = nil;
+		if(f != nil){
+			nf = f->nf;
+			f->nf = nil;
+		}
+	}
+	if(f != nil && f->bind != nil){
+		if(f->sibling != nil){
+			f->sibling->nf = nf;
+			nf = f->sibling;
+		}
+		f = f->bind->child;
+		goto Nextfile;
+	}
+	return f;
+}
+
+static
 Walkqid*
 devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, char **err)
 {
@@ -453,6 +489,7 @@ devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, c
 	char *n;
 	Ninepfile *p, *f;
 	Ninepops *ops;
+	Parent *parent;
 	Qid qid;
 
 	*err = nil;
@@ -464,10 +501,11 @@ devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, c
 
 	p = file;
 	qid = p != nil ? p->d.qid : fp->qid;
+	nfp->parent = fp->parent;
+	if(nname == 0 && ops && ops->walk)
+		ops->walk(&qid, nil);
 	for(j = 0; j < nname; j++){
 		if(!(qid.type&QTDIR)){
-			if(j == 0)
-				ninepfatal("devwalk error");
 			*err = Enotdir;
 			goto Done;
 		}
@@ -477,25 +515,34 @@ devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, c
 		}
 		n = name[j];
 		if(strcmp(n, ".") == 0){
-    Accept:
+	Accept:
 			wq->qid[wq->nqid++] = nfp->qid;
 			continue;
 		}
-		if(p != nil && strcmp(n, "..") == 0 && p->parent){
+		if(p != nil && strcmp(n, "..") == 0 && nfp->parent){
+			parent = nfp->parent;
+			f = parent->file;
 			decref(p);
-			nfp->qid.path = p->parent->d.qid.path;
-			nfp->qid.type = p->parent->d.qid.type;
+			nfp->qid.path = f->d.qid.path;
+			nfp->qid.type = f->d.qid.type;
 			nfp->qid.vers = 0;
-			incref(p->parent);
-			p = p->parent;
+			incref(f);
+			p = f;
+			nfp->parent = parent->parent;
+			ninepfree(parent);
 			qid = p->d.qid;
 			goto Accept;
 		}
-		
-		if(ops->walk != nil){
+
+		parent = ninepmalloc(sizeof(Parent));
+		parent->file = p;
+		parent->parent = nfp->parent;
+		nfp->parent = parent;
+
+		if(ops && ops->walk != nil){
 			char *e;
 
-			e = ops->walk(&qid, n);
+			e = ops->walk(&qid, &n[0]);
 			if(e == nil){
 				decreff(nfp);
 				nfp->qid = qid;
@@ -509,15 +556,14 @@ devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, c
 		}
 
 		if(p != nil)
-		for(f = p->child; f != nil; f = f->sibling){
+		for(f = nextfile(p->child); f != nil;f = nextfile(f->sibling)){
 			if(strcmp(n, f->d.name) == 0){
 				decref(p);
-				nfp->qid.path = f->d.qid.path;
-				nfp->qid.type = f->d.qid.type;
+				nfp->qid = f->d.qid;
 				nfp->qid.vers = 0;
 				incref(f);
 				p = f;
-				qid = p->d.qid;
+				qid = f->d.qid;
 				goto Accept;
 			}
 		}
@@ -546,12 +592,12 @@ devdirread(Fid *fp, Ninepfile *file, char *d, long n)
 		char slop[100];	/* TO DO */
 	}dir;
 
-	f = file->child;
-	for(i = 0; i < fp->dri; i++)
+	f = nextfile(file->child);
+	for(i = 0; i < fp->dri; i++){
 		if(f == 0)
 			return 0;
-		else
-			f = f->sibling;
+		f = nextfile(f->sibling);
+	}
 	for(m = 0; m < n; fp->dri++){
 		if(f == nil)
 			break;
@@ -559,9 +605,8 @@ devdirread(Fid *fp, Ninepfile *file, char *d, long n)
 		dsz = convD2M(&dir.d, (uchar*)d, n-m);
 		m += dsz;
 		d += dsz;
-		f = f->sibling;
+		f = nextfile(f->sibling);
 	}
-
 	return m;
 }
 
@@ -572,6 +617,23 @@ nilconv(char *s)
 	if(s != nil && s[0] == '\0')
 		return nil;
 	return s;
+}
+
+static
+Ninepfile *
+addfile(Ninepserver *server, Ninepfile *parent, Path qid)
+{
+	Ninepfile *file;
+
+	file = (Ninepfile *)ninepmalloc(sizeof(Ninepfile));
+	file->parent = parent;
+	file->child = nil;
+	file->sibling = nil;
+	if(parent){
+		file->sibling = parent->child;
+		parent->child = file;
+	}
+	return file;
 }
 
 static
@@ -592,17 +654,11 @@ newfile(Ninepserver *server, Ninepfile *parent, int isdir, Path qid, char *name,
 			if(strcmp(name, file->d.name) == 0)
 				return nil;
 	}
-	file = (Ninepfile *)ninepmalloc(sizeof(Ninepfile));
-	file->parent = parent;
-	file->child = nil;
+
+	file = addfile(server, parent, qid);
 	h = hash(qid);
 	file->next = server->ftab[h];
 	server->ftab[h] = file;
-	if(parent){
-		file->sibling = parent->child;
-		parent->child = file;
-	}else
-		file->sibling = nil;
 
 	d.type = 'X';
 	d.dev = 'x';
@@ -836,7 +892,7 @@ void
 ninepdefault(Ninepserver *server)
 {
 	Fid *fp, *nfp;
-	int i, open, mode;
+	int i, mode;
 	char ebuf[EMSGLEN];
 	Walkqid *wq;
 	Ninepfile *file;
@@ -858,7 +914,8 @@ ninepdefault(Ninepserver *server)
 	if(f->type == Tflush){
 		if(f->oldtag == f->tag || (p = findpending(c, f->oldtag)) == nil || p->flushed)
 			reply(c, f, nil);
-		p->flushtag = f->tag;		
+		p->flushtag = f->tag;
+		server->curc = nil;
 		return;
 	}
 	file = nil;
@@ -880,15 +937,13 @@ ninepdefault(Ninepserver *server)
 	switch(f->type){
 	case	Twalk:
 		nfp = findfid(c, f->newfid);
-		f->type = Rerror;
+		f->type = Rwalk;
 		if(nfp){
-			deletefid(c, nfp);
-			nfp = nil;
-		}
-		if(nfp){
+			f->type = Rerror;
 			f->ename = "fid in use";
 			break;
 		}else if(fp->open){
+			f->type = Rerror;
 			f->ename = "can't clone";
 			break;
 		}
@@ -897,15 +952,14 @@ ninepdefault(Ninepserver *server)
 		else
 			nfp = fp;
 		if((wq = devwalk(c, file, fp, nfp, f->wname, f->nwname, &f->ename)) == nil){
+			f->type = Rerror;
 			if(nfp != fp)
 				deletefid(c, nfp);
-			f->type = Rerror;
 		}else{
 			if(nfp != fp){
 				if(wq->nqid != f->nwname)
 					deletefid(c, nfp);
 			}
-			f->type = Rwalk;
 			f->nwqid = wq->nqid;
 			for(i = 0; i < wq->nqid; i++)
 				f->wqid[i] = wq->qid[i];
@@ -913,6 +967,7 @@ ninepdefault(Ninepserver *server)
 		}
 		break;
 	case	Topen:
+		f->type = Ropen;
 		f->ename = nil;
 		if(fp->open)
 			f->ename = Eopen;
@@ -929,7 +984,6 @@ ninepdefault(Ninepserver *server)
 		f->ename = Enonexist;
 		decreff(fp);
 		if(ops == nil || ops->open == nil || (f->ename = ops->open(&fp->qid, f->mode)) == nil){
-			f->type = Ropen;
 			f->qid = fp->qid;
 			fp->mode = f->mode;
 			fp->open = 1;
@@ -941,6 +995,7 @@ ninepdefault(Ninepserver *server)
 		increff(fp);
 		break;
 	case	Tcreate:
+		f->type = Rcreate;
 		f->ename = nil;
 		if(fp->open)
 			f->ename = Eopen;
@@ -963,7 +1018,6 @@ ninepdefault(Ninepserver *server)
 				f->perm = (f->perm&(~0777|0111)) | (file->d.mode&f->perm&0666);
 		}
 		if(ops && ops->create && (f->ename = ops->create(&fp->qid, f->name, f->perm, f->mode)) == nil){
-			f->type = Rcreate;
 			f->qid = fp->qid;
 			fp->mode = f->mode;
 			fp->open = 1;
@@ -982,25 +1036,21 @@ ninepdefault(Ninepserver *server)
 		}
 		if(fp->qid.type&QTDIR || (file != nil && file->d.qid.type&QTDIR)){
 			f->type = Rread;
+			f->data = c->data;
 			if(file == nil){
+				if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil)
+					break;
+				f->type = Rerror;
 				f->ename = Eperm;
-				if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil){
-					f->data = c->data;
-				}
-				else
-					f->type = Rerror;
 			}
-			else{
-				f->count = devdirread(fp, file, c->data, f->count);
-				f->data = c->data;
-			}		
+			else
+				f->count = devdirread(fp, file, c->data, f->count);	
 		}else{
+			f->data = c->data;			
+			if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil)
+				break;
 			f->ename = Eperm;
 			f->type = Rerror;
-			if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil){
-				f->type = Rread;
-				f->data = c->data;			
-			}
 		}
 		break;
 	case	Twrite:
@@ -1009,19 +1059,18 @@ ninepdefault(Ninepserver *server)
 			f->ename = Ebadfid;
 			break;
 		}
+		f->type = Rwrite;
+		if(ops && ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil)
+			break;
 		f->ename = Eperm;
 		f->type = Rerror;
-		if(ops && ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil){
-			f->type = Rwrite;
-		}
 		break;
 	case	Tclunk:
-		open = fp->open;
 		mode = fp->mode;
 		qid = fp->qid;
 		deletefid(c, fp);
 		f->type = Rclunk;
-		if(open && ops && ops->close && (f->ename = ops->close(qid, mode)) != nil)
+		if(ops && ops->clunk && (f->ename = ops->clunk(qid, mode)) != nil)
 			f->type = Rerror;
 		break;
 	case	Tremove:
@@ -1086,12 +1135,12 @@ ninepdefault(Ninepserver *server)
 			q.path = Qroot;
 			q.type = QTDIR;
 			q.vers = 0;
-			fp = newfid(c, f->fid, q);
 			f->type = Rattach;
+			if(ops && ops->attach && (f->ename = ops->attach(&q, c->uname, c->aname)) != nil)
+				f->type = Rerror;
+			fp = newfid(c, f->fid, q);
 			f->fid = fp->fid;
 			f->qid = q;
-			if(ops && ops->attach && (f->ename = ops->attach(c->uname, c->aname)) != nil)
-				f->type = Rerror;
 		}
 		break;
 	}
@@ -1120,6 +1169,22 @@ ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char
 	if(parent == nil || (parent->d.qid.type&QTDIR) == 0)
 		return nil;
 	f = newfile(server, parent, 1, qid, name, mode|DMDIR, owner);
+	return f;
+}
+
+Ninepfile*
+ninepbind(Ninepserver *server, Path pqid, Path qid)
+{
+	Ninepfile *f, *p;
+
+	p = ninepfindfile(server, pqid);
+	if(p == nil || (p->d.qid.type&QTDIR) == 0)
+		return nil;
+	f = ninepfindfile(server, qid);
+	if(f == nil || (f->d.qid.type&QTDIR) == 0)
+		return nil;
+	p = addfile(server, p, qid);
+	p->bind = f;
 	return f;
 }
 

@@ -856,7 +856,7 @@ drawread(Qid qid, char *buf, ulong *n, vlong offset)
 		*n = drawreadctl(buf, cl);
 		if(*n == 0)
 			return Enodrawimage;
-		break;
+		return nil;
 	case Qdata:
 		if(cl->readdata == nil)
 			return "no draw data";
@@ -873,21 +873,19 @@ drawread(Qid qid, char *buf, ulong *n, vlong offset)
 		free(cl->readdata);
 		cl->readdata = nil;
 		cl->nreaddata = 0;
-		break;
+		return nil;
 	case Qcolormap:
 		*n = 0;
-		break;
+		return nil;
 	case Qrefresh:
 		if(count == 0)
 			return nil;
 		if(count < 5*4)
 			return Ebadarg;
 		count = drawreadrefresh(buf, count, cl);
-		if(count > 0) {
+		if(count > 0)
 			*n = count;
-			return nil;
-		}
-		break;
+		return nil;
 	}
 	// unreachable
 	return "Read called on an unreadable file";
@@ -1967,4 +1965,10 @@ int
 drawpath(DClient *cl)
 {
 	return cl->slot+1;
+}
+
+Window*
+drawwindow(DClient *cl)
+{
+	return cl->draw->window;
 }

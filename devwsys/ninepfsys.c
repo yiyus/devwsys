@@ -25,9 +25,8 @@ static char *snarfbuf;
 void
 fsinit(Ninepserver *s)
 {
-	ninepadddir(s, Qroot, Qdraw, "draw", 0555, "inferno");
-	ninepaddfile(s, Qdraw, Qnew, "new", 0666, "inferno");
 	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, "inferno");
+	ninepadddir(s, Qroot, Qdraw, "draw", 0555, "inferno");
 }
 
 static
@@ -36,75 +35,61 @@ drawaddfiles(Ninepserver *s, DClient *c)
 {
 	int i;
 	char n[12];
-	Path p;
+	Path p, cp;
 
 	i = drawpath(c);
-	p = PATH(i, Qdraw);
+	p = PATH(i, 0);
+	cp = p|Qdrawn;
 	n[sprint(n, "%d", i)] = 0;
-	ninepadddir(s, Qdraw, p, n, 0555, "inferno");
-	ninepaddfile(s, p, p|Qctl, "ctl", 0666, "inferno");
-	ninepaddfile(s, p, p|Qdata, "data", 0666, "inferno");
-	ninepaddfile(s, p, p|Qcolormap, "colormap", 0444, "inferno");
-	ninepaddfile(s, p, p|Qrefresh, "refresh", 0444, "inferno");
+	ninepadddir(s, Qdraw, cp, n, 0555, "inferno");
+	ninepaddfile(s, cp, p|Qctl, "ctl", 0666, "inferno");
+	ninepaddfile(s, cp, p|Qdata, "data", 0666, "inferno");
+	ninepaddfile(s, cp, p|Qcolormap, "colormap", 0444, "inferno");
+	ninepaddfile(s, cp, p|Qrefresh, "refresh", 0444, "inferno");
 }
 
 static
-void
+Path
 wsysaddfiles(Ninepserver *s, Window *w)
 {
-	char n[12];
+	int n;
+	char name[12];
 	Path p;
 
 	p = PATH(w->id, 0);
-	n[sprint(n, "%d", w->id)] = 0;
-	ninepadddir(s, Qwsys, p, n, 0555, "inferno");
+	n = sprint(name, "%d", w->id);
+	name[n] = 0;
+	ninepadddir(s, Qwsys, p, name, 0555, "inferno");
 	ninepaddfile(s, p, p|Qcons, "cons", 0666, "inferno");
-	ninepaddfile(s, p, p|Qcons, "keyboard", 0666, "inferno");
 	ninepaddfile(s, p, p|Qconsctl, "consctl", 0222, "inferno");
+	ninepaddfile(s, p, p|Qkeyboard, "keyboard", 0666, "inferno");
 	ninepaddfile(s, p, p|Qcursor, "cursor", 0666, "inferno");
 	ninepaddfile(s, p, p|Qmouse, "mouse", 0666, "inferno");
-	ninepaddfile(s, p, p|Qmouse, "pointer", 0666, "inferno");
+	ninepaddfile(s, p, p|Qpointer, "pointer", 0666, "inferno");
 	ninepaddfile(s, p, p|Qsnarf, "snarf", 0666, "inferno");
 	ninepaddfile(s, p, p|Qkill, "kill", 0666, "inferno");
 	ninepaddfile(s, p, p|Qlabel, "label", 0666, "inferno");
 	ninepaddfile(s, p, p|Qwctl, "wctl", 0666, "inferno");
 	ninepaddfile(s, p, p|Qwinid, "winid", 0666, "inferno");
 	ninepaddfile(s, p, p|Qwinname, "winname", 0666, "inferno");
-	ninepadddir(s, p, Qwsys, "wsys", 0555, "inferno");
+	ninepadddir(s, p, p|Qwsys, "wsys", 0555, "inferno");
+	ninepbind(s, p|Qwsys, Qwsys);
+	ninepadddir(s, p, p|Qdraw, "draw", 0555, "inferno");
+	ninepaddfile(s, p|Qdraw, p|Qnew, "new", 0666, "inferno");
+	ninepbind(s, p|Qdraw, Qdraw);
+	return p;
 }
 
 /* Service Functions */
 char*
-wsysnewclient(Client *c)
+wsysattach(Qid *qid, char *uname, char *aname)
 {
 	Window *w;
 
 	w = newwin();
 	if(w == nil)
 		return Enomem;
-	c->u = w;
-	wsysaddfiles(server, w);
-	return nil;
-}
-
-char*
-wsysfreeclient(Client *c)
-{
-	Window *w;
-
-	w = c->u;
-	drawdettach(w);
-	w->draw = nil;
-	deletewin(w);
-	return nil;
-}
-
-char*
-wsysattach(char *uname, char *aname)
-{
-	Window *w;
-
-	w = curwindow;
+	qid->path = wsysaddfiles(server, w);
 	if(!drawattach(w,aname)) {
 		if(w){
 			assert(w == window[nwindow-1]);
@@ -113,8 +98,20 @@ wsysattach(char *uname, char *aname)
 		}
 		return Enomem;
 	}
+	w->ref = 1;
 	return nil;
 }	
+
+char*
+wsyswalk(Qid *qid, char *name)
+{
+	Window *w;
+
+	w = qwindow(qid);
+	if(w != nil)
+		incref(&w->ref);
+	return "continue";
+}
 
 char*
 wsysopen(Qid *qid, int mode)
@@ -123,8 +120,8 @@ wsysopen(Qid *qid, int mode)
 	Window *w;
 	DClient *cl;
 
-	w = curwindow;
-	if(w->deleted)
+	w = qwindow(qid);
+	if(w && w->deleted)
 		return Edeleted;
 	type = QTYPE(qid->path);
 	if(type == Qnew){
@@ -133,9 +130,11 @@ wsysopen(Qid *qid, int mode)
 			return Enodev;
 		drawaddfiles(server, cl);
 		type = Qctl;
+		qid->path = PATH(drawpath(cl), type);
 	}
 	switch(type){
 	case Qmouse:
+	case Qpointer:
 		if(w->mouse.open)
 			return Einuse;
 		w->mouse.open = 1;
@@ -165,23 +164,27 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 	Window *w;
 	Pending *p;
 
-	w = curwindow;
+	w = qwindow(&qid);
 	type = QTYPE(qid.path);
-	if(w->deleted && type != Qkill)
+	if(w && w->deleted && type != Qkill)
 		return Edeleted;
 	switch(type){
 	case Qcons:
+	case Qkeyboard:
 		p = ninepreplylater(server);
 		readkbd(w, p);
 		return nil;
 	case Qkill:
-		w->killpend = ninepreplylater(server);
+		if(w->killpend == nil)
+			w->killpend = ninepreplylater(server);
+		*n = 0;
 		return nil;
 	case Qlabel:
 		if(w->label)
 			ninepreadstr(0, buf, strlen(w->label), w->label);
 		return nil;
 	case Qmouse:
+	case Qpointer:
 		p = ninepreplylater(server);
 		readmouse(w, p);
 		return nil;
@@ -221,12 +224,14 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 	Window *w;
 	Point pt;
 
-	w = curwindow;
-	if(w->deleted)
+	w = qwindow(&qid);
+	if(w && w->deleted)
 		return Edeleted;
 	type = QTYPE(qid.path);
 	count = *n;
 	switch(type){
+	case Qconsctl:
+		return nil;
 	case Qcursor:
 		if(cursorwrite(w, buf, *n) < 0){
 			*n = 0;
@@ -243,6 +248,7 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 		setlabel(w, label);
 		return nil;
 	case Qmouse:
+	case Qpointer:
 		if(count == 0)
 			return Eshortwrite;
 		p = &buf[1];
@@ -286,22 +292,33 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 		return drawwrite(qid, buf, n, offset);
 	}
 	// unreachable
-	return "Read called on an unwritable file";
+	return "Write called on an unwritable file";
 }
 
 char*
-wsysclose(Qid qid, int mode) {
+wsysclunk(Qid qid, int mode) {
 	int type;
 	Window *w;
 
-	w = curwindow;
+	w = qwindow(&qid);
+	if(w != nil)
+		decref(&w->ref);
 	type = QTYPE(qid.path);
 	switch(type){
+	case Qroot:
+		if(w && w->ref == 0){
+			drawdettach(w);
+			w->draw = nil;
+			deletewin(w);
+		}
+		return nil;
 	case Qcons:
+	case Qkeyboard:
 		w->kbd.wi = w->kbd.ri;
 		w->kbdreqs.wi = w->kbdreqs.ri;
 		return nil;
 	case Qmouse:
+	case Qpointer:
 		w->mouse.open = 0;
 		w->mouse.wi = w->mouse.ri;
 		w->mousereqs.wi = w->mousereqs.ri;
@@ -362,7 +379,20 @@ killrespond(Window *w)
 	ninepcompleted(p);
 }
 
-/* Reply a read request */
+Window*
+qwindow(Qid *qid)
+{
+	int slot, type;
+
+	slot = QSLOT(qid->path);
+	type = QTYPE(qid->path);
+	if(type <= Qnew)
+		return winlookup(slot);
+	if(type >= Qdrawn)
+		return drawwindow(client[slot-1]);
+	return nil;
+}
+
 void
 readreply(void *v, char *buf)
 {
@@ -375,16 +405,16 @@ readreply(void *v, char *buf)
 }
 
 Ninepops ops = {
-	wsysnewclient,	/* newclient */
-	wsysfreeclient,	/* freeclient */
+	nil,			/* newclient */
+	nil,			/* freeclient */
 
 	wsysattach,	/* attach */
-	nil,			/* walk */
+	wsyswalk,	/* walk */
 	wsysopen,	/* open */
 	nil,			/* create */
 	wsysread,		/* read */
 	wsyswrite,	/* write */
-	wsysclose,	/* close */
+	wsysclunk,	/* clunk */
 	nil,			/* remove */
 	nil,			/* stat */
 	nil,			/* wstat */
