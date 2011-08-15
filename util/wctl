@@ -11,7 +11,7 @@ fn window-m {
 	{
 		unmount /mnt/acme /dev >[2]/dev/null
 		pid=`{cat /dev/ppid}
-		if(mount $srv $dir 'new -pid '^$pid^' '$"*){
+		if(mount -n $srv $dir 'new -pid '^$pid^' '$"*){
 			bind -b $dir /dev
 			# toss geometry parameters to find command
 			while(~ $1 -*)
@@ -30,14 +30,23 @@ fn window-m {
 			if(~ $#* 0) cmd = $defaultcmd
 			if not cmd = $*
 			echo -n `{basename $cmd(1)} > /dev/label >[2] /dev/null
+
+			# A process blocks reading the kill file, if present
 			if(test -f $dir/kill){
-				f=/proc/^`{cat $dir/kill}^/note
+				f = /proc/^`{cat $dir/kill}^/note
 				# the proces could have finished on
 				# its own, check it is still there.
 				if(test -f $f)
 					echo kill > $f
 			}&
-			{exec cat /n/pipe/data1 > $dir/wctl}&
+			kpid = $apid
+
+			# Another process checks if the program finishes
+			{
+				m = `{cat /n/pipe/data1}
+				echo kill >  /proc/$kpid/note
+				echo $m > $dir/wctl
+			}&
 			exec $cmd < /dev/cons > /dev/cons >[2] /dev/cons
 		}
 	}&
