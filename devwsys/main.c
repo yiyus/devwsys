@@ -13,19 +13,6 @@ int drawdebug; /* used by libmemdraw */
 int nwindow;
 Window **window;
 
-/* used by libmemdraw */
-int
-iprint(char* fmt, ...)
-{
-	int n;
-	va_list args;
-
-	va_start(args, fmt);
-	n = vfprint(2, fmt, args);
-	va_end(args);
-	return n;
-}
-
 int
 main(int argc, char **argv)
 {

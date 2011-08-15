@@ -122,6 +122,19 @@ int		ndname = 0;
 DName*	dname = nil;
 int		vers = 0;
 
+/* used by libmemdraw */
+int
+iprint(char* fmt, ...)
+{
+	int n;
+	va_list args;
+
+	va_start(args, fmt);
+	n = vfprint(2, fmt, args);
+	va_end(args);
+	return n;
+}
+
 static
 void
 drawrefreshscreen(DImage *l, DClient *client)
@@ -931,7 +944,6 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 		USED(fmt); USED(a); USED(buf); USED(p); USED(q); USED(s);
 		return;
 	}
-print("XXX %d %d %d\n", debug, Debugdraw, debug&Debugdraw);
 	q = buf;
 	*q++ = *a++;
 	for(p=fmt; *p; p++){
