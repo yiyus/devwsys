@@ -32,7 +32,7 @@ fsloop(char *address, int xfd)
 		nineplisten(&s, xfd);
 		err = ninepwait(&s);
 		if(err != nil)
-			fprint(2, err);
+			fprint(2, "%s\n", err);
 		if(ninepready(&s, xfd))
 			xnextevent();
 		ninepdefault(&s);

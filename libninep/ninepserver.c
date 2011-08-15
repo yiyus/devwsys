@@ -826,7 +826,6 @@ ninepreplylater(Ninepserver *server)
 	p->c = c;
 	p->fcall = server->fcall;
 	p->flushed = 0;
-	p->flushtag = NOTAG;
 	p->next = c->pending[h];
 	c->pending[h] = p;
 	server->curc = nil;
@@ -880,12 +879,6 @@ ninepcompleted(Pending *pend)
 		c = pend->c;
 		f = &pend->fcall;
 		reply(c, f, nil);
-		pend->flushed = 1;
-		if(pend->flushtag != NOTAG){
-			f->type = Rflush;
-			f->tag = pend->flushtag;
-			reply(c, f, nil);
-		}
 	}
 	deletepending(pend);
 }
@@ -914,9 +907,10 @@ ninepdefault(Ninepserver *server)
 	ops = server->ops;
 	ebuf[0] = 0;
 	if(f->type == Tflush){
-		if(f->oldtag == f->tag || (p = findpending(c, f->oldtag)) == nil || p->flushed)
-			reply(c, f, nil);
-		p->flushtag = f->tag;
+		p = findpending(c, f->oldtag);
+		if(p != nil)
+			p->flushed = 1;
+		reply(c, f, nil);
 		server->curc = nil;
 		return;
 	}

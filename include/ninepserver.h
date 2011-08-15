@@ -56,7 +56,6 @@ struct Pending
 	Client *c;
 	Fcall fcall;
 	int flushed;
-	ushort flushtag;
 	Pending *next;
 };
 

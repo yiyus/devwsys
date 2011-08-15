@@ -115,6 +115,7 @@ struct Draw
 static void drawfreedimage(Draw*, DImage*);
 static int drawgoodname(DImage*);
 static void drawflush(Draw*);
+static DClient* drawlookupclient(int);
 
 int		nclient = 0;
 int		ndname = 0;
@@ -747,7 +748,7 @@ drawopen(Qid *qid, int mode)
 	DName *dn;
 	Draw *d;
 
-	cl = client[QSLOT(qid->path)-1];
+	cl = drawlookupclient(QSLOT(qid->path));
 	type = QTYPE(qid->path);
 	d = cl->draw;
 	name = d->window->name;
@@ -846,7 +847,7 @@ drawread(Qid qid, char *buf, ulong *n, vlong offset)
 	ulong count;
 	DClient *cl;
 
-	cl = client[QSLOT(qid.path)-1];
+	cl = drawlookupclient(QSLOT(qid.path));
 	type = QTYPE(qid.path);
 	count = *n;
 	switch(type) {
@@ -1792,7 +1793,7 @@ drawwrite(Qid qid, char *buf, ulong *n, vlong offset)
 	int type;
 	DClient *cl;
 
-	cl = client[QSLOT(qid.path)-1];
+	cl = drawlookupclient(QSLOT(qid.path));
 	type = QTYPE(qid.path);
 	switch(type) {
 	case Qdata:
@@ -1929,16 +1930,14 @@ drawdettach(Window *w)
 	free(d);
 }
 
+static
 DClient*
 drawlookupclient(int id)
 {
-	/*
-	 * TODO: clients should use a hash table
-	 */
 	int i;
 	DClient *cl;
 
-	for(i = 0; i < nclient; i++){
+	for(i=0; i<nclient; i++){
 		cl = client[i];
 		if(cl->clientid == id)
 			return cl;
@@ -1952,7 +1951,7 @@ drawclose(Qid qid, int mode)
 	int type;
 	DClient *cl;
 
-	cl = client[QSLOT(qid.path)-1];
+	cl = drawlookupclient(QSLOT(qid.path));
 	type = QTYPE(qid.path);
 	if(type == Qctl)
 		cl->busy = 0;
@@ -1961,14 +1960,22 @@ drawclose(Qid qid, int mode)
 	return nil;
 }
 
+Window*
+drawwindow(int id)
+{
+	DClient *cl;
+
+	cl = drawlookupclient(id);
+	if(cl != nil)
+		return cl->draw->window;
+	return nil;
+}
+
 int
 drawpath(DClient *cl)
 {
-	return cl->slot+1;
+	if(cl != nil)
+		return cl->clientid;
+	return 0;
 }
 
-Window*
-drawwindow(DClient *cl)
-{
-	return cl->draw->window;
-}

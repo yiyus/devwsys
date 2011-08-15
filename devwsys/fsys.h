@@ -63,5 +63,5 @@ char* drawopen(Qid *qid, int mode);
 char* drawread(Qid qid, char *buf, ulong *n, vlong offset);
 char* drawwrite(Qid qid, char *buf, ulong *n, vlong offset);
 char* drawclose(Qid qid, int mode);
+Window* drawwindow(int id);
 int drawpath(DClient *cl);
-Window* drawwindow(DClient *cl);

@@ -105,10 +105,12 @@ wsysattach(Qid *qid, char *uname, char *aname)
 char*
 wsyswalk(Qid *qid, char *name)
 {
+	int type;
 	Window *w;
 
 	w = qwindow(qid);
-	if(w != nil)
+	type = QTYPE(qid->path);
+	if(w != nil && type == Qroot && name == nil)
 		incref(&w->ref);
 	return "continue";
 }
@@ -150,7 +152,6 @@ wsysopen(Qid *qid, int mode)
 	case Qdata:
 	case Qcolormap:
 	case Qrefresh:
-		cl = client[QSLOT(qid->path)];
 		return drawopen(qid, type);
 	}
 	return nil;
@@ -301,12 +302,13 @@ wsysclunk(Qid qid, int mode) {
 	Window *w;
 
 	w = qwindow(&qid);
-	if(w != nil)
-		decref(&w->ref);
 	type = QTYPE(qid.path);
 	switch(type){
 	case Qroot:
-		if(w && w->ref == 0){
+		if(w == nil)
+			break;
+		decref(&w->ref);
+		if(w->ref == 0){
 			drawdettach(w);
 			w->draw = nil;
 			deletewin(w);
@@ -344,26 +346,6 @@ wsysclunk(Qid qid, int mode) {
 	return nil;
 }
 
-/*
-void
-fs_freefid(IxpFid *f) {
-	IxpFileId *id, *tid;
-	Window *w;
-
-	tid = f->aux;
-	while((id = tid)) {
-		if(iswindow(tid->tab.type) && tid->nref == 0){
-			w = tid->p.window;
-			deletewin(w);
-			drawdettach(w);
-			w->draw = nil;
-		}
-		tid = id->next;
-		ixp_srv_freefile(id);
-	}
-}
-*/
-
 void
 killrespond(Window *w)
 {
@@ -389,7 +371,7 @@ qwindow(Qid *qid)
 	if(type <= Qnew)
 		return winlookup(slot);
 	if(type >= Qdrawn)
-		return drawwindow(client[slot-1]);
+		return drawwindow(slot);
 	return nil;
 }
 

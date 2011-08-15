@@ -29,7 +29,7 @@ winlookup(int id)
 	int i;
 	Window *w;
 
-	for(i = 0; i < nwindow; i++){
+	for(i=0; i<nwindow; i++){
 		w = window[i];
 		if(w->id == id)
 			return w;
