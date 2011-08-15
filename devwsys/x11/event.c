@@ -8,7 +8,7 @@
 #include "inc.h"
 #include "x.h"
 
-#define debugev(...) if(0) debug(__VA_ARGS__)
+#define debugev(...) {if(debug&Debugevent) fprint(2, __VA_ARGS__);}
 
 void configevent(Window*, XEvent);
 void exposeevent(Window*, XEvent);
@@ -187,6 +187,7 @@ mouseevent(Window *w, XEvent xev)
 
 	if(xtoplan9mouse(&xev, &m) < 0)
 		return;
-	// debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
+	if(m.buttons)
+		debugev("Mouse event at window %d: x=%d y=%d b=%d\n", w->id, m.xy.x, m.xy.y, m.buttons);
 	writemouse(w, m, 0);
 }

@@ -1,5 +1,4 @@
 #define fatal(...) sysfatal("devwsys: fatal: " __VA_ARGS__)
-#define debug(...) if(debuglevel) fprint(2, "devwsys: " __VA_ARGS__)
 
 /* Devdraw */
 int drawattach(Window*, char*);

@@ -22,7 +22,7 @@ fsloop(char *address, int xfd)
 		else
 			address = smprint("%s/wsys", ns);
 	}
-	if(debuglevel > 0)
+	if(debug&Debug9p)
 		ninepdebug();
 	err = ninepinit(&s, &ops, address, 0555, 0);
 	if(err != nil)
@@ -31,7 +31,7 @@ fsloop(char *address, int xfd)
 	for(;;) {
 		nineplisten(&s, xfd);
 		err = ninepwait(&s);
-		if(err != nil)
+		if(err != nil && debug&Debug9p)
 			fprint(2, "%s\n", err);
 		if(ninepready(&s, xfd))
 			xnextevent();

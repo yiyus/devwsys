@@ -1,5 +1,12 @@
 enum
 {
+	Debug9p = 1,
+	Debugdraw = 2,
+	Debugevent = 4,
+};
+
+enum
+{
 	PMundef = ~0,			/* Pixmap undefined */
 	CursorSize= 32,		/* Biggest cursor size */
 	SnarfSize= 100*1024,	/* snarf buffer size */
@@ -117,7 +124,7 @@ struct Window
 };
 
 /* Global Vars */
-int		debuglevel;
+int		debug;
 int		nwindow;
 Window	**window;
 int		nclient;

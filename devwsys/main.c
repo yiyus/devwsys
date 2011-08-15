@@ -8,7 +8,7 @@
 
 #define GETARG() (cp-*argv == strlen(*argv)-1) ? *++argv : cp+1
 
-int debuglevel = 0;
+int debug = 0;
 int drawdebug; /* used by libmemdraw */
 int nwindow;
 Window **window;
@@ -21,8 +21,7 @@ iprint(char* fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	n = fprint(2, "devwsys: ");
-	n += vfprint(2, fmt, args);
+	n = vfprint(2, fmt, args);
 	va_end(args);
 	return n;
 }
@@ -42,20 +41,28 @@ main(int argc, char **argv)
 			break;
 		}
 		for(cp=*argv+1; cp<*argv+strlen(*argv); ++cp) {
-			if(*cp == 'd') {
-				debuglevel++;
+			switch(*cp){
+			case 'd':
+				debug |= Debug9p;
 				break;
-			} else if(*cp == 'a') {
+			case 'D':
+				debug |= Debugdraw;
+				break;
+			case 'E':
+				debug |= Debugevent;
+				break;
+			case 'a':
 				address = GETARG();
 				break;
-			} else {
-				fprint(1, "usage: %s [-d] [ -a ADDRESS ]", argv0);
+			default:
+				fprint(1, "usage: %s [-d] [ -a address ]", argv0);
 				exit(1);
 			}
 		}
 	}
-	drawdebug = 0; // debuglevel;
 
+	/* Init memdraw */
+	drawdebug = debug&Debugdraw;
 	memimageinit();
 
 	/* Connect to X */

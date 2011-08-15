@@ -926,11 +926,12 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 	char *p, *q;
 	int s;
 
-	if(debuglevel == 0 || plsprnt==0){
+	if((debug&Debugdraw) == 0){
 		SET(s); SET(q); SET(p);
 		USED(fmt); USED(a); USED(buf); USED(p); USED(q); USED(s);
 		return;
 	}
+print("XXX %d %d %d\n", debug, Debugdraw, debug&Debugdraw);
 	q = buf;
 	*q++ = *a++;
 	for(p=fmt; *p; p++){
@@ -966,8 +967,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 	}
 	*q++ = '\n';
 	*q = 0;
-	// iprint("%.*s", (int)(q-buf), buf);
-	print("devwsys: drawmsg %s", buf);
+	iprint("drawmsg %.*s", (int)(q-buf), buf);
 }
 
 static
