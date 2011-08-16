@@ -43,6 +43,7 @@ deletewin(Window *w)
 	int i;
 
 	w->deleted++;
+	drawdettach(w);
 	xdeletewin(w);
 	/*
 	 * Write pid of the process to the kill file.

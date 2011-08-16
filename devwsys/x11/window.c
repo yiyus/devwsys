@@ -93,7 +93,7 @@ xreplacescreenimage(Window *w)
 
 	pixmap = XCreatePixmap(xconn.display, xw->drawable, Dx(r), Dy(r), xconn.depth);
 	m = xallocmemimage(r, xconn.chan, pixmap);
-	if(xw->nextscreenpm != xw->screenpm)
+	if(xw->nextscreenpm != xw->screenpm && xw->nextscreenpm)
 		XFreePixmap(xconn.display, xw->nextscreenpm);
 	xw->nextscreenpm = pixmap;
 	w->screenimage = m;

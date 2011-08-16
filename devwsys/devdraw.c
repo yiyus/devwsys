@@ -786,12 +786,12 @@ drawopen(Qid *qid, int mode)
 		strcpy(di->name, name);
 		di->fromname = dn->dimage;
 		di->fromname->ref++;
-		incref(&cl->r);
+		cl->r++;
 		break;
 	case Qcolormap:
 	case Qdata:
 	case Qrefresh:
-		incref(&cl->r);
+		cl->r++;
 		break;
 	}
 	return nil;
@@ -1928,6 +1928,8 @@ drawdettach(Window *w)
 	Draw *d;
 
 	d = w->draw;
+	if(d == nil)
+		return;
 	drawfreedimage(d, d->screendimage);
 	/*
 	 * TODO: running freememimage here we could
@@ -1940,6 +1942,7 @@ drawdettach(Window *w)
 	if(d->dscreen)
 		drawfreedscreen(d, d->dscreen);
 	free(d);
+	w->draw = nil;
 }
 
 static
@@ -1967,7 +1970,7 @@ drawclose(Qid qid, int mode)
 	type = QTYPE(qid.path);
 	if(type == Qctl)
 		cl->busy = 0;
-	if(decref(&cl->r) == 0)
+	if((--cl->r) == 0)
 		drawfree(cl);
 	return nil;
 }

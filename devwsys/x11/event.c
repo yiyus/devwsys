@@ -25,6 +25,8 @@ xnextevent(void) {
 	xw = nil;
 
 NextEvent:
+	if(!XPending(xconn.display))
+		return;
 	XNextEvent(xconn.display, &xev);
 	if(xev.xany.window == xconn.w){
 		if(xev.type == SelectionRequest)
@@ -85,8 +87,7 @@ NextEvent:
 	default:
 		break;
 	}
-	if(XPending(xconn.display))
-		goto NextEvent;
+	goto NextEvent;
 }
 
 void
@@ -129,12 +130,6 @@ configevent(Window *w, XEvent xev)
 	drawreplacescreenimage(w);
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
 	w->resized = 1;
-	/* XXX TODO
-	 * we should send a resize event, and then
-	 * respond with a normal 'm' mouse event if
-	 * the window has already been resized, but
-	 * IxpPending does not let us to do that.
-	 */
 	writemouse(w, m, 1);
 }
 

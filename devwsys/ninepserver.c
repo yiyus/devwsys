@@ -8,6 +8,30 @@
 #include "fns.h"
 #include "fsys.h"
 
+void
+updateref(void)
+{
+	int t;
+	Fcall *f;
+	Qid *qid;
+	Window *w;
+
+	if(server->curc == nil)
+		return;
+	f = &server->fcall;
+	t = f->type;
+	if(t == Rwalk)
+		qid = &f->wqid[f->nwqid-1];
+	else
+		qid = &f->qid;
+	if((w = qwindow(qid)) == nil)
+		return;
+	if(t == Rattach || t == Rwalk)
+		w->ref++;
+	else if(t == Rclunk && --w->ref == 0)
+		deletewin(w);
+}
+
 char*
 fsloop(char *address, int xfd)
 {
@@ -36,6 +60,8 @@ fsloop(char *address, int xfd)
 		if(ninepready(&s, xfd))
 			xnextevent();
 		ninepdefault(&s);
+		updateref();
+		ninepreply(&s);
 	}
 	ninepend(&s);
 	if(ns != nil){

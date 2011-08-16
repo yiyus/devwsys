@@ -48,8 +48,6 @@ extern char
 #define PATH(s, t)	((Path)((s)<<8)|((t)&0xFF))
 #define QSLOT(p)	((p)>>8)
 #define QTYPE(p)	((p)&0xFF)
-#define incref(r)	((*r) = ++(*r))
-#define decref(r)	((*r) = --(*r))
 
 void fsinit(Ninepserver*);
 Window* qwindow(Qid*);

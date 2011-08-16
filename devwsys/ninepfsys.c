@@ -98,22 +98,8 @@ wsysattach(Qid *qid, char *uname, char *aname)
 		}
 		return Enomem;
 	}
-	w->ref = 1;
 	return nil;
 }	
-
-char*
-wsyswalk(Qid *qid, char *name)
-{
-	int type;
-	Window *w;
-
-	w = qwindow(qid);
-	type = QTYPE(qid->path);
-	if(w != nil && type == Qroot && name == nil)
-		incref(&w->ref);
-	return "continue";
-}
 
 char*
 wsysopen(Qid *qid, int mode)
@@ -297,23 +283,13 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 }
 
 char*
-wsysclunk(Qid qid, int mode) {
+wsysclose(Qid qid, int mode) {
 	int type;
 	Window *w;
 
 	w = qwindow(&qid);
 	type = QTYPE(qid.path);
 	switch(type){
-	case Qroot:
-		if(w == nil)
-			break;
-		decref(&w->ref);
-		if(w->ref == 0){
-			drawdettach(w);
-			w->draw = nil;
-			deletewin(w);
-		}
-		return nil;
 	case Qcons:
 	case Qkeyboard:
 		w->kbd.wi = w->kbd.ri;
@@ -391,12 +367,12 @@ Ninepops ops = {
 	nil,			/* freeclient */
 
 	wsysattach,	/* attach */
-	wsyswalk,	/* walk */
+	nil,			/* walk */
 	wsysopen,	/* open */
 	nil,			/* create */
 	wsysread,		/* read */
 	wsyswrite,	/* write */
-	wsysclunk,	/* clunk */
+	wsysclose,	/* close */
 	nil,			/* remove */
 	nil,			/* stat */
 	nil,			/* wstat */

@@ -70,7 +70,7 @@ struct Ninepops
 	char *(*create)(Qid *qid, char *name, int perm, int mode);
 	char *(*read)(Qid qid, char *buf, ulong *n, vlong offset);
 	char *(*write)(Qid qid, char *buf, ulong *n, vlong offset);
-	char *(*clunk)(Qid qid, int mode);
+	char *(*close)(Qid qid, int mode);
 	char *(*remove)(Qid qid);
 	char *(*stat)(Qid qid, Dir *d);
 	char *(*wstat)(Qid qid, Dir *d);
@@ -98,8 +98,9 @@ void nineplisten(Ninepserver *server, int fd);
 int ninepready(Ninepserver *server, int fd);
 
 char *ninepwait(Ninepserver *server);
-void ninepreply(Ninepserver *server, char *err);
 void ninepdefault(Ninepserver *server);
+void nineperror(Ninepserver *server, char *err);
+void ninepreply(Ninepserver *server);
 
 Pending *ninepreplylater(Ninepserver *server);
 void ninepcompleted(Pending *pend);

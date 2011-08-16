@@ -459,7 +459,6 @@ nextfile(Ninepfile *f)
 {
 	static Ninepfile *nf = nil;
 
-Nextfile:
 	if(f == nil){
 		f = nf;
 		nf = nil;
@@ -468,14 +467,13 @@ Nextfile:
 			f->nf = nil;
 		}
 	}
-	if(f != nil && f->bind != nil){
-		if(f->sibling != nil){
-			f->sibling->nf = nf;
-			nf = f->sibling;
-		}
-		f = f->bind->child;
-		goto Nextfile;
+	if(f == nil || f->bind == nil)
+		return f;
+	if(f->sibling != nil){
+		f->sibling->nf = nf;
+		nf = f->sibling;
 	}
+	f = nextfile(f->bind->child);
 	return f;
 }
 
@@ -807,9 +805,18 @@ reply(Client *c, Fcall *f, char *err)
 }
 
 void
-ninepreply(Ninepserver *server, char *err)
+nineperror(Ninepserver *server, char *err)
 {
-	reply(server->curc, &server->fcall, err);
+	server->fcall.type = Rerror;
+	server->fcall.ename = err;
+}
+
+void
+ninepreply(Ninepserver *server)
+{
+	if(server->curc == nil)
+		return;
+	reply(server->curc, &server->fcall, nil);
 	server->curc = nil;
 }
 
@@ -888,7 +895,6 @@ ninepdefault(Ninepserver *server)
 {
 	Fid *fp, *nfp;
 	int i, mode;
-	char ebuf[EMSGLEN];
 	Walkqid *wq;
 	Ninepfile *file;
 	Dir dir;
@@ -905,7 +911,6 @@ ninepdefault(Ninepserver *server)
 		return;
 	f = &server->fcall;
 	ops = server->ops;
-	ebuf[0] = 0;
 	if(f->type == Tflush){
 		p = findpending(c, f->oldtag);
 		if(p != nil)
@@ -918,13 +923,13 @@ ninepdefault(Ninepserver *server)
 	fp = findfid(c, f->fid);
 	if(f->type != Tversion && f->type != Tauth && f->type != Tattach){
 		if(fp == nil){
-			ninepreply(server, Enofid);
+			nineperror(server, Enofid);
 			return;
 		}
 		else{
 			file = ninepfindfile(c->server, fp->qid.path);
 			if(c->server->needfile && file == nil){
-				ninepreply(server, Enonexist);
+				nineperror(server, Enonexist);
 				return;
 			}
 		}
@@ -935,12 +940,10 @@ ninepdefault(Ninepserver *server)
 		nfp = findfid(c, f->newfid);
 		f->type = Rwalk;
 		if(nfp){
-			f->type = Rerror;
-			f->ename = "fid in use";
+			nineperror(server, "fid in use");
 			break;
 		}else if(fp->open){
-			f->type = Rerror;
-			f->ename = "can't clone";
+			nineperror(server, "can't clone");
 			break;
 		}
 		if(f->newfid != f->fid)
@@ -1026,8 +1029,7 @@ ninepdefault(Ninepserver *server)
 		break;
 	case	Tread:
 		if(!fp->open){
-			f->type = Rerror;
-			f->ename = Ebadfid;
+			nineperror(server, Ebadfid);
 			break;
 		}
 		if(fp->qid.type&QTDIR || (file != nil && file->d.qid.type&QTDIR)){
@@ -1036,18 +1038,16 @@ ninepdefault(Ninepserver *server)
 			if(file == nil){
 				if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil)
 					break;
-				f->type = Rerror;
-				f->ename = Eperm;
-			}
-			else
-				f->count = devdirread(fp, file, c->data, f->count);	
-		}else{
-			f->data = c->data;			
-			if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil)
+				nineperror(server, Eperm);
 				break;
-			f->ename = Eperm;
-			f->type = Rerror;
+			}
+			f->count = devdirread(fp, file, c->data, f->count);
+			break;	
 		}
+		f->data = c->data;			
+		if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil)
+			break;
+		nineperror(server, Eperm);
 		break;
 	case	Twrite:
 		if(!fp->open){
@@ -1058,15 +1058,14 @@ ninepdefault(Ninepserver *server)
 		f->type = Rwrite;
 		if(ops && ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil)
 			break;
-		f->ename = Eperm;
-		f->type = Rerror;
+		nineperror(server, Eperm);
 		break;
 	case	Tclunk:
 		mode = fp->mode;
 		qid = fp->qid;
 		deletefid(c, fp);
 		f->type = Rclunk;
-		if(ops && ops->clunk && (f->ename = ops->clunk(qid, mode)) != nil)
+		if(open && ops && ops->close && (f->ename = ops->close(qid, mode)) != nil)
 			f->type = Rerror;
 		break;
 	case	Tremove:
@@ -1140,8 +1139,6 @@ ninepdefault(Ninepserver *server)
 		}
 		break;
 	}
-	if(c->server->curc == c)
-		ninepreply(server, nil);
 }
 
 Ninepfile*
@@ -1181,7 +1178,7 @@ ninepbind(Ninepserver *server, Path pqid, Path qid)
 		return nil;
 	p = addfile(server, p, qid);
 	p->bind = f;
-	return f;
+	return p;
 }
 
 long
