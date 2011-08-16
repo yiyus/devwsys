@@ -25,8 +25,8 @@ static char *snarfbuf;
 void
 fsinit(Ninepserver *s)
 {
-	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, "inferno");
-	ninepadddir(s, Qroot, Qdraw, "draw", 0555, "inferno");
+	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, eve);
+	ninepadddir(s, Qroot, Qdraw, "draw", 0555, eve);
 }
 
 static
@@ -41,11 +41,11 @@ drawaddfiles(Ninepserver *s, DClient *c)
 	p = PATH(i, 0);
 	cp = p|Qdrawn;
 	n[sprint(n, "%d", i)] = 0;
-	ninepadddir(s, Qdraw, cp, n, 0555, "inferno");
-	ninepaddfile(s, cp, p|Qctl, "ctl", 0666, "inferno");
-	ninepaddfile(s, cp, p|Qdata, "data", 0666, "inferno");
-	ninepaddfile(s, cp, p|Qcolormap, "colormap", 0444, "inferno");
-	ninepaddfile(s, cp, p|Qrefresh, "refresh", 0444, "inferno");
+	ninepadddir(s, Qdraw, cp, n, 0555, eve);
+	ninepaddfile(s, cp, p|Qctl, "ctl", 0666, eve);
+	ninepaddfile(s, cp, p|Qdata, "data", 0666, eve);
+	ninepaddfile(s, cp, p|Qcolormap, "colormap", 0444, eve);
+	ninepaddfile(s, cp, p|Qrefresh, "refresh", 0444, eve);
 }
 
 static
@@ -56,26 +56,26 @@ wsysaddfiles(Ninepserver *s, Window *w)
 	char name[12];
 	Path p;
 
-	p = PATH(w->id, 0);
 	n = sprint(name, "%d", w->id);
 	name[n] = 0;
-	ninepadddir(s, Qwsys, p, name, 0555, "inferno");
-	ninepaddfile(s, p, p|Qcons, "cons", 0666, "inferno");
-	ninepaddfile(s, p, p|Qconsctl, "consctl", 0222, "inferno");
-	ninepaddfile(s, p, p|Qkeyboard, "keyboard", 0666, "inferno");
-	ninepaddfile(s, p, p|Qcursor, "cursor", 0666, "inferno");
-	ninepaddfile(s, p, p|Qmouse, "mouse", 0666, "inferno");
-	ninepaddfile(s, p, p|Qpointer, "pointer", 0666, "inferno");
-	ninepaddfile(s, p, p|Qsnarf, "snarf", 0666, "inferno");
-	ninepaddfile(s, p, p|Qkill, "kill", 0666, "inferno");
-	ninepaddfile(s, p, p|Qlabel, "label", 0666, "inferno");
-	ninepaddfile(s, p, p|Qwctl, "wctl", 0666, "inferno");
-	ninepaddfile(s, p, p|Qwinid, "winid", 0666, "inferno");
-	ninepaddfile(s, p, p|Qwinname, "winname", 0666, "inferno");
-	ninepadddir(s, p, p|Qwsys, "wsys", 0555, "inferno");
+	p = PATH(w->id, 0);
+	ninepadddir(s, Qwsys, p, name, 0555, eve);
+	ninepaddfile(s, p, p|Qcons, "cons", 0666, eve);
+	ninepaddfile(s, p, p|Qconsctl, "consctl", 0222, eve);
+	ninepaddfile(s, p, p|Qkeyboard, "keyboard", 0666, eve);
+	ninepaddfile(s, p, p|Qcursor, "cursor", 0666, eve);
+	ninepaddfile(s, p, p|Qmouse, "mouse", 0666, eve);
+	ninepaddfile(s, p, p|Qpointer, "pointer", 0666, eve);
+	ninepaddfile(s, p, p|Qsnarf, "snarf", 0666, eve);
+	ninepaddfile(s, p, p|Qkill, "kill", 0666, eve);
+	ninepaddfile(s, p, p|Qlabel, "label", 0666, eve);
+	ninepaddfile(s, p, p|Qwctl, "wctl", 0666, eve);
+	ninepaddfile(s, p, p|Qwinid, "winid", 0666, eve);
+	ninepaddfile(s, p, p|Qwinname, "winname", 0666, eve);
+	ninepadddir(s, p, p|Qwsys, "wsys", 0555, eve);
+	ninepadddir(s, p, p|Qdraw, "draw", 0555, eve);
+	ninepaddfile(s, p|Qdraw, p|Qnew, "new", 0666, eve);
 	ninepbind(s, p|Qwsys, Qwsys);
-	ninepadddir(s, p, p|Qdraw, "draw", 0555, "inferno");
-	ninepaddfile(s, p|Qdraw, p|Qnew, "new", 0666, "inferno");
 	ninepbind(s, p|Qdraw, Qdraw);
 	return p;
 }

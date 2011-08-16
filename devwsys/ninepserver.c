@@ -48,6 +48,7 @@ fsloop(char *address, int xfd)
 	}
 	if(debug&Debug9p)
 		ninepdebug();
+	eve = ninepsetowner(nil);
 	err = ninepinit(&s, &ops, address, 0555, 0);
 	if(err != nil)
 		return err;

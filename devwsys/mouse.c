@@ -69,12 +69,11 @@ static
 void
 replymouse(Mousebuf *mouse, void *r)
 {
-        int n, resized;
+        int n;
         char buf[50], c;
         Mouse m;
 
         m = mouse->m[mouse->ri];
-        resized = mouse->resized;
         c = 'm';
         if(mouse->resized)
                 c = 'r';

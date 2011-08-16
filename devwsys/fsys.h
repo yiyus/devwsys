@@ -52,6 +52,7 @@ extern char
 void fsinit(Ninepserver*);
 Window* qwindow(Qid*);
 
+char *eve;
 Ninepops ops;
 Ninepserver *server;
 

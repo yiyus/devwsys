@@ -8,8 +8,8 @@
 
 #define HASHSZ	32	/* power of 2 */
 
-static	unsigned long		boottime;
-static	char*	eve = "inferno";
+static	unsigned long	boottime;
+static	char*	eve = "eve";
 static	int		Debug = 0;
 
 char Enomem[] =	"out of memory";
@@ -664,7 +664,7 @@ newfile(Ninepserver *server, Ninepfile *parent, int isdir, Path qid, char *name,
 	d.qid.type = 0;
 	d.qid.vers = 0;
 	d.mode = mode;
-	d.atime = time(0);
+	d.atime = boottime;
 	d.mtime = boottime;
 	d.length = 0;
 	d.name = strdup(name);
@@ -708,6 +708,8 @@ ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needf
 	ninepinitwait(server);
 	server->root = newfile(server, nil, 1, Qroot, "/", perm|DMDIR, eve);
 	server->needfile = needfile;
+	if(boottime == 0)
+		boottime = time(0);
 	return nil;
 }
 
@@ -1209,8 +1211,11 @@ ninepqid(int path, int isdir)
 	return q;
 }
 
-void
+char*
 ninepsetowner(char *name)
 {
 	eve = name;
+	if(eve == nil)
+		eve = ninepuser();
+	return eve;
 }

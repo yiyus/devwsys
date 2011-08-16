@@ -1011,6 +1011,8 @@ drawmesg(DClient *client, void *av, int n)
 	oldn = n;
 	draw = client->draw;
 	w = draw->window;
+	if(w == nil || w->deleted)
+		return Edeleted;
 	screenimage = w->screenimage;
 
 	while((n-=m) > 0){

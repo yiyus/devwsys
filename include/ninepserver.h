@@ -117,4 +117,4 @@ Qid ninepqid(int path, int isdir);
 void *ninepmalloc(int n);
 void ninepfree(void *p);
 void ninepdebug(void);
-void ninepsetowner(char*);
+char* ninepsetowner(char*);

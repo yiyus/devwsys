@@ -313,9 +313,8 @@ ninepexit(int n)
 	exit(n);
 }
 
-static
 char*
-username(void) {
+ninepuser(void) {
 	static char *user;
 	struct passwd *pw;
 
@@ -346,7 +345,7 @@ displayns(void) {
 	if(path > disp && !strcmp(path, ".0"))
 		*path = '\0';
 
-	path = smprint("/tmp/ns.%s.%s", username(), disp);
+	path = smprint("/tmp/ns.%s.%s", ninepuser(), disp);
 	free(disp);
 
 	if(mkdir(path, 0700) == -1 && errno != EEXIST)

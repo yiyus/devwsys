@@ -12,3 +12,5 @@ char* ninepwaitmsg(Ninepserver*);
 int nineprecv(Ninepserver*, int, char*, int, int);
 int ninepsend(Ninepserver*, int, char*, int, int);
 void ninepexit(int);
+char* ninepuser(void);
+
