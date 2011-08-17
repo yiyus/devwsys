@@ -34,14 +34,15 @@ void
 drawaddfiles(Ninepserver *s, DClient *c)
 {
 	int i;
-	char n[12];
+	char name[12];
 	Path p, cp;
 
 	i = drawpath(c);
 	p = PATH(i, 0);
 	cp = p|Qdrawn;
-	n[sprint(n, "%d", i)] = 0;
-	ninepadddir(s, Qdraw, cp, n, 0555, eve);
+	i = sprint(name, "%d", i);
+	name[i] = 0;
+	ninepadddir(s, Qdraw, cp, name, 0555, eve);
 	ninepaddfile(s, cp, p|Qctl, "ctl", 0666, eve);
 	ninepaddfile(s, cp, p|Qdata, "data", 0666, eve);
 	ninepaddfile(s, cp, p|Qcolormap, "colormap", 0444, eve);
@@ -52,12 +53,12 @@ static
 Path
 wsysaddfiles(Ninepserver *s, Window *w)
 {
-	int n;
+	int i;
 	char name[12];
 	Path p;
 
-	n = sprint(name, "%d", w->id);
-	name[n] = 0;
+	i = sprint(name, "%d", w->id);
+	name[i] = 0;
 	p = PATH(w->id, 0);
 	ninepadddir(s, Qwsys, p, name, 0555, eve);
 	ninepaddfile(s, p, p|Qcons, "cons", 0666, eve);

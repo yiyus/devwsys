@@ -1112,7 +1112,7 @@ ninepdefault(Ninepserver *server)
 		f->tag = NOTAG;
 		break;
 	case Tauth:
-		f->type = Rauth;
+		nineperror(server, "authentication not required");
 		break;
 	case	Tattach:
 		if(fp){
