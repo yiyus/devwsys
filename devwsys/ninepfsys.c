@@ -21,12 +21,14 @@ char
 
 /* Global Vars */
 static char *snarfbuf;
+static Pending *killp;
 
 void
 fsinit(Ninepserver *s)
 {
-	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, eve);
+	ninepaddfile(s, Qroot, Qkill, "kill", 0444, eve);
 	ninepadddir(s, Qroot, Qdraw, "draw", 0555, eve);
+	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, eve);
 }
 
 static
@@ -68,7 +70,6 @@ wsysaddfiles(Ninepserver *s, Window *w)
 	ninepaddfile(s, p, p|Qmouse, "mouse", 0666, eve);
 	ninepaddfile(s, p, p|Qpointer, "pointer", 0666, eve);
 	ninepaddfile(s, p, p|Qsnarf, "snarf", 0666, eve);
-	ninepaddfile(s, p, p|Qkill, "kill", 0666, eve);
 	ninepaddfile(s, p, p|Qlabel, "label", 0666, eve);
 	ninepaddfile(s, p, p|Qwctl, "wctl", 0666, eve);
 	ninepaddfile(s, p, p|Qwinid, "winid", 0666, eve);
@@ -87,6 +88,8 @@ wsysattach(Qid *qid, char *uname, char *aname)
 {
 	Window *w;
 
+	if(strcmp(aname, "/") == 0)
+		return nil;
 	w = newwin();
 	if(w == nil)
 		return Enomem;
@@ -110,7 +113,7 @@ wsysopen(Qid *qid, int mode)
 	DClient *cl;
 
 	w = qwindow(qid);
-	if(w && w->deleted)
+	if(w != nil && w->deleted)
 		return Edeleted;
 	type = QTYPE(qid->path);
 	if(type == Qnew){
@@ -154,22 +157,22 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 
 	w = qwindow(&qid);
 	type = QTYPE(qid.path);
-	if(w && w->deleted && type != Qkill)
+	if(w != nil && w->deleted)
 		return Edeleted;
 	switch(type){
+	case Qkill:
+		killp = ninepreplylater(server);
+		return nil;
+
+	/* Window */
 	case Qcons:
 	case Qkeyboard:
 		p = ninepreplylater(server);
 		readkbd(w, p);
 		return nil;
-	case Qkill:
-		if(w->killpend == nil)
-			w->killpend = ninepreplylater(server);
-		*n = 0;
-		return nil;
 	case Qlabel:
 		if(w->label)
-			ninepreadstr(0, buf, strlen(w->label), w->label);
+			*n = ninepreadstr(offset, buf, strlen(w->label), w->label);
 		return nil;
 	case Qmouse:
 	case Qpointer:
@@ -178,7 +181,7 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 		return nil;
 	case Qsnarf:
 		s = xgetsnarf(w);
-		*n = ninepreadstr(0, buf, strlen(s), s);
+		*n = ninepreadstr(offset, buf, strlen(s), s);
 		return nil;
 	case Qwctl:
 		// XXX TODO: current
@@ -187,9 +190,11 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 		return nil;
 	case Qwinid:
 		*n = sprint(buf, "%11d ", w->id);
+		buf = &buf[offset];
+		*n -= offset;
 		return nil;
 	case Qwinname:
-		*n = ninepreadstr(0, buf, strlen(w->name), w->name);
+		*n = ninepreadstr(offset, buf, strlen(w->name), w->name);
 		return nil;
 
 	/* Draw client */
@@ -213,7 +218,7 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 	Point pt;
 
 	w = qwindow(&qid);
-	if(w && w->deleted)
+	if(w == nil || w->deleted)
 		return Edeleted;
 	type = QTYPE(qid.path);
 	count = *n;
@@ -313,29 +318,14 @@ wsysclose(Qid qid, int mode) {
 		snarfbuf = nil;
 		return nil;
 
-	/* Draw client */
-	case Qctl:
-	case Qdata:
-	case Qcolormap:
-	case Qrefresh:
-		return drawclose(qid, mode);
+	/*
+	 * If it is a draw file, drawclose will be called
+	 * by updateref. If it were called now it could
+	 * free the client and qwindow (called from
+	 * updateref) would not find a window.
+	 */;
 	}
 	return nil;
-}
-
-void
-killrespond(Window *w)
-{
-	Client *c;
-	Fcall *f;
-	Pending *p;
-
-	p = w->killpend;
-	c = p->c;
-	f = &p->fcall;
-	f->count = sprint(c->data, "%d", w->pid);
-	f->data = c->data;
-	ninepcompleted(p);
 }
 
 Window*
@@ -347,9 +337,27 @@ qwindow(Qid *qid)
 	type = QTYPE(qid->path);
 	if(type <= Qnew)
 		return winlookup(slot);
-	if(type >= Qdrawn)
+	else if(type > Qnew)
 		return drawwindow(slot);
 	return nil;
+}
+
+int
+killreply(Window *w)
+{
+	Client *c;
+	Fcall *f;
+
+	if(killp == nil)
+		return 0;
+	c = killp->c;
+	f = &killp->fcall;
+	f->count = sprint(c->data, "%d\n", w->pid);
+	f->data = c->data;
+	ninepcompleted(killp);
+	killp = nil;
+	w->pid = 0;
+	return 1;
 }
 
 void

@@ -31,23 +31,16 @@ NextEvent:
 	if(xev.xany.window == xconn.w){
 		if(xev.type == SelectionRequest)
 			xselect(&xev);
-		if(XPending(xconn.display))
-			goto NextEvent;
-		return;
+		goto NextEvent;
 	}
 	for(i = 0; i < nwindow; i++){
 		xw = window[i]->x;
 		if(xw && xw->drawable == xev.xany.window)
 			break;
 	}
-	if(i == nwindow || window[i]->deleted){
-		if(XPending(xconn.display))
-			goto NextEvent;
-		// print("XXX event received in wrong window\n");
-		return;
-	}
+	if(i == nwindow || window[i]->deleted)
+		goto NextEvent;
 	w = window[i];
-// print("XXX event at window %d (%p)\n", w->id, w);
 	switch(xev.type){
 	case ClientMessage:
 		if(xev.xclient.data.l[0] == xw->wmdelmsg)

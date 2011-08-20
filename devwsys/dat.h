@@ -111,7 +111,6 @@ struct Window
 	char			*name;
 	Draw		*draw;
 	void			*screenimage;
-	void			*killpend;
 	Kbdbuf		kbd;
 	Mousebuf		mouse;
 	Reqbuf		kbdreqs;

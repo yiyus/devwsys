@@ -182,7 +182,6 @@ static
 int
 rd(Client *c, Fcall *f)
 {
-	memset(f, 0, sizeof(f));
 	memset(c->data, 0, sizeof(c->data));
 	if(c->nc > 0){	/* last convM2S consumed nc bytes */
 		c->nread -= c->nc;
@@ -763,8 +762,10 @@ nineprequest(Ninepserver *server)
 				freeclient(c);
 				continue;
 			}
-			if(rd(c, f) <= 0)
-				return "error reading 9p request";
+			if((s = rd(c, f)) < 0)
+				return f->ename;
+			else if(s == 0)
+				return nil;
 			server->curc = c;
 			if(Debug)
 				fprint(2, "<-%d- %F\n", c->fd, f);
@@ -802,8 +803,9 @@ reply(Client *c, Fcall *f, char *err)
 	if(Debug)
 		fprint(2, "-%d-> %F\n", c->fd, f);
 	wr(c, f);
-	if(f->type == Tstat)
+	if(f->type == Rstat)
 		ninepfree(f->stat);
+	f->type = 0;
 }
 
 void
@@ -900,7 +902,6 @@ ninepdefault(Ninepserver *server)
 	Walkqid *wq;
 	Ninepfile *file;
 	Dir dir;
-	Qid qid;
 	char strs[128];
 	Client *c;
 	Fcall *f;
@@ -969,6 +970,7 @@ ninepdefault(Ninepserver *server)
 		break;
 	case	Topen:
 		f->type = Ropen;
+		f->iounit = 0;
 		f->ename = nil;
 		if(fp->open)
 			f->ename = Eopen;
@@ -1037,6 +1039,7 @@ ninepdefault(Ninepserver *server)
 		if(fp->qid.type&QTDIR || (file != nil && file->d.qid.type&QTDIR)){
 			f->type = Rread;
 			f->data = c->data;
+			f->qid = fp->qid;
 			if(file == nil){
 				if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil)
 					break;
@@ -1058,16 +1061,17 @@ ninepdefault(Ninepserver *server)
 			break;
 		}
 		f->type = Rwrite;
+		f->qid = fp->qid;
 		if(ops && ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil)
 			break;
 		nineperror(server, Eperm);
 		break;
 	case	Tclunk:
 		mode = fp->mode;
-		qid = fp->qid;
 		deletefid(c, fp);
 		f->type = Rclunk;
-		if(open && ops && ops->close && (f->ename = ops->close(qid, mode)) != nil)
+		f->qid = fp->qid;
+		if(open && ops && ops->close && (f->ename = ops->close(f->qid, mode)) != nil)
 			f->type = Rerror;
 		break;
 	case	Tremove:

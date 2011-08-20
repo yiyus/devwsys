@@ -1918,10 +1918,7 @@ drawfree(DClient *cl)
 	}
 	client[cl->slot] = 0;
 	drawflush(draw);	/* to erase visible, now dead windows */
-	// XXX TODO:
-	// we cannot free cl because it could be
-	// in some fid->aux, but we should.
-	// free(cl);
+	free(cl);
 }
 
 void
@@ -1956,14 +1953,14 @@ drawlookupclient(int id)
 
 	for(i=0; i<nclient; i++){
 		cl = client[i];
-		if(cl->clientid == id)
+		if(cl && cl->clientid == id)
 			return cl;
 	}
 	return nil;
 }
 
 char*
-drawclose(Qid qid, int mode)
+drawclose(Qid qid)
 {
 	int type;
 	DClient *cl;

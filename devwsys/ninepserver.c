@@ -8,6 +8,7 @@
 #include "fns.h"
 #include "fsys.h"
 
+static
 void
 updateref(void)
 {
@@ -20,7 +21,7 @@ updateref(void)
 		return;
 	f = &server->fcall;
 	t = f->type;
-	if(t == Rwalk)
+	if(t == Rwalk && f->nwqid > 0)
 		qid = &f->wqid[f->nwqid-1];
 	else
 		qid = &f->qid;
@@ -28,8 +29,16 @@ updateref(void)
 		return;
 	if(t == Rattach || t == Rwalk)
 		w->ref++;
-	else if(t == Rclunk && --w->ref == 0)
-		deletewin(w);
+	else if(t == Rclunk){
+		w->ref--;
+		if(QTYPE(qid->path) > Qdrawn)
+			drawclose(*qid);
+		if(w->ref == 0){
+			/* ignore kill file, delete now */
+			w->pid = 0;
+			deletewin(w);
+		}
+	}
 }
 
 char*
@@ -58,7 +67,7 @@ fsloop(char *address, int xfd)
 		err = ninepwait(&s);
 		if(err != nil && debug&Debug9p)
 			fprint(2, "%s\n", err);
-		if(ninepready(&s, xfd))
+		//if(ninepready(&s, xfd))
 			xnextevent();
 		if(s.fcall.type == Tauth)
 			nineperror(&s, "devwsys: authentication not required");

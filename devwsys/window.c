@@ -31,7 +31,7 @@ winlookup(int id)
 
 	for(i=0; i<nwindow; i++){
 		w = window[i];
-		if(w->id == id)
+		if(w && w->id == id)
 			return w;
 	}
 	return nil;
@@ -42,16 +42,11 @@ deletewin(Window *w)
 {
 	int i;
 
-	w->deleted++;
+	if(w->pid > 0 && killreply(w))
+		return;
 	drawdettach(w);
 	xdeletewin(w);
-	/*
-	 * Write pid of the process to the kill file.
-	 */
-	if(w->killpend)
-		killrespond(w);
-	if(w->ref > 0)
-		return;
+	w->deleted++;
 	for(i = 0; i < nwindow; i++){
 		if(window[i] == w)
 			break;

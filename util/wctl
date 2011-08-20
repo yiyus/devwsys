@@ -1,13 +1,14 @@
 #!/bin/rc
 
-# Usage
-#	wctl=`{ wctl wsys [defaultcmd] }
+fn usage {
+	echo 'usage: wctl=`{wctl [-c cmd] wsys}'
+}
 
-fn window-m {
-	dir = /mnt/wsys
+# Window creation
+
+fn newwindow {
 	srv = $wsys
 	rfork ne
-	bind '#|' /n/pipe
 	{
 		unmount /mnt/acme /dev >[2]/dev/null
 		pid=`{cat /dev/ppid}
@@ -27,30 +28,12 @@ fn window-m {
 				case -hide
 					shift
 				}
-			if(~ $#* 0) cmd = $defaultcmd
-			if not cmd = $*
+			if(! ~ $#* 0)
+				cmd = $*
 			echo -n `{basename $cmd(1)} > /dev/label >[2] /dev/null
-
-			# A process blocks reading the kill file, if present
-			if(test -f $dir/kill){
-				f = /proc/^`{cat $dir/kill}^/note
-				# the proces could have finished on
-				# its own, check it is still there.
-				if(test -f $f)
-					echo kill > $f
-			}&
-			kpid = $apid
-
-			# Another process checks if the program finishes
-			{
-				m = `{cat /n/pipe/data1}
-				echo kill >  /proc/$kpid/note
-				echo $m > $dir/wctl
-			}&
 			exec $cmd < /dev/cons > /dev/cons >[2] /dev/cons
 		}
 	}&
-	wait $apid && echo delete > /n/pipe/data
 }
 
 fn new {
@@ -59,36 +42,75 @@ fn new {
 		cd $d
 		shift 2
 	}
-	window-m $* &
+	newwindow $* &
 }
 
 fn wctl {
 	while (a=`{read})
-		if (~ $a(1) new) $a
+		if (~ $a(1) new)
+			$a
 }
 
-defaultcmd=(rio -i window)
+# Window deletion
+
+fn killproc {
+	rc -c '
+		echo kill > /proc/'$1'/note
+		sleep 0.2
+		echo kill > /proc/'$1'/ctl
+	' >[2] /dev/null &
+}
+
+fn killer {
+	# mounts the root and blocks
+	# reading from the kill file
+	mount -n $wsys $dir / || exit
+	cat $dir/kill | while (p=`{read}){
+		killproc $p
+	}
+	killproc $1
+}
+
+# Serve at /srv/$1.pid
+
+fn serve {
+	srvname=$1
+	shift
+	# the fd 3 is used to get the pid
+	# of the process run by srv
+	srvpid=`{
+		srv -eq '
+			echo $pid >[1=3]
+			{'^$"*^'} >[2] /dev/null
+		' $srvname.$pid >[3=1] |
+			read
+	}
+	mv /srv/$srvname.^($pid $srvpid) &&
+		echo /srv/$srvname.$srvpid
+}
+
+# Main
+
+cmd=(rio -i window)
+if(~ $1 -c){
+	if(~ $2 '')
+		usage && exit
+	cmd=$2
+	shift 2
+}
 if(! ~ $1 ''){
 	wsys=$1
 	shift
 }
+if(! ~ $#* 0)
+	usage && exit
 if(~ $wsys ''){
 	echo 'wctl: $wsys not defined'
-	exit bad
+	exit
 }
-if(! ~ $1 '')
-	defaultcmd=$*
 
-service=wctl.$user
-# we want to know the pid of the wctl rc,
-# so we use the fd 3 to send it from the
-# rc runned by srv to this process.
-srvpid=`{
-	srv -eq '
-		echo $pid >[1=3]
-		wctl
-	' $service.$pid >[3=1] |
-		read
-}
-mv /srv/$service.^($pid $srvpid) &&
-	echo /srv/$service.$srvpid
+serve wctl.$user '
+	dir = /mnt/wsys
+	killer $pid &
+	wctl
+'

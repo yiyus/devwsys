@@ -29,7 +29,7 @@ char* wctlmesg(Window*, char*, int);
 
 /* Fsys */
 char* fsloop(char*, int);
-void killrespond(Window*);
+int killreply(Window*);
 void readreply(void*, char*);
 
 /* X connection */

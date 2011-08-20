@@ -1,13 +1,17 @@
 /* Constants */
 enum {
-	/* Dirs */
+	/* Qroot is #defined 0 in ninepserver.h */
 
-	/* Qroot is #defined in ninepserver.h */
-	Qdraw = 1,
+	/* Root */
+	Qkill = 1,
+	Qdraw,
 	Qwsys,
 
-	/* Files */
-
+	/* Window */
+	Qlabel,
+	Qwctl,
+	Qwinid,
+	Qwinname,
 	/*	Keyboard */
 	Qcons,
 	Qconsctl,
@@ -17,15 +21,10 @@ enum {
 	Qmouse,
 	Qpointer,
 	Qsnarf,
-	/*	Window */
-	Qkill,
-	Qlabel,
-	Qwctl,
-	Qwinid,
-	Qwinname,
 	/*	draw/ */
 	Qnew,
 
+	/* Draw clientt */
 	/*	draw/n/ */
 	Qdrawn,
 	Qctl,
@@ -61,6 +60,6 @@ DClient* drawnewclient(Draw*);
 char* drawopen(Qid *qid, int mode);
 char* drawread(Qid qid, char *buf, ulong *n, vlong offset);
 char* drawwrite(Qid qid, char *buf, ulong *n, vlong offset);
-char* drawclose(Qid qid, int mode);
+char* drawclose(Qid qid);
 Window* drawwindow(int id);
 int drawpath(DClient *cl);

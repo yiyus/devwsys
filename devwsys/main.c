@@ -21,31 +21,36 @@ main(int argc, char **argv)
 	char *argv0;
 
 	address = nil;
-	/* XXX TODO: use ARGBEGIN, ... from <ixp_local.h> */
 	argv0 = argv[0];
+Nextarg:
 	while(*++argv) {
-		if(strcmp(*argv, "--") == 0 || !(**argv == '-')) {
+		if(strcmp(*argv, "--") == 0 || **argv != '-') {
 			break;
 		}
 		for(cp=*argv+1; cp<*argv+strlen(*argv); ++cp) {
 			switch(*cp){
 			case 'd':
 				debug |= Debug9p;
-				break;
+				continue;
 			case 'D':
 				debug |= Debugdraw;
-				break;
+				continue;
 			case 'E':
 				debug |= Debugevent;
-				break;
+				continue;
 			case 'a':
 				address = GETARG();
-				break;
+				if(address != nil)
+					goto Nextarg;
 			default:
-				fprint(1, "usage: %s [-d] [ -a address ]", argv0);
-				exit(1);
+				goto Usage;
 			}
 		}
+	}
+	if(*argv){
+Usage:
+		fprint(1, "usage: %s [-d] [ -a address ]", argv0);
+		exit(1);
 	}
 
 	/* Init memdraw */
