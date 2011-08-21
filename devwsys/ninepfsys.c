@@ -130,6 +130,7 @@ wsysopen(Qid *qid, int mode)
 		if(w->mouse.open)
 			return Einuse;
 		w->mouse.open = 1;
+		server->fcall.iounit = 49;
 		return nil;
 	case Qsnarf:
 		/* one at a time please */

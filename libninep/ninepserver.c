@@ -191,6 +191,12 @@ rd(Client *c, Fcall *f)
 		}
 		memmove(c->msg, c->msg+c->nc, c->nread);
 		c->nc = 0;
+		c->nc = convM2S((uchar*)(c->msg), c->nread, f);
+		if(c->nc > 0){
+			if(c->nread == c->nc)
+				c->state &= ~CRECV;
+			goto Newmsg;
+		}
 	}
 	if(c->state&CRECV){
 		if(nbread(c, MSGMAX - c->nread) != 0){
@@ -200,6 +206,7 @@ rd(Client *c, Fcall *f)
 		c->state &= ~CRECV;
 	}
 	c->nc = convM2S((uchar*)(c->msg), c->nread, f);
+Newmsg:
 	if(c->nc < 0){
 		f->ename = "bad message format";
 		return -1;
@@ -762,13 +769,16 @@ nineprequest(Ninepserver *server)
 				freeclient(c);
 				continue;
 			}
-			if((s = rd(c, f)) < 0)
+			s = rd(c, f);
+			if(s < 0)
 				return f->ename;
 			else if(s == 0)
 				return nil;
 			server->curc = c;
 			if(Debug)
 				fprint(2, "<-%d- %F\n", c->fd, f);
+			if(c->state&CNREAD)
+				next = c;
 			return nil;
 		}
 	}

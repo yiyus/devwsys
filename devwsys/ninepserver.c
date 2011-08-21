@@ -62,12 +62,12 @@ fsloop(char *address, int xfd)
 	if(err != nil)
 		return err;
 	fsinit(&s);
+	nineplisten(&s, xfd);
 	for(;;) {
-		nineplisten(&s, xfd);
 		err = ninepwait(&s);
 		if(err != nil && debug&Debug9p)
 			fprint(2, "%s\n", err);
-		//if(ninepready(&s, xfd))
+		if(ninepready(&s, xfd))
 			xnextevent();
 		if(s.fcall.type == Tauth)
 			nineperror(&s, "devwsys: authentication not required");

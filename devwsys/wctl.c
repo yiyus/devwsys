@@ -262,12 +262,10 @@ wctlmesg(Window *w, char *a, int n)
 	Rectangle rect;
 
 	cnt = n;
-	a[cnt] = '\0';
 	id = pid = 0;
 	err = nil;
 	buttons = w->mouse.m[w->mouse.ri].buttons;
 
-	// print(" XXX wctlmesg: a = %s\n", a);
 	rect = rectaddpt(w->screenr, w->orig);
 	cmd = parsewctl(&arg, rect, &rect, &pid, &id, &hideit, &scrollit, &dir, a, err);
 	if(cmd < 0)
@@ -305,6 +303,8 @@ wctlmesg(Window *w, char *a, int n)
 		if(eqrect(rect, rectaddpt(w->screenr, w->orig)))
 			return nil;
 		xresizewindow(w, rect);
+Mouse m;
+writemouse(w, m, 1); // XXX
 		return nil;
 	case Scroll:
 		// w->scrolling = 1;
