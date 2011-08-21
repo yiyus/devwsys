@@ -31,6 +31,7 @@ enum {
 	Qdata,
 	Qcolormap,
 	Qrefresh,
+	Qwindow,
 };
 
 /* Error messages */

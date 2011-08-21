@@ -22,7 +22,7 @@ enum {
 	Kprint=	KF|0x10,
 	Kleft=	KF|0x11,
 	Kright=	KF|0x12,
-	Kdown=	0x80,
+	Kdown=	KF|0x800,
 	Kview=	0x80,
 	Kpgdown=KF|0x13,
 	Kins=	KF|0x14,

@@ -39,8 +39,10 @@ drawaddfiles(Ninepserver *s, DClient *c)
 	int i;
 	char name[12];
 	Path p, cp;
+	Window *w;
 
 	i = drawpath(c);
+	w= drawwindow(i);
 	p = PATH(i, 0);
 	cp = p|Qdrawn;
 	i = sprint(name, "%d", i);
@@ -50,6 +52,8 @@ drawaddfiles(Ninepserver *s, DClient *c)
 	ninepaddfile(s, cp, p|Qdata, "data", 0666, eve);
 	ninepaddfile(s, cp, p|Qcolormap, "colormap", 0444, eve);
 	ninepaddfile(s, cp, p|Qrefresh, "refresh", 0444, eve);
+	ninepadddir(s, cp, p|Qwindow, "window", 0555, eve);
+	ninepbind(s, p|Qwindow, PATH(w->id, 0));
 }
 
 static

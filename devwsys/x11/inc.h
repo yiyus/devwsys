@@ -16,9 +16,6 @@
 #include <X11/keysym.h>
 #include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
-#ifdef SHOWEVENT
-#include "../rio/showevent/ShowEvent.c"
-#endif
 
 #undef Colormap
 #undef Cursor
