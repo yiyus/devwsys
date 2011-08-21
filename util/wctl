@@ -95,7 +95,7 @@ cmd=(rio -i window)
 if(~ $1 -c){
 	if(~ $2 '')
 		usage && exit
-	cmd=$2
+	cmd=`{echo $2}
 	shift 2
 }
 if(! ~ $1 ''){

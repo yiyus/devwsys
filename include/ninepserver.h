@@ -12,10 +12,9 @@ extern char Ebadcmd[];	/* bad command */
 extern char Ebadarg[];	/* bad arguments */
 
 typedef uvlong	Path;
-typedef struct Ninepserver	Ninepserver;
+typedef struct Ninepserver Ninepserver;
 typedef struct Ninepops Ninepops;
 typedef struct Ninepfile Ninepfile;
-typedef struct Ninepreq Ninepreq;
 typedef struct Client Client;
 typedef struct Pending Pending;
 typedef struct Fid Fid;
@@ -90,14 +89,16 @@ struct Ninepfile
 	void	*u;
 };
 
+char* ninepsetowner(char* user);
 char *ninepnamespace(void);
 char *ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile);
 char *ninepend(Ninepserver *server);
 
+char *ninepwait(Ninepserver *server);
+
 void nineplisten(Ninepserver *server, int fd);
 int ninepready(Ninepserver *server, int fd);
 
-char *ninepwait(Ninepserver *server);
 void ninepdefault(Ninepserver *server);
 void nineperror(Ninepserver *server, char *err);
 void ninepreply(Ninepserver *server);
@@ -117,4 +118,3 @@ Qid ninepqid(int path, int isdir);
 void *ninepmalloc(int n);
 void ninepfree(void *p);
 void ninepdebug(void);
-char* ninepsetowner(char*);

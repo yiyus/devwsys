@@ -259,6 +259,7 @@ wctlmesg(Window *w, char *a, int n)
 {
 	int buttons, cnt, cmd, j, id, hideit, scrollit, pid;
 	char *arg, *dir, *err;
+	Mouse m;
 	Rectangle rect;
 
 	cnt = n;
@@ -303,8 +304,7 @@ wctlmesg(Window *w, char *a, int n)
 		if(eqrect(rect, rectaddpt(w->screenr, w->orig)))
 			return nil;
 		xresizewindow(w, rect);
-Mouse m;
-writemouse(w, m, 1); // XXX
+		writemouse(w, m, 1); // XXX
 		return nil;
 	case Scroll:
 		// w->scrolling = 1;

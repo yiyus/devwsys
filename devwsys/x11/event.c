@@ -155,11 +155,13 @@ void
 kbdevent(Window *w, XEvent xev)
 {
 	KeySym k;
+	Mouse m;
 
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
 	if(k == XK_F11){
 		w->fullscreen = !w->fullscreen;
-		xmovewindow(w, w->fullscreen ? xconn.screenrect : w->screenr);
+		xresizewindow(w, w->fullscreen ? xconn.screenrect : w->screenr);
+		writemouse(w, m, 1); // XXX
 		return;
 	}
 

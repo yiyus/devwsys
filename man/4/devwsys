@@ -1,0 +1,115 @@
+.TH DEVWSYS 4 
+.SH NAME
+devwsys \- hosted window system
+.SH SYNOPSIS
+.B devwsys
+[
+.B -d
+] [
+.B -a
+.I address
+]
+
+.B mount -b
+.I address
+/dev [
+.I spec
+]
+
+.B wctl=`{wctl
+[
+.B -c
+.I cmd
+]
+.I wsys
+}
+
+.SH DESCRIPTION
+The
+.I devwsys
+program serves a connection to a 9P file system providing an interface to a non-Plan 9
+window system.
+
+After a mount of
+.I address
+(which defaults to
+.I /tmp/ns.$USER.$DISPLAY/wsys
+if the flag
+.B -a
+is not used) a new window is created and access is given to a file system similar to the union of
+.IR rio(4)
+and
+.IR draw(3).
+If the
+.B -d
+option is given 9P debug information will be sent to stderr.
+
+Devwsys windows can be managed by the corresponding window manager in the host system or using the
+9P file system. The files in the
+.I draw
+directory are equivalent to the files served by
+.IR draw(3)
+, with the particularity that reading the
+.I draw/new
+file will associate the new client to the corresponding window, whose file system is then presented in
+.I draw/n/window.
+The files in the root and
+.I wsys/n
+directories act like their
+.IR rio(4)
+counterparts. However, devwsys does not provide any text editing capabilities and writting to the
+.I cons
+file is not allowed. Writes to the file
+.I consctl
+are ignored.
+
+If
+.I spec
+is equal to
+.I /
+a new window will not be created, and the mounted file system will only contain the directories
+.I draw
+and
+.I wsys¸
+as well as
+.I snarf
+and
+.I kill
+files. When open for reading, the
+.I kill
+file returns the pid given in the attach spec of a window when that window is
+requested for deletion, instead of deleting it. A second attemp will always delete the window.
+
+The
+.I wctl
+rc script, when launched from Plan 9, posts a wctl service analogous to that one of
+.IR rio(1)
+, which uses
+.I wsys
+as its window system. It can be used in conjuction with 
+.IR devwsys(4)
+to facilitate the usage of the window command (see
+.IR rio(1)
+) and correctly finalize processes when windows are deleted (using the
+.I kill
+file). The flag
+.B -c
+can be used to set a default command, instead of
+.B rio -i window.
+
+.SH FILES
+.TF /mnt/wsys
+.TP
+.B /mnt/wsys
+mount point for
+.IR devwsys (4)
+
+.SH BUGS
+When reading from the kill file, if the user requests to close a window or the program running in a window finishes, the window may stay on screen. Successive attempts of closing the window will succeed.
+
+There should be OS X and Windows versions of devwsys.
+
+.SH SEE ALSO
+.IR draw (3).
+.IR rio (4)
+..

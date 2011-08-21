@@ -1,0 +1,512 @@
+.TH NINEPSERVER 10.2
+.SH NAME
+Ninepserver \- C 9P server library
+.SH SYNOPSIS
+.EX
+#include <lib9.h>
+#include <ninep.h>
+#include <ninepserver.h>
+#define Qroot	0
+
+#define MSGMAX	((((8192+128)*2)+3) & ~3)
+
+extern char Enomem[];	/* out of memory */
+extern char Eperm[];		/* permission denied */
+extern char Enodev[];	/* no free devices */
+extern char Ehungup[];	/* i/o on hungup channel */
+extern char Eexist[];		/* file exists */
+extern char Enonexist[];	/* file does not exist */
+extern char Ebadcmd[];	/* bad command */
+extern char Ebadarg[];	/* bad arguments */
+
+typedef uvlong	Path;
+typedef struct Ninepserver Ninepserver;
+typedef struct Ninepops Ninepops;
+typedef struct Ninepfile Ninepfile;
+typedef struct Client Client;
+typedef struct Pending Pending;
+typedef struct Fid Fid;
+
+struct Ninepserver
+{
+	Ninepops *ops;
+	Path qidgen;
+	int connfd;
+	int needfile;
+	Client *clients;
+	Client *curc;
+	Fcall fcall;
+	Ninepfile *root;
+	Ninepfile **ftab;
+	void	*priv;	/* private */
+};
+
+struct Client
+{
+	Ninepserver *server;
+	Client *next;
+	int		fd;
+	char	msg[MSGMAX];
+	uint		nread;		/* valid bytes in msg (including nc)*/
+	int		nc;			/* bytes consumed from front of msg by convM2S */
+	char	data[MSGMAX];	/* Tread/Rread data */
+	int		state;
+	Fid		*fids;
+	Pending **pending;
+	char		*uname;	/* uid */
+	char		*aname;	/* attach name */
+	void		*u;
+};
+
+struct Pending
+{
+	Client *c;
+	Fcall fcall;
+	int flushed;
+	Pending *next;
+};
+
+struct Ninepops
+{
+	char *(*newclient)(Client *c);
+	char *(*freeclient)(Client *c);
+
+	char *(*attach)(Qid *qid, char *uname, char *aname);
+	char *(*walk)(Qid *qid, char *name);
+	char *(*open)(Qid *qid, int mode);
+	char *(*create)(Qid *qid, char *name, int perm, int mode);
+	char *(*read)(Qid qid, char *buf, ulong *n, vlong offset);
+	char *(*write)(Qid qid, char *buf, ulong *n, vlong offset);
+	char *(*close)(Qid qid, int mode);
+	char *(*remove)(Qid qid);
+	char *(*stat)(Qid qid, Dir *d);
+	char *(*wstat)(Qid qid, Dir *d);
+};
+
+struct Ninepfile
+{
+	Dir	d;
+	Ninepfile *parent;
+	Ninepfile *child;
+	Ninepfile *sibling;
+	Ninepfile *next;
+	Ninepfile *bind;
+	Ninepfile *nf;
+	int ref;
+	int open;
+	void	*u;
+};
+
+char* ninepsetowner(char* user);
+char *ninepnamespace(void);
+char *ninepinit(Ninepserver *server, Ninepops *ops, char *address, int perm, int needfile);
+char *ninepend(Ninepserver *server);
+
+char *ninepwait(Ninepserver *server);
+
+void nineplisten(Ninepserver *server, int fd);
+int ninepready(Ninepserver *server, int fd);
+
+void ninepdefault(Ninepserver *server);
+void nineperror(Ninepserver *server, char *err);
+void ninepreply(Ninepserver *server);
+
+Pending *ninepreplylater(Ninepserver *server);
+void ninepcompleted(Pending *pend);
+
+Ninepfile *ninepaddfile(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
+Ninepfile *ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char *owner);
+Ninepfile *ninepbind(Ninepserver *server, Path pqid, Path qid);
+int nineprmfile(Ninepserver *server, Path qid);
+Ninepfile *ninepfindfile(Ninepserver *server, Path qid);
+
+int	ninepperm(Ninepfile *file, char *uid, int mode);
+long ninepreadstr(ulong off, char *buf, ulong n, char *str);
+Qid ninepqid(int path, int isdir);
+void *ninepmalloc(int n);
+void ninepfree(void *p);
+void ninepdebug(void);
+.EE
+.SH DESCRIPTION
+The C Ninep server library provides a small suite of functions to enable the
+production of a file server based on the 9P protocol. The following
+elements define the primary routines in the interface:
+.TP
+.BI ninepinit(server\fP,\fP\ ops\fP,\fP\ address\fP,\fP\ perm\fP,\fP\ needfile )
+Initializes the interface given a pointer to a Ninepserver structure
+.I server
+, a callback table of operations
+.I ops
+, an
+.I address
+to announce the file service on
+and the permissions
+.I perm
+on the root directory. The default permission is 0555 (read and execute for user, 
+group and others) if the latter is specified as -1. If the last argument
+.I needfile
+is set to true, the Ninep library will check that each path number it deals with
+has a corresponding file associated with it and, if it hasn't, it will issue a
+"file does not exist" message automatically. In case of an error, the error message is
+returned, otherwise nil is returned to indicate success.
+By default, files are owned by current user:
+.I ninepsetowner
+can be called before
+.I ninepinit
+to make
+.I user
+the default owner of files. The function
+.I ninepnamespace
+gives a default namespace path to build an address.
+.TP
+.BI ninepend(server )
+End all file service. Return value as above.
+.TP
+.BI ninepwait(server )
+Waits for communication from a client. If a 9P request is received
+.I server->curc
+is set to the client doing the request and
+.I server->fcall
+to the corresponding
+.I Fcall.
+Return value as above.
+.TP
+.BI nineplisten(server\fP,\fP\ fd )
+Waits for communication from an additional file descriptor
+.I fd.
+.TP
+.BI ninepready(server\fP,\fP\ fd )
+Returns 1 if the file descriptor
+.I fd
+is ready for reading, 0 otherwise.
+.TP
+.BI ninepdefault(server )
+Processes the client message after a successful call to
+.I ninepwait.
+The fields of
+.I server->fcall
+are set for a reply message.
+This may result in calls to the functions in the table provided to
+.I ninepinit .
+.TP
+.BI nineperror(server\fP,\fP\ err )
+Sets
+.I server->fcall.type
+to Rerror and
+.I server->fcall.ename
+to
+.I err.
+.TP 
+.BI ninepreply(server )
+Reply to client
+.I server->curc
+with the contents of
+.I server->fcall.
+.TP 
+.BI ninepreplylater(server )
+Returns a
+.I Pending
+structure corresponding to the current request, which will not be
+replied until
+.I ninepcompleted
+is called. The
+.I Pending
+structure contains fields to the corresponding
+.I Client
+and
+.I Fcall.
+.TP 
+.BI ninepcompleted(pend )
+Reply to a
+.I pend
+pending request postponed with a call to
+.I ninepreplylater.
+.PP
+The next set of functions allow the creation of a file system structure based
+upon the
+.I Ninepfile
+structure. This contains a Dir structure 
+.I d
+describing the properties of the file
+(defined in lib9.h) and pointers to other files in the file tree:
+.I parent
+,
+.I bind
+,
+.I child
+,
+.I sibling
+and
+.I next .
+The
+.I ref
+field
+counts current references to the file. The
+.I open
+field counts the current number of opens on the file. Finally the
+.I u
+field allows further fields to be tagged onto each file. It is not
+used by the Ninep server library.
+.PP
+Each file must have a unique path number in the server. The root of
+the tree
+.I Qroot
+always has path number zero. It's corresponding file is created during library initialization
+and placed in the
+.I root
+field of the server structure. All other files must be supplied with a path number
+to identify them. Files are created/deleted as follows:
+.TP
+.BI ninepaddfile(server\fP,\fP\ ppath\fP,\fP\ path\fP,\fP\ name\fP,\fP\ mode\fP,\fP\ owner )
+Add a new file (ie non-directory) with the given path
+.I path
+, name
+.I name
+, mode
+.I mode
+and owner
+.I owner
+to the directory identified by the path
+.I ppath .
+If
+.I path
+is -1 the library will generate a unique path number instead.
+Returns nil if the parent file with path
+.I ppath
+does not exist, if the parent is not a directory, if the path number
+.I path
+already is assigned to a file or if the parent already contains a file of name
+.I name .
+.TP
+.BI ninepadddir(server\fP,\fP\ ppath\fP,\fP\ path\fP,\fP\ name\fP,\fP\ mode\fP,\fP\ owner )
+Add a new directory with the given path
+.I path
+, name
+.I name
+, mode
+.I mode
+and owner
+.I owner
+to the directory identified by the path
+.I ppath .
+Returns nil in the same circumstances as
+.I ninepaddfile .
+.TP
+.BI ninepbind(server\fP,\fP\ ppath\fP,\fP\  path )
+Bind the contents of directory with path
+.I path
+in the directory with path
+.I ppath.
+If one of the files is not a directory -1 is returned, otherwise 0 is returned for
+success.
+.TP
+.BI nineprmfile(server\fP,\fP\  path )
+Remove the file or directory with path
+.I path
+from the file server tree. If the file is a directory, it's contents will be recursively
+removed. If the file does not exist, -1 is returned, otherwise 0 is returned for
+success.
+.TP
+.BI ninepfindfile(server\fP,\fP\  path )
+Return the file structure corresponding to the file or directory with path
+.I path .
+Nil is returned if the file does not exist.
+.PP
+If the file system is created in this way the Ninep library will check read/write/execute
+permissions, check for invalid uses of files and check that path numbers exist
+in the file system (see
+.I ninepinit
+for the latter). If it's not feasible to do this (for instance if there is a more suitable
+way of describing the file system in question), then all file checking must be
+done as part of the callback functions below.
+.PP
+The library provides a callback mechanism so that the implementer of the
+file server can take corresponding action when
+.I ninepdefault
+is called. All of these functions may return an error message which will
+be communicated back to the client. Otherwise they should return nil to
+indicate the success of the operation. Any of these functions may be nil in which case the library
+performs a default operation which will be described below. These routines use
+the
+.I Qid
+structure defined in lib9.h to describe files. This structure contains the path number(
+.I path
+), a version number(
+.I vers
+) typically zero and a type(
+.I type
+) which indicates whether the file is a directory, append-only etc.
+.TP
+.BI newclient(c )
+Called whenever a new client connects to the server. The Client structure
+.I c
+contains mainly private data but the
+.I uname
+field contains a user name and the
+.I aname
+field an attach name if required. The
+.I u
+field may be used to tag further data onto each client. It is not used by
+the Ninep server library.
+.TP
+.BI freeclient(c )
+Called whenever a client disconnects from the server.
+.TP
+.BI attach(qid\fP,\fP\ uname\fP,\fP\ aname )
+Called when a client user first mounts the file server. The
+.I uname
+is the user id and
+.I aname
+is typically the file tree to access, with qid
+.I qid
+, if the server provides a choice.
+The default action is to allow the attach to the root of the file system.
+.TP
+.BI walk(qid\fP,\fP\ name )
+In a directory represented by
+.I qid
+, find a file member whose name is that given and place it's Qid in
+.I qid .
+The default action is to perform the walk using any directory structure provided.
+.TP
+.BI open(qid\fP,\fP\ mode )
+Open the file represented by
+.I qid
+with mode
+.I mode .
+The latter may be one of OREAD, OWRITE, ORDWR etc (see lib9.h). If the Qid
+of the newly opened file is different from that given (a file server may understand
+the opening of a file called "new" say to signify the creation of a directory whose
+Qid is returned instead) place it's Qid in
+.I qid .
+The default action is to nominally allow the open.
+.TP
+.BI create(qid\fP,\fP\ name\fP,\fP\ perm\fP,\fP\ mode )
+Create a file in the directory given by
+.I qid
+with name
+.I name
+, permissions
+.I perm
+and mode
+.I mode .
+Place the Qid of the newly created file in
+.I qid .
+The default action is to issue a permission denied message.
+.TP
+.BI read(qid\fP,\fP\ buf\fP,\fP\ n\fP,\fP\ offset )
+Read
+.I n
+bytes of the file represented by
+.I qid
+at offset
+.I offset
+and place the result in
+.I buf.
+ Place in
+.I n
+the actual number of bytes read.
+The default action is to read directories but to issue permission denied on ordinary
+files.
+.TP
+.BI write(qid\fP,\fP\ buf\fP,\fP\ n\fP,\fP\ offset )
+Write
+.I n
+bytes to the file represented by
+.I qid
+at offset
+.I offset
+from the buffer
+.I buf.
+ Place in
+.I n
+the actual number of bytes written.
+The default action is to issue permission denied.
+.TP
+.BI close(qid\fP,\fP\ mode )
+Close the file represented by
+.I qid .
+The mode it was originally opened with is given by
+.I mode .
+The default action is to allow the close.
+.TP
+.BI remove(qid )
+Remove the file represented by
+.I qid .
+The default action is to issue a permission denied message.
+.TP
+.BI stat(qid\fP,\fP\ d )
+Place the information for the file represented by
+.I qid
+in the Dir structure(see lib9.h)
+.I d .
+The default action is to allow the stat using any information in the file tree.
+.TP
+.BI wstat(qid\fP,\fP\ d )
+Update the information for the file represented by
+.I qid
+according to the Dir structure
+.I d .
+The default action is to disallow this with a permission denied message.
+.PP
+Alternatively to calling
+.I ninepdefault
+and use
+.I Ninepops
+functions, a program using
+.I Ninepserver
+may opt for processing
+.I server->fcall
+by its own means.
+
+A small number of utility functions are provided:
+.TP
+.BI ninepperm(file\fP,\fP\ uid\fP,\fP\ mode )
+Does the file/directory
+.I file
+allow the user
+.I uid
+the permission given by
+.I mode .
+For example use
+.I OREAD
+for read permission,
+.I OWRITE
+for write permission and
+.I ORDWR
+for both.
+.TP
+.BI ninepeadstr(off\fP,\fP\ buf\fP,\fP\ n\fP,\fP\ str )
+Read
+.I n
+bytes of data from the string
+.I str
+at offset
+.I off
+and place the result in
+.I buf .
+Returns the actual number of bytes read.
+.TP
+.BI ninepqid(path\fP,\fP\ isdir )
+Returns a typical Qid structure with the given path number
+.I path
+and whether the Qid is for a directory
+.I isdir .
+.TP
+.BI ninepmalloc(n )
+Allocate
+.I n
+bytes of memory and return it.
+.TP
+.BI ninepfree(p )
+Free the memory pointed to by
+.I p .
+.TP
+.BI ninepdebug()
+Print out some of the actions of the server.
+.SH EXAMPLE
+.IR devwsys(4)
+.SH BUGS
+Currently only the Linux version of the library is supported, Window or other Unix versions could (and surely will) need adjustments.
+.br
+Authentication is not supported.
