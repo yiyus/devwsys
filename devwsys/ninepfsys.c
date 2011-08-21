@@ -191,13 +191,13 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 		return nil;
 	case Qwctl:
 		// XXX TODO: current
-		s = w-> visible ? "visible" : "hidden";
+		s = w->visible ? "visible" : "hidden";
 		*n = sprint(buf, "%11d %11d %11d %11d %s %s ", w->orig.x +  w->screenr.min.x, w->orig.y + w->screenr.min.y, w->screenr.max.x, w->screenr.max.y, s, "current");
+		*n = ninepreadstr(offset, buf, *n, buf);
 		return nil;
 	case Qwinid:
 		*n = sprint(buf, "%11d ", w->id);
-		buf = &buf[offset];
-		*n -= offset;
+		*n = ninepreadstr(offset, buf, *n, buf);
 		return nil;
 	case Qwinname:
 		*n = ninepreadstr(offset, buf, strlen(w->name), w->name);
