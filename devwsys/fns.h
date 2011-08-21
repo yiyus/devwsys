@@ -47,5 +47,5 @@ void xtopwindow(Window*);
 void xresizewindow(Window*, Rectangle);
 void xsetcursor(Window*);
 void xsetmouse(Window*, Point);
-char* xgetsnarf();
+char* xgetsnarf(void);
 void xputsnarf(char*);

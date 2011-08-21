@@ -27,6 +27,7 @@ void
 fsinit(Ninepserver *s)
 {
 	ninepaddfile(s, Qroot, Qkill, "kill", 0444, eve);
+	ninepaddfile(s, Qroot, Qsnarf, "snarf", 0666, eve);
 	ninepadddir(s, Qroot, Qdraw, "draw", 0555, eve);
 	ninepadddir(s, Qroot, Qwsys, "wsys", 0555, eve);
 }
@@ -164,6 +165,10 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 	case Qkill:
 		killp = ninepreplylater(server);
 		return nil;
+	case Qsnarf:
+		s = xgetsnarf();
+		*n = ninepreadstr(offset, buf, strlen(s), s);
+		return nil;
 
 	/* Window */
 	case Qcons:
@@ -179,10 +184,6 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 	case Qpointer:
 		p = ninepreplylater(server);
 		readmouse(w, p);
-		return nil;
-	case Qsnarf:
-		s = xgetsnarf(w);
-		*n = ninepreadstr(offset, buf, strlen(s), s);
 		return nil;
 	case Qwctl:
 		// XXX TODO: current
@@ -219,11 +220,34 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 	Point pt;
 
 	w = qwindow(&qid);
-	if(w == nil || w->deleted)
-		return Edeleted;
 	type = QTYPE(qid.path);
+	if((w == nil || w->deleted) && type != Qsnarf)
+		return Edeleted;
 	count = *n;
 	switch(type){
+	case Qsnarf:
+		if(offset+count >= SnarfSize)
+			return "too much snarf";
+		if(count == 0)
+			break;
+		if(snarfbuf == nil)
+			*n = 0;
+		else
+			*n = strlen(snarfbuf);
+		if(offset+count > *n){
+			*n = offset+count;
+			if((p = malloc(*n+1)) == nil)
+			if(p == nil)
+				return Enomem;
+			if(snarfbuf){
+				strcpy(p, snarfbuf);
+				free(snarfbuf);
+			}
+			snarfbuf = p;
+		}
+		memmove(snarfbuf+offset, buf, count);
+		snarfbuf[offset+count] = '\0';
+		return nil;
 	case Qconsctl:
 		return nil;
 	case Qcursor:
@@ -252,29 +276,6 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 		pt.y = strtoul(p, 0, 0);
 		xsetmouse(w, pt);
 		return nil;
-	case Qsnarf:
-		if(offset+count >= SnarfSize)
-			return "too much snarf";
-		if(count == 0)
-			break;
-		if(snarfbuf == nil)
-			*n = 0;
-		else
-			*n = strlen(snarfbuf);
-		if(offset+count > *n){
-			*n = offset+count;
-			if((p = malloc(*n+1)) == nil)
-			if(p == nil)
-				return Enomem;
-			if(snarfbuf){
-				strcpy(p, snarfbuf);
-				free(snarfbuf);
-			}
-			snarfbuf = p;
-		}
-		memmove(snarfbuf+offset, buf, count);
-		snarfbuf[offset+count] = '\0';
-		return nil;
 	case Qwctl:
 		return wctlmesg(w, buf, count);
 
@@ -296,7 +297,19 @@ wsysclose(Qid qid, int mode) {
 
 	w = qwindow(&qid);
 	type = QTYPE(qid.path);
+	if(w == nil && type != Qsnarf)
+		return nil;
 	switch(type){
+	case Qsnarf:
+		if(mode == OWRITE){
+			if(snarfbuf)
+				xputsnarf(snarfbuf);
+			else
+				xputsnarf("");
+		}
+		free(snarfbuf);
+		snarfbuf = nil;
+		return nil;
 	case Qcons:
 	case Qkeyboard:
 		w->kbd.wi = w->kbd.ri;
@@ -307,16 +320,6 @@ wsysclose(Qid qid, int mode) {
 		w->mouse.open = 0;
 		w->mouse.wi = w->mouse.ri;
 		w->mousereqs.wi = w->mousereqs.ri;
-		return nil;
-	case Qsnarf:
-		if(mode == OWRITE){
-			if(snarfbuf)
-				xputsnarf(snarfbuf);
-			else
-				xputsnarf("");
-		}
-		free(snarfbuf);
-		snarfbuf = nil;
 		return nil;
 
 	/*
