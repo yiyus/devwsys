@@ -10,7 +10,27 @@
 #include "x.h"
 
 void
+xbottomwindow(Window *w)
+{
+	Xwin *xw;
+
+	xw = w->x;
+	XLowerWindow(xconn.display, xw->drawable);
+	XFlush(xconn.display);
+}
+
+void
 xtopwindow(Window *w)
+{
+	Xwin *xw;
+
+	xw = w->x;
+	XMapRaised(xconn.display, xw->drawable);
+	XFlush(xconn.display);
+}
+
+void
+xcurrentwindow(Window *w)
 {
 	Xwin *xw;
 

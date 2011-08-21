@@ -319,11 +319,10 @@ wctlmesg(Window *w, char *a, int n)
 		xtopwindow(w);
 		return nil;
 	case Bottom:
-		// wbottomme(w);
+		xbottomwindow(w);
 		return nil;
 	case Current:
-		// wcurrent(w);
-		xtopwindow(w);
+		xcurrentwindow(w);
 		return nil;
 	case Hide:
 		if(!w->visible)

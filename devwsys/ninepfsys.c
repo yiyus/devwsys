@@ -190,9 +190,8 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 		readmouse(w, p);
 		return nil;
 	case Qwctl:
-		// XXX TODO: current
 		s = w->visible ? "visible" : "hidden";
-		*n = sprint(buf, "%11d %11d %11d %11d %s %s ", w->orig.x +  w->screenr.min.x, w->orig.y + w->screenr.min.y, w->screenr.max.x, w->screenr.max.y, s, "current");
+		*n = sprint(buf, "%11d %11d %11d %11d %s %s ", w->orig.x +  w->screenr.min.x, w->orig.y + w->screenr.min.y, w->screenr.max.x, w->screenr.max.y, s, w->current ? "current" : "notcurrent");
 		*n = ninepreadstr(offset, buf, *n, buf);
 		return nil;
 	case Qwinid:

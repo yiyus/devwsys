@@ -105,6 +105,7 @@ struct Window
 	int			deleted;
 	int			pid;
 	int			resized;
+	int			current;
 	int			visible;
 	int			ref;
 	char			*label;

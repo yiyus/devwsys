@@ -69,7 +69,10 @@ NextEvent:
 		kbdevent(w, xev);
 		break;
 	
+	case FocusIn:
+		w->current = 1;
 	case FocusOut:
+		w->current = 0;
 		/*
 		 * Stop alting when
 		 * window losts focus.
