@@ -42,12 +42,12 @@ drawaddfiles(Ninepserver *s, DClient *c)
 	Window *w;
 
 	i = drawpath(c);
-	w= drawwindow(i);
+	w= drawwindow(c);
 	p = PATH(i, 0);
 	cp = p|Qdrawn;
 	i = sprint(name, "%d", i);
 	name[i] = 0;
-	ninepadddir(s, Qdraw, cp, name, 0555, eve);
+	ninepadddir(s, Qdraw, cp, name, 0555, eve)->u = w;
 	ninepaddfile(s, cp, p|Qctl, "ctl", 0666, eve);
 	ninepaddfile(s, cp, p|Qdata, "data", 0666, eve);
 	ninepaddfile(s, cp, p|Qcolormap, "colormap", 0444, eve);
@@ -67,7 +67,7 @@ wsysaddfiles(Ninepserver *s, Window *w)
 	i = sprint(name, "%d", w->id);
 	name[i] = 0;
 	p = PATH(w->id, 0);
-	ninepadddir(s, Qwsys, p, name, 0555, eve);
+	ninepadddir(s, Qwsys, p, name, 0555, eve)->u = w;
 	ninepaddfile(s, p, p|Qcons, "cons", 0666, eve);
 	ninepaddfile(s, p, p|Qconsctl, "consctl", 0222, eve);
 	ninepaddfile(s, p, p|Qkeyboard, "keyboard", 0666, eve);
@@ -338,14 +338,12 @@ wsysclose(Qid qid, int mode) {
 Window*
 qwindow(Qid *qid)
 {
-	int slot, type;
+	Ninepfile *f;
 
-	slot = QSLOT(qid->path);
-	type = QTYPE(qid->path);
-	if(type <= Qnew)
-		return winlookup(slot);
-	else if(type > Qnew)
-		return drawwindow(slot);
+	f = ninepfindfile(server, qid->path);
+	if(f != nil)
+		return f->u;
+	/* should never happen */
 	return nil;
 }
 

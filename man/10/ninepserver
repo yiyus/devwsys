@@ -245,8 +245,8 @@ counts current references to the file. The
 .I open
 field counts the current number of opens on the file. Finally the
 .I u
-field allows further fields to be tagged onto each file. It is not
-used by the Ninep server library.
+field allows further fields to be tagged onto each file. It is inherited
+from the parent by default, but not used by the Ninep server library.
 .PP
 Each file must have a unique path number in the server. The root of
 the tree

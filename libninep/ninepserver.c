@@ -1166,6 +1166,7 @@ ninepaddfile(Ninepserver *server, Path pqid, Path qid, char *name, int mode, cha
 	if(parent == nil || (parent->d.qid.type&QTDIR) == 0)
 		return nil;
 	f = newfile(server, parent, 0, qid, name, mode, owner);
+	f->u = parent->u;
 	return f;
 }
 
@@ -1178,6 +1179,7 @@ ninepadddir(Ninepserver *server, Path pqid, Path qid, char *name, int mode, char
 	if(parent == nil || (parent->d.qid.type&QTDIR) == 0)
 		return nil;
 	f = newfile(server, parent, 1, qid, name, mode|DMDIR, owner);
+	f->u = parent->u;
 	return f;
 }
 

@@ -1975,11 +1975,8 @@ drawclose(Qid qid)
 }
 
 Window*
-drawwindow(int id)
+drawwindow(DClient *cl)
 {
-	DClient *cl;
-
-	cl = drawlookupclient(id);
 	if(cl != nil)
 		return cl->draw->window;
 	return nil;
