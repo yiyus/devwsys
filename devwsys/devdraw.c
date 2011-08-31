@@ -514,13 +514,13 @@ drawfreedimage(Draw *d, DImage *dimage)
 	l = dimage->image;
 	dimage->dscreen = nil;	/* paranoia */
 	dimage->image = nil;
-	if(ds){
-		/*
-		 * l->layer will be nil if we get any
-		 * ConfigEvent before having a screen
-		 */
-		if(!l->layer)
-			return;
+	/*
+	 * TODO:
+	 * l->layer will be nil if we get any
+	 * ConfigEvent before having a screen.
+	 * Why else?
+	 */
+	if(ds && l->layer){
 		screenimage = d->window->screenimage;
 		if(l->data == screenimage->data)
 			addflush(d, l->layer->screenr);
@@ -1838,7 +1838,6 @@ drawreplacescreenimage(Window *w)
 	if(d->screendimage == nil)
 		return;
 
-	xreplacescreenimage(w);
 	if(w->screenimage == nil)
 		return;
 	/*
@@ -1863,7 +1862,7 @@ drawreplacescreenimage(Window *w)
 		}
 	}
 
-	drawfreedimage(d, d->screendimage); // XXX
+	drawfreedimage(d, d->screendimage);
 	d->screendimage = di;
 
 	/*

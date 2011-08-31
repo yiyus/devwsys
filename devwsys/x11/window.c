@@ -98,6 +98,8 @@ xreplacescreenimage(Window *w)
 	xw->nextscreenpm = pixmap;
 	w->screenimage = m;
 	w->screenr = r;
+	drawreplacescreenimage(w);
+	xw->screenpm = xw->nextscreenpm;
 }
 
 int

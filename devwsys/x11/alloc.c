@@ -104,14 +104,12 @@ xfreememimage(Memimage *m)
 {
 	Xmem *xm;
 
-	// print("XXX xfreememimage (%p)\n", m);
-	// XXX TODO: why m->data == nil ?
-	if(!m || !m->data)
+	if(m == nil)
 		return;
 
 	xm = m->X;
-	if(xm && m->data->ref == 1){
-		if(xm->xi){
+	if(xm != nil){
+		if(xm->xi != nil){
 			xm->xi->data = nil;
 			XFree(xm->xi);
 		}
@@ -119,6 +117,5 @@ xfreememimage(Memimage *m)
 		free(xm);
 		m->X = nil;
 	}
-// print("XXX free %d with layer %d\n", m, m->layer);
 	_freememimage(m);
 }

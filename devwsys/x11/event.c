@@ -123,7 +123,7 @@ configevent(Window *w, XEvent xev)
 
 	m.xy.x = Dx(r);
 	m.xy.y = Dy(r);
-	drawreplacescreenimage(w);
+	xreplacescreenimage(w);
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
 	w->resized = 1;
 	writemouse(w, m, 1);
