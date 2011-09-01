@@ -58,13 +58,8 @@ xputxdata(Memimage *m, Rectangle r)
 	XImage *xi;
 
 	xm = m->X;
-	// XXX TODO:
-	// This should not happen, but we are not
-	// always setting it in allocmemimage.
-	if(xm == nil) {
-		// print("XXX devwsys: xm is nil!\n");
+	if(xm == nil)
 		return;
-	}
 
 	xi = xm->xi;
 	gc = m->chan==GREY1 ? xconn.gccopy0 : xconn.gccopy;

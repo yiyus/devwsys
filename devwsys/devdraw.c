@@ -515,10 +515,8 @@ drawfreedimage(Draw *d, DImage *dimage)
 	dimage->dscreen = nil;	/* paranoia */
 	dimage->image = nil;
 	/*
-	 * TODO:
-	 * l->layer will be nil if we get any
-	 * ConfigEvent before having a screen.
-	 * Why else?
+	 * l->layer will be nil just after
+	 * a window is created o resized.
 	 */
 	if(ds && l->layer){
 		screenimage = d->window->screenimage;
