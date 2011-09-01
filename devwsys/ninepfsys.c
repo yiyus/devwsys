@@ -254,10 +254,7 @@ wsyswrite(Qid qid, char *buf, ulong *n, vlong offset)
 	case Qconsctl:
 		return nil;
 	case Qcursor:
-		if(cursorwrite(w, buf, *n) < 0){
-			*n = 0;
-			return "error"; // XXX TODO
-		}
+		cursorwrite(w, buf, *n);
 		return nil;
 	case Qlabel:
 		if((label = malloc(count + 1)) == nil) {

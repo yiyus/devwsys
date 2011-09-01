@@ -533,7 +533,7 @@ drawfreedimage(Draw *d, DImage *dimage)
 			memlfree(l);
 		drawfreedscreen(d, ds);
 	}else{
-		_freememimage(l);
+		freememimage(l);
 	}
     Return:
 	free(dimage->fchar);

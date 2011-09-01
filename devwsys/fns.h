@@ -12,7 +12,7 @@ void readkbd(Window*, void*);
 /* Mouse */
 void readmouse(Window*, void*);
 void writemouse(Window*, Mouse, int);
-int cursorwrite(Window*, char*, int);
+void cursorwrite(Window*, char*, int);
 
 /* Reqbuf */
 void addreq(Reqbuf*, void*);

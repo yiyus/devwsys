@@ -205,7 +205,7 @@ plan9cursorwrite(Window *w, char *buf, int n)
 	return 0;
 }
 
-int
+void
 cursorwrite(Window *w, char *buf, int n)
 {
 	if(infernocursorwrite(w, buf, n) < 0 &&
@@ -213,6 +213,5 @@ cursorwrite(Window *w, char *buf, int n)
 		w->cursor.h = 0;
 		xsetcursor(w);
 	}
-	return 0;
 }
 
