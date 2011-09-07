@@ -68,6 +68,7 @@ int xcloadmemimage(Memimage*, Rectangle, uchar*, int);
 void xfillcolor(Memimage*, Rectangle, ulong);
 XImage* xgetxdata(Memimage*, Rectangle);
 void xmovewindow(Window*, Rectangle);
+void xtogglefullscreen(Window*);
 void xputxdata(Memimage*, Rectangle);
 void xmemimagedraw(Memimage*, Rectangle, Memimage*, Point,
 	Memimage*, Point, int);

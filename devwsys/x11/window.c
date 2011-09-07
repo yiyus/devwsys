@@ -17,7 +17,7 @@
 	Button2MotionMask|\
 	Button3MotionMask)
 
-#define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask
+#define Mask MouseMask|ExposureMask|StructureNotifyMask|KeyPressMask|EnterWindowMask|LeaveWindowMask|FocusChangeMask|VisibilityChangeMask
 
 static void* xcreatewin(char*, Rectangle);
 static Rectangle xmapwin(Window*);
@@ -366,5 +366,33 @@ xflushmemscreen(Window *w, Rectangle r)
 	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xconn.gccopy, r.min.x, r.min.y,
 		Dx(r), Dy(r), r.min.x, r.min.y);
 	XFlush(xconn.display);
+}
+
+void xtogglefullscreen(Window* w)
+{
+	Mouse m;
+	XSetWindowAttributes attr;
+	Xwin *xw;
+	static Rectangle r;
+
+	w->fullscreen = !w->fullscreen;
+	xw = w->x;
+	if(w->fullscreen){
+		r = rectaddpt(w->screenr, w->orig);
+		xresizewindow(w, xconn.screenrect);
+		attr.override_redirect = True;
+		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
+		XUnmapWindow(xconn.display, xw->drawable);
+		XMapRaised(xconn.display, xw->drawable);
+		XGrabKeyboard(xconn.display, xw->drawable, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+	}else{
+		xresizewindow(w, r);
+		XUngrabKeyboard(xconn.display, CurrentTime);
+		attr.override_redirect = False;
+		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
+		XUnmapWindow(xconn.display, xw->drawable);
+		XMapRaised(xconn.display, xw->drawable);
+	}
+	writemouse(w, m, 1);
 }
 

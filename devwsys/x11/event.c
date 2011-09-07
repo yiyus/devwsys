@@ -79,7 +79,10 @@ NextEvent:
 		 */
 		writekbd(w, -1);;
 		break;
-	
+	case VisibilityNotify:
+		if(w->fullscreen && xev.xvisibility.state != VisibilityUnobscured)
+			XRaiseWindow(xconn.display, xw->drawable);	
+		break;
 	default:
 		break;
 	}
@@ -105,27 +108,23 @@ configevent(Window *w, XEvent xev)
 		}
 	}
 
-	if(xe->width == Dx(xconn.screenrect) && xe->height == Dy(xconn.screenrect))
+	if(Dx(w->screenr) == xe->width && Dy(w->screenr) == xe->height && !w->mouse.resized)
 		return;
-	if(Dx(w->screenr) == xe->width && Dy(w->screenr) == xe->height)
-		return;
-	w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
+	if(xe->width != Dx(xconn.screenrect) || xe->height != Dy(xconn.screenrect))
+		w->screenr = Rect(rx, ry, rx+xe->width, ry+xe->height);
 	r = Rect(0, 0, xe->width, xe->height);
 
-	// qlock(&_x.screenlock);
 	if(xw->screenpm != xw->nextscreenpm){
 		XCopyArea(xconn.display, xw->screenpm, xw->drawable, xconn.gccopy, r.min.x, r.min.y,
 			Dx(r), Dy(r), r.min.x, r.min.y);
 		XSync(xconn.display, False);
 	}
-	// qunlock(&_x.screenlock);
 	w->newscreenr = r;
 
 	m.xy.x = Dx(r);
 	m.xy.y = Dy(r);
 	xreplacescreenimage(w);
 	debugev("Configure event at window %d: w=%d h=%d\n", w->id, m.xy.x, m.xy.y);
-	w->resized = 1;
 	writemouse(w, m, 1);
 }
 
@@ -158,13 +157,10 @@ void
 kbdevent(Window *w, XEvent xev)
 {
 	KeySym k;
-	Mouse m;
 
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
 	if(k == XK_F11){
-		w->fullscreen = !w->fullscreen;
-		xresizewindow(w, w->fullscreen ? xconn.screenrect : w->screenr);
-		writemouse(w, m, 1); // XXX
+		xtogglefullscreen(w);
 		return;
 	}
 

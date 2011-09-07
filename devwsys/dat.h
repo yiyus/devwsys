@@ -104,7 +104,6 @@ struct Window
 	int			fullscreen;
 	int			deleted;
 	int			pid;
-	int			resized;
 	int			current;
 	int			visible;
 	int			ref;

@@ -40,17 +40,14 @@ static
 void
 addmouse(Mousebuf *mouse, Mouse m, int resized)
 {
-	int p;
-
         if(!mouse->open || mouse->stall)
                 return;
 
 	mouse->m[mouse->wi] = m;
 	if(resized){
-		p = mouse->wi - 1;
-		if(p < 0)
-			p = nelem(mouse->m) - 1;
-		mouse->m[mouse->wi] = mouse->m[p];
+		mouse->wi--;
+		if(mouse->wi < 0)
+			mouse->wi = nelem(mouse->m) - 1;
 		mouse->resized = 1;
 	}
 	mouse->wi++;
