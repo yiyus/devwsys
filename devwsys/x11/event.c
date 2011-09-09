@@ -161,6 +161,7 @@ kbdevent(Window *w, XEvent xev)
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
 	if(k == XK_F11){
 		xtogglefullscreen(w);
+		debugev("Toggle fullscreen: %d\n", w->fullscreen);
 		return;
 	}
 

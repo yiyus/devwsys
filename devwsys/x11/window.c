@@ -384,7 +384,7 @@ void xtogglefullscreen(Window* w)
 		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
 		XUnmapWindow(xconn.display, xw->drawable);
 		XMapRaised(xconn.display, xw->drawable);
-		XGrabKeyboard(xconn.display, xw->drawable, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+		XGrabKeyboard(xconn.display, xw->drawable, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	}else{
 		xresizewindow(w, r);
 		XUngrabKeyboard(xconn.display, CurrentTime);

@@ -115,7 +115,6 @@ kbdputc(Kbdbuf *kbd, int ch)
 		if(n == -1){
 			kbd->alting = 0;
 			kbd->k[kbd->nk] = 0;
-			r = (Rune)0;
 			return r;
 		}
 		/* n < -1, need more input */
