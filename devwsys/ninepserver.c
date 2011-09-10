@@ -31,7 +31,7 @@ updateref(void)
 		w->ref++;
 	else if(t == Rclunk){
 		w->ref--;
-		if(QTYPE(qid->path) > Qdrawn)
+		if(QTYPE(qid->path) > Qdrawn && w->draw)
 			drawclose(*qid);
 		if(w->ref == 0){
 			/* ignore kill file, delete now */
