@@ -101,7 +101,6 @@ struct Clip
 struct Window
 {
 	int			id;
-	int			fullscreen;
 	int			deleted;
 	int			pid;
 	int			current;

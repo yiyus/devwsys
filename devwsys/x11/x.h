@@ -14,6 +14,8 @@ struct Xconn {
 	int			toplan9[256];
 	int			tox11[256];
 	int			usetable;
+	Window		*fullscreen;
+	Rectangle		restore;
 	Rectangle		screenrect;
 	XScreen		*screen;
 	XVisual		*vis;

@@ -14,6 +14,7 @@ xbottomwindow(Window *w)
 {
 	Xwin *xw;
 
+	xtogglefullscreen(xconn.fullscreen);
 	xw = w->x;
 	XLowerWindow(xconn.display, xw->drawable);
 	XFlush(xconn.display);
@@ -24,6 +25,7 @@ xtopwindow(Window *w)
 {
 	Xwin *xw;
 
+	xtogglefullscreen(xconn.fullscreen);
 	xw = w->x;
 	XMapRaised(xconn.display, xw->drawable);
 	XFlush(xconn.display);
@@ -34,6 +36,7 @@ xcurrentwindow(Window *w)
 {
 	Xwin *xw;
 
+	xtogglefullscreen(xconn.fullscreen);
 	xw = w->x;
 	XMapRaised(xconn.display, xw->drawable);
 	XSetInputFocus(xconn.display, xw->drawable, RevertToPointerRoot,
@@ -48,6 +51,8 @@ xresizewindow(Window *w, Rectangle r)
 	int value_mask;
 	Xwin *xw;
 
+	if(w != xconn.fullscreen || ! eqrect(r, xconn.screenrect))
+		xtogglefullscreen(xconn.fullscreen);
 	xw = w->x;
 	memset(&e, 0, sizeof e);
 	value_mask = CWX|CWY|CWWidth|CWHeight;
@@ -70,6 +75,7 @@ xmovewindow(Window *w, Rectangle r)
 	int value_mask;
 	Xwin *xw;
 
+	xtogglefullscreen(xconn.fullscreen);
 	xw = w->x;
 	memset(&e, 0, sizeof e);
 	value_mask = CWX|CWY|CWWidth|CWHeight;
@@ -80,3 +86,35 @@ xmovewindow(Window *w, Rectangle r)
 	XConfigureWindow(xconn.display, xw->drawable, value_mask, &e);
 	XFlush(xconn.display);
 }
+
+void xtogglefullscreen(Window* w)
+{
+	Mouse m;
+	XSetWindowAttributes attr;
+	Xwin *xw;
+
+	if(w == nil)
+		return;
+	xw = w->x;
+	if(w == xconn.fullscreen){
+		xconn.fullscreen = nil;
+		xresizewindow(w, xconn.restore);
+		XUngrabKeyboard(xconn.display, CurrentTime);
+		attr.override_redirect = False;
+		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
+		XUnmapWindow(xconn.display, xw->drawable);
+		XMapRaised(xconn.display, xw->drawable);
+	}else{
+		xconn.restore = rectaddpt(w->screenr, w->orig);
+		/* xconn.fullscreen must be nil when xresizewindow is called */
+		xresizewindow(w, xconn.screenrect);
+		xconn.fullscreen = w;
+		attr.override_redirect = True;
+		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
+		XUnmapWindow(xconn.display, xw->drawable);
+		XMapRaised(xconn.display, xw->drawable);
+		XGrabKeyboard(xconn.display, xw->drawable, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+	}
+	writemouse(w, m, 1);
+}
+

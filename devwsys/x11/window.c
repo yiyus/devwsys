@@ -30,6 +30,7 @@ xattach(Window *w, char *spec)
 	Rectangle rect;
 	Xwin *xw;
 
+	xtogglefullscreen(xconn.fullscreen);
 	w->screenr = xwinrectangle(w->label);
 	w->visible = 1;
 	/* ignore errors returned by wctlmesg */
@@ -61,8 +62,8 @@ xdeletewin(Window *w)
 {
 	Xwin *xw;
 
-	// print("XXX xdeletewin %d\n", w->id);
 	// TODO anything else to cleanup?
+	xtogglefullscreen(xconn.fullscreen);
 	xw = w->x;
 	if(!xw)
 		return;
@@ -366,33 +367,5 @@ xflushmemscreen(Window *w, Rectangle r)
 	XCopyArea(xconn.display, xw->screenpm, xw->drawable, xconn.gccopy, r.min.x, r.min.y,
 		Dx(r), Dy(r), r.min.x, r.min.y);
 	XFlush(xconn.display);
-}
-
-void xtogglefullscreen(Window* w)
-{
-	Mouse m;
-	XSetWindowAttributes attr;
-	Xwin *xw;
-	static Rectangle r;
-
-	w->fullscreen = !w->fullscreen;
-	xw = w->x;
-	if(w->fullscreen){
-		r = rectaddpt(w->screenr, w->orig);
-		xresizewindow(w, xconn.screenrect);
-		attr.override_redirect = True;
-		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
-		XUnmapWindow(xconn.display, xw->drawable);
-		XMapRaised(xconn.display, xw->drawable);
-		XGrabKeyboard(xconn.display, xw->drawable, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-	}else{
-		xresizewindow(w, r);
-		XUngrabKeyboard(xconn.display, CurrentTime);
-		attr.override_redirect = False;
-		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
-		XUnmapWindow(xconn.display, xw->drawable);
-		XMapRaised(xconn.display, xw->drawable);
-	}
-	writemouse(w, m, 1);
 }
 

@@ -74,13 +74,12 @@ NextEvent:
 	case FocusOut:
 		w->current = 0;
 		/*
-		 * Stop alting when
-		 * window losts focus.
+		 * Stop alting when window loses focus.
 		 */
 		writekbd(w, -1);;
 		break;
 	case VisibilityNotify:
-		if(w->fullscreen && xev.xvisibility.state != VisibilityUnobscured)
+		if(w == xconn.fullscreen && xev.xvisibility.state != VisibilityUnobscured)
 			XRaiseWindow(xconn.display, xw->drawable);	
 		break;
 	default:
@@ -100,7 +99,7 @@ configevent(Window *w, XEvent xev)
 
 	xe = (XConfigureEvent*)&xev;
 	xw = w->x;
-	if(!w->fullscreen){
+	if(!xconn.fullscreen){
 		XWindow xwin;
 		if(XTranslateCoordinates(xconn.display, xw->drawable, DefaultRootWindow(xconn.display), 0, 0, &rx, &ry, &xwin)) {
 			w->orig.x = rx;
@@ -161,7 +160,8 @@ kbdevent(Window *w, XEvent xev)
 	XLookupString((XKeyEvent*)&xev, NULL, 0, &k, NULL);
 	if(k == XK_F11){
 		xtogglefullscreen(w);
-		debugev("Toggle fullscreen: %d\n", w->fullscreen);
+		if(xconn.fullscreen)
+			debugev("Window %d fullscreen\n", w->id);
 		return;
 	}
 
