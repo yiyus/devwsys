@@ -986,7 +986,7 @@ drawmesg(DClient *client, void *av, int n)
 {
 	char *fmt, *err, *s;
 	int c, ci, doflush, dstid, e0, e1, esize, j, m;
-	int ni, nw, oesize, oldn, op, ox, oy, repl, scrnid, y; 
+	int ni, nw, oesize, op, ox, oy, repl, scrnid, y; 
 	uchar *a, refresh, *u;
 	u32int chan, value;
 	CScreen *cs;
@@ -1006,7 +1006,6 @@ drawmesg(DClient *client, void *av, int n)
 	// qlock(&sdraw.lk);
 	a = av;
 	m = 0;
-	oldn = n;
 	draw = client->draw;
 	w = draw->window;
 	if(w == nil || w->deleted)
