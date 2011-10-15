@@ -84,12 +84,12 @@ static
 void
 matchmouse(Mousebuf *mouse, Reqbuf *mousereqs)
 {
-        while(mouse->ri != mouse->wi && mousereqs->ri != mousereqs->wi){
-                replymouse(mouse, nextreq(mousereqs));
-                mouse->ri++;
-                if(mouse->ri == nelem(mouse->m))
-                        mouse->ri = 0;
-        }
+	while(mouse->ri != mouse->wi && mousereqs->ri != mousereqs->wi){
+		replymouse(mouse, nextreq(mousereqs));
+		mouse->ri++;
+		if(mouse->ri == nelem(mouse->m))
+			mouse->ri = 0;
+	}
 }
 
 static int

@@ -98,6 +98,7 @@ wsysattach(Qid *qid, char *uname, char *aname)
 	w = newwin();
 	if(w == nil)
 		return Enomem;
+	server->curc->u = w;
 	qid->path = wsysaddfiles(server, w);
 	if(!drawattach(w,aname)) {
 		if(w){
@@ -369,8 +370,13 @@ readreply(void *v, char *buf)
 	Pending *p;
 
 	p = v;
-	p->fcall.data = buf;
-	p->fcall.count = strlen(buf);
+	if(buf == nil){
+		p->fcall.type = Rerror;
+		p->fcall.ename = Edeleted;
+	} else {
+		p->fcall.data = buf;
+		p->fcall.count = strlen(buf);
+	}
 	ninepcompleted(p);
 }
 

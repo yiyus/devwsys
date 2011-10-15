@@ -769,12 +769,12 @@ nineprequest(Ninepserver *server)
 				freeclient(c);
 				continue;
 			}
+			server->curc = c;
 			s = rd(c, f);
 			if(s < 0)
 				return f->ename;
 			else if(s == 0)
 				return nil;
-			server->curc = c;
 			if(Debug)
 				fprint(2, "<-%d- %F\n", c->fd, f);
 			if(c->state&CNREAD)

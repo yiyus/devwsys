@@ -37,6 +37,14 @@ winlookup(int id)
 	return nil;
 }
 
+static
+void
+errorreqs(Reqbuf *r)
+{
+	while(r->ri != r->wi)
+		readreply(nextreq(r), nil);
+}
+
 void
 deletewin(Window *w)
 {
@@ -47,6 +55,8 @@ deletewin(Window *w)
 	drawdettach(w);
 	xdeletewin(w);
 	w->deleted++;
+	errorreqs(&w->kbdreqs);
+	errorreqs(&w->mousereqs);
 	for(i = 0; i < nwindow; i++){
 		if(window[i] == w)
 			break;

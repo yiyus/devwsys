@@ -46,6 +46,7 @@ fsloop(char *address, int xfd)
 {
 	char *ns, *err;
 	Ninepserver s;
+	Window *w;
 
 	server = &s;
 	if(address == nil){
@@ -65,8 +66,13 @@ fsloop(char *address, int xfd)
 	nineplisten(&s, xfd);
 	for(;;) {
 		err = ninepwait(&s);
-		if(err != nil && debug&Debug9p)
+		if(err != nil && debug&Debug9p){
 			fprint(2, "%s\n", err);
+			w = server->curc->u;
+			if(w != nil)
+				deletewin(w);
+			continue;
+		}
 		if(ninepready(&s, xfd))
 			xnextevent();
 		if(s.fcall.type == Tauth)
