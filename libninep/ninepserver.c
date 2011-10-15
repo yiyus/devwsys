@@ -1053,7 +1053,7 @@ ninepdefault(Ninepserver *server)
 			if(file == nil){
 				if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), fp->dri)) == nil)
 					break;
-				nineperror(server, Eperm);
+				nineperror(server, f->ename);
 				break;
 			}
 			f->count = devdirread(fp, file, c->data, f->count);
@@ -1062,7 +1062,7 @@ ninepdefault(Ninepserver *server)
 		f->data = c->data;			
 		if(ops && ops->read && (f->ename = ops->read(fp->qid, c->data, (ulong*)(&f->count), f->offset)) == nil)
 			break;
-		nineperror(server, Eperm);
+		nineperror(server, f->ename);
 		break;
 	case	Twrite:
 		if(!fp->open){
@@ -1074,7 +1074,7 @@ ninepdefault(Ninepserver *server)
 		f->qid = fp->qid;
 		if(ops && ops->write && (f->ename = ops->write(fp->qid, f->data, (ulong*)(&f->count), f->offset)) == nil)
 			break;
-		nineperror(server, Eperm);
+		nineperror(server, f->ename);
 		break;
 	case	Tclunk:
 		mode = fp->mode;
