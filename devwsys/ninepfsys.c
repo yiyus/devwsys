@@ -171,7 +171,8 @@ wsysread(Qid qid, char *buf, ulong *n, vlong offset)
 		return nil;
 	case Qsnarf:
 		s = xgetsnarf();
-		*n = ninepreadstr(offset, buf, strlen(s), s);
+		if(s != nil)
+			*n = ninepreadstr(offset, buf, strlen(s), s);
 		return nil;
 
 	/* Window */
