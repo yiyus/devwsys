@@ -1,8 +1,8 @@
-.TH DEVWSYS 4 
+.TH WSYS 4 
 .SH NAME
-devwsys \- hosted window system
+wsys \- hosted window system
 .SH SYNOPSIS
-.B devwsys
+.B wsys
 [
 .B -d
 ] [
@@ -26,7 +26,7 @@ devwsys \- hosted window system
 
 .SH DESCRIPTION
 The
-.I devwsys
+.I wsys
 program serves a connection to a 9P file system providing an interface to a non-Plan 9
 window system.
 
@@ -44,7 +44,7 @@ If the
 .B -d
 option is given 9P debug information will be sent to stderr.
 
-Devwsys windows can be managed by the corresponding window manager in the host system or using the
+Wsys windows can be managed by the corresponding window manager in the host system or using the
 9P file system. The files in the
 .I draw
 directory are equivalent to the files served by
@@ -57,7 +57,7 @@ The files in the root and
 .I wsys/n
 directories act like their
 .IR rio(4)
-counterparts. However, devwsys does not provide any text editing capabilities and writting to the
+counterparts. However, wsys does not provide any text editing capabilities and writting to the
 .I cons
 file is not allowed. Writes to the file
 .I consctl
@@ -87,7 +87,7 @@ rc script, when launched from Plan 9, posts a wctl service analogous to that one
 , which uses
 .I wsys
 as its window system. It can be used in conjuction with 
-.IR devwsys(4)
+.IR wsys(4)
 to facilitate the usage of the window command (see
 .IR rio(1)
 ) and correctly finalize processes when windows are deleted (using the
@@ -102,12 +102,12 @@ can be used to set a default command, instead of
 .TP
 .B /mnt/wsys
 mount point for
-.IR devwsys (4)
+.IR wsys (4)
 
 .SH BUGS
 When reading from the kill file, if the user requests to close a window or the program running in a window finishes, the window may stay on screen. Successive attempts of closing the window will succeed.
 
-There should be OS X and Windows versions of devwsys.
+There should be OS X and Windows versions of wsys.
 
 .SH SEE ALSO
 .IR draw (3).

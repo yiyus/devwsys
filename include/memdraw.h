@@ -49,7 +49,7 @@ struct Memimage
 	ulong	width;	/* width in words of a single scan line */
 	Memlayer	*layer;	/* nil if not a layer*/
 	ulong	flags;
-	void		*X;		/* used by devwsys */
+	void		*X;		/* used by wsys(4) */
 
 	int		shift[NChan];
 	int		mask[NChan];
@@ -195,7 +195,7 @@ extern int		drawdebug;
 #pragma varargck type "b" uint
 
 /*
- * For other implementations, like devwsys.
+ * For other implementations, such as wsys(4).
  */
 extern ulong	imgtorgba(Memimage*, ulong);
 extern ulong	rgbatoimg(Memimage*, ulong);

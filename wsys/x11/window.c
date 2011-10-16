@@ -204,7 +204,7 @@ void*
 xcreatewin(char *label, Rectangle r)
 {
 	char *argv[2];
-	int height, mask, width, x, y;
+	int mask, x, y;
 	XClassHint classhint;
 	XSetWindowAttributes attr;
 	XSizeHints normalhint;
@@ -217,7 +217,7 @@ xcreatewin(char *label, Rectangle r)
 		return nil;
 
 	/* remove warnings for unitialized vars */
-	height = x = y = mask = width = 0;
+	x = y = mask = 0;
 
 	memset(&attr, 0, sizeof attr);
 	attr.colormap = xconn.cmap;

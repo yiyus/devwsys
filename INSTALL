@@ -1,6 +1,6 @@
-Devwsys is built using mk(1). Either p9p's mk or the version included
+Wsys is built using mk(1). Either p9p's mk or the version included
 in Inferno should work.
 
-To build devwsys: mk install
+To build wsys: mk install
 
 The built binary will then be available at ./$SYSHOST/$OBJTYPE/bin

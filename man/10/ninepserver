@@ -505,7 +505,7 @@ Free the memory pointed to by
 .BI ninepdebug()
 Print out some of the actions of the server.
 .SH EXAMPLE
-.IR devwsys(4)
+.IR wsys(4)
 .SH BUGS
 Currently only the Linux version of the library is supported, Window or other Unix versions could (and surely will) need adjustments.
 .br

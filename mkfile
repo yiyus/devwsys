@@ -7,7 +7,7 @@ DIRS=\
 	libmemdraw\
 	libmemlayer\
 	libninep\
-	devwsys\
+	wsys\
 
 all:V:		all-$HOSTMODEL
 clean:V:	clean-$HOSTMODEL

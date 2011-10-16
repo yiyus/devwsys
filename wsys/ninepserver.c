@@ -76,7 +76,7 @@ fsloop(char *address, int xfd)
 		if(ninepready(&s, xfd))
 			xnextevent();
 		if(s.fcall.type == Tauth)
-			nineperror(&s, "devwsys: authentication not required");
+			nineperror(&s, "wsys: authentication not required");
 		else
 			ninepdefault(&s);
 		updateref();

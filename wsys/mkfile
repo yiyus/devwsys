@@ -1,6 +1,6 @@
 <../mkconfig
 
-TARG=devwsys
+TARG=wsys
 
 XFILES=\
 	alloc.$O\

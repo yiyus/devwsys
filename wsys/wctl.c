@@ -257,12 +257,11 @@ parsewctl(char **argp, Rectangle r, Rectangle *rp, int *pidp, int *idp, int *hid
 char*
 wctlmesg(Window *w, char *a, int n)
 {
-	int buttons, cnt, cmd, j, id, hideit, scrollit, pid;
+	int buttons, cmd, j, id, hideit, scrollit, pid;
 	char *arg, *dir, *err;
 	Mouse m;
 	Rectangle rect;
 
-	cnt = n;
 	id = pid = 0;
 	err = nil;
 	buttons = w->mouse.m[w->mouse.ri].buttons;
