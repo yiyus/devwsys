@@ -66,8 +66,9 @@ fsloop(char *address, int xfd)
 	nineplisten(&s, xfd);
 	for(;;) {
 		err = ninepwait(&s);
-		if(err != nil && debug&Debug9p){
-			fprint(2, "%s\n", err);
+		if(err != nil){
+			if(debug&Debug9p)
+				fprint(2, "9p error: %s\n", err);
 			w = server->curc->u;
 			if(w != nil)
 				deletewin(w);
