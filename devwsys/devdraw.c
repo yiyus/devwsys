@@ -1855,26 +1855,31 @@ drawreplacescreenimage(Window *w)
 	for(i=0; i<ndname; i++){
 		if(dname[i].dimage == d->screendimage){
 			dname[i].dimage = di;
+			di->name = dname[i].name;
 			break;
 		}
 	}
 
-	drawfreedimage(d, d->screendimage);
 	d->screendimage = di;
 
 	/*
-	 * Every client, when it starts, gets a copy of the
+	 * Replace image 0 of the clients.
+	 * p9p's devdraw expects to find it, so this rsc's
+	 * comment is not taken into account:
+	 * "Every client, when it starts, gets a copy of the
 	 * screen image as image 0.  DClients only use it 
 	 * for drawing if there is no /dev/winname, but
 	 * this /dev/draw provides a winname (early ones
 	 * didn't; winname originated in rio), so the
 	 * image only ends up used to find the screen
 	 * resolution and pixel format during initialization.
-	 * Silently remove the now-outdated image 0s.
+	 * Silently remove the now-outdated image 0s."
 	 */
 	for(i=0; i<nclient; i++){
-		if(client[i] && client[i]->draw == d)
+		if(client[i] && client[i]->draw == d){
 			drawuninstall(client[i], 0);
+			drawinstall(client[i], 0, di->image, 0);
+		}
 	}
 
 	// drawqunlock();
