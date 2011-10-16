@@ -1,0 +1,11 @@
+The wctl rc script can be run from a Plan 9 system to serve a wctl
+service using an existing wsys service, see wsys(4).
+
+9p-srv.c is a p9p's devdraw(1) version which uses wsys(4) through
+9pclient(2). To install it:
+	cp 9p-srv.c $PLAN9/src/cmd/devdraw
+	cd $PLAN9/src/cmd/devdraw
+	9c 9p-srv.c && 9l -o devdraw.9p 9p-srv.o
+	cp devdraw.9p $PLAN9/bin
+	DEVDRAW=$PLAN9/bin/devdraw.9p export DEVDRAW
+
