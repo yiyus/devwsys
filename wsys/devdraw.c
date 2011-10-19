@@ -1878,7 +1878,9 @@ drawreplacescreenimage(Window *w)
 	for(i=0; i<nclient; i++){
 		if(client[i] && client[i]->draw == d){
 			drawuninstall(client[i], 0);
-			drawinstall(client[i], 0, di->image, 0);
+			// TODO: this fixes p9p, but everything
+			// else will fail (segfault on resize).
+			// drawinstall(client[i], 0, di->image, 0);
 		}
 	}
 

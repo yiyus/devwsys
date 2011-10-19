@@ -15,7 +15,6 @@
 #include <mouse.h>
 #include <cursor.h>
 #include <drawfcall.h>
-#include "devdraw.h"
 
 #define STACK (32*1024)
 
@@ -23,8 +22,6 @@ void runmsg(Wsysmsg*);
 void replymsg(Wsysmsg*);
 void kbdthread(void*);
 void mousethread(void*);
-int msgread(char*, char*, int);
-int msgwrite(char*, char*, int);
 
 int chatty = 0;
 int drawsleep;
@@ -68,6 +65,7 @@ threadmain(int argc, char **argv)
 	open("/dev/null", OREAD);
 	open("/dev/null", OWRITE);
 
+	fmtinstall('H', encodefmt);
 	fmtinstall('W', drawfcallfmt);
 
 	ARGBEGIN{
@@ -149,11 +147,12 @@ void
 runmsg(Wsysmsg *m)
 {
 	uchar buf[65536];
-	char *s;
 	int n;
 	CFid *f;
-	static long id;
-	static CFid *fcons, *fmouse, *fdraw, *fdrawdata, *fdrawctl;
+	Rectangle r;
+	static int border;
+	static int id = 0xF000;
+	static CFid *fcons, *fmouse, *fctl, *fdata, *frddraw;
 	static CFsys *fsys;
 
 	switch(m->type){
@@ -176,8 +175,21 @@ runmsg(Wsysmsg *m)
 		 */
 		kbdchan = chancreate(sizeof(uchar), 12);
 		mousechan = chancreate(sizeof(uchar), 12);
+		f= fsopen(fsys, "consctl", OWRITE);
+		fsprint(f, "rawon");
 		threadcreate(kbdthread, fcons, STACK);
 		threadcreate(mousethread, fmouse, STACK);
+
+		/*
+		 * Open draw(3) files and register
+		 * image named winname
+		 */
+		fctl = fsopen(fsys, "draw/new", ORDWR);
+		fsread(fctl, buf, 12*12);
+		n = atoi((char*)buf);
+		sprint((char*)buf, "draw/%d/data", n);
+		fdata = fsopen(fsys, (char*)buf, ORDWR);
+		
 		replymsg(m);
 		break;
 
@@ -241,43 +253,66 @@ runmsg(Wsysmsg *m)
 		break;
 
 	case Trddraw:
-		n = fsread(fdraw, buf, sizeof buf);
+chatty9pclient = 1;
+		n = fsread(frddraw, buf, sizeof buf);
+		/*
+		 * If it is not a "noborder" image lie to p9p's libdraw saying
+		 * that the image is smaller, to respect the window border.
+		 */
+		if(frddraw == fctl && border){
+			r = Rect(
+				atoi((char*)&buf[4*12]),
+				atoi((char*)&buf[5*12]),
+				atoi((char*)&buf[6*12]),
+				atoi((char*)&buf[7*12])
+			);
+			r = insetrect(r, Borderwidth);
+			sprint((char*)&buf[4*12], "%11d %11d %11d %11d",
+				r.min.x, r.min.y, r.max.x, r.max.y);
+		}
 		m->count = n;
 		m->data = buf;
-		if(fdrawdata == nil){
-			id = atol((char*)buf);
-			s = smprint("draw/%ld/data", id);
-			fdrawdata = fsopen(fsys, s, ORDWR);
-			free(s);
-		}
-		fdraw = fdrawdata;
+		frddraw = fdata;
 		replymsg(m);
+chatty9pclient = 0;
 		break;
 
 	case Twrdraw:
+	//chatty9pclient = 1;
 		/*
 		 * In the drawfcall protocol:
 		 * 	J: Install screen image as image 0
 		 * 	I: get "screen" (image 0) information
-		 * Write 0 to ctl and prepare for the next read (to get the info)
-		 * from ctl instead of data.
+		 *
+		 * Instead, we read the screen image name
+		 * from winname and associate it to a devdraw
+		 * image with the command 'n'.
 		 */
 		if(m->count == 2 && m->data[0] == 'J' && m->data[1] == 'I'){
-			if(fdrawctl == nil)
-				fdrawctl = fsopen(fsys, "draw/new", ORDWR);
-			else{
-				id = 0;
-				fswrite(fdrawctl, &id, 4);
-			}
-			fdraw = fdrawctl;
-		}
-		/*
-		 * J will not create a new image 0, it has already been replaced.
-		 * Ignore drawmsg f 00000000
-		 */
-		else if(m->count != 5 || m->data[0] != 'f' || *(long*)(&m->data[1]) != 0)
-			fswrite(fdraw, m->data, m->count);
+			f = fsopen(fsys, "winname", OREAD);
+			buf[0] = 'f';
+			BPLONG(&buf[1], 1);
+			fswrite(fdata, buf, 1+4);
+			buf[0] = 'n';
+			/*
+			 * TODO:
+			 * This id will conflict with other ids used by
+			 * libdraw, which does not check it, and we
+			 * cannot use 0 (as it expects) because that
+			 * corresponds to the screen, not the window.
+			 */
+			id = 1;
+			BPLONG(&buf[1], id);
+			n = fsread(f, &buf[1+4+1], 64);
+			border = (strncmp((char*)&buf[1+4+1], "noborder", 8) != 0);
+			buf[1+4] = n;
+			fsclose(f);
+			fswrite(fdata, buf, 1+4+1+n);
+			frddraw = fctl;
+		} else if(m->data[0] != 'f')
+			fswrite(fdata, m->data, m->count);
 		replymsg(m);
+	//chatty9pclient = 0;
 		break;
 	
 	case Ttop:
