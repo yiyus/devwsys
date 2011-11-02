@@ -1,5 +1,17 @@
+wctl
+----
+
 The wctl rc script can be run from a Plan 9 system to serve a wctl
 service using an existing wsys service, see wsys(4).
+
+Eg:
+	wsys='#Z/tmp/ns.username.:0/wsys'
+	wctl=`wctl $wsys'
+	window games/catclock
+
+
+devdraw.9p
+----------
 
 9p-srv.c is a p9p's devdraw(1) version which uses wsys(4) through
 9pclient(2). To install it:
@@ -9,3 +21,19 @@ service using an existing wsys service, see wsys(4).
 	cp devdraw.9p $PLAN9/bin
 	DEVDRAW=$PLAN9/bin/devdraw.9p export DEVDRAW
 
+Eg:
+	# From rio:
+	; mount $wsys /n/w new
+	; bind -a /dev /n/w
+	; aux/listen1 -tv 'tcp!*!12345' /bin/exportfs -r /n/w
+
+	# From unix:
+	$ WSYS='tcp!127.0.0.1!12345'
+	$ DEVDRAW=$PLAN9/bin/devdraw.9p
+	$ 9term
+
+	# Alternatively, if using wsys instead of rio:
+	$ WSYS='unix!/tmp/ns.username.:0/wsys'
+
+The patch p9p.patch needs to be applied to the p9p tree in order to use
+devdraw.9p. It will not affect the usage of other drawing devices.

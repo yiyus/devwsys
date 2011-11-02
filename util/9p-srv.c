@@ -69,6 +69,9 @@ threadmain(int argc, char **argv)
 	fmtinstall('W', drawfcallfmt);
 
 	ARGBEGIN{
+	case 'd':
+		chatty9pclient++;
+		break;
 	case 'D':
 		chatty++;
 		break;
@@ -151,7 +154,7 @@ runmsg(Wsysmsg *m)
 	CFid *f;
 	Rectangle r;
 	static int border;
-	static int id = 0xF000;
+	static int id = -1;
 	static CFid *fcons, *fmouse, *fctl, *fdata, *frddraw;
 	static CFsys *fsys;
 
@@ -253,32 +256,34 @@ runmsg(Wsysmsg *m)
 		break;
 
 	case Trddraw:
-chatty9pclient = 1;
-		n = fsread(frddraw, buf, sizeof buf);
+		if((n = fsread(frddraw, buf, sizeof buf)) < 0){
+			replyerror(m);
+			break;
+		}
 		/*
 		 * If it is not a "noborder" image lie to p9p's libdraw saying
 		 * that the image is smaller, to respect the window border.
 		 */
-		if(frddraw == fctl && border){
-			r = Rect(
-				atoi((char*)&buf[4*12]),
-				atoi((char*)&buf[5*12]),
-				atoi((char*)&buf[6*12]),
-				atoi((char*)&buf[7*12])
-			);
-			r = insetrect(r, Borderwidth);
-			sprint((char*)&buf[4*12], "%11d %11d %11d %11d",
-				r.min.x, r.min.y, r.max.x, r.max.y);
+		if(frddraw == fctl){
+			if(border){
+				r = Rect(
+					atoi((char*)&buf[4*12]),
+					atoi((char*)&buf[5*12]),
+					atoi((char*)&buf[6*12]),
+					atoi((char*)&buf[7*12])
+				);
+				r = insetrect(r, Borderwidth);
+				sprint((char*)&buf[4*12], "%11d %11d %11d %11d",
+					r.min.x, r.min.y, r.max.x, r.max.y);
+			}
 		}
 		m->count = n;
 		m->data = buf;
 		frddraw = fdata;
 		replymsg(m);
-chatty9pclient = 0;
 		break;
 
 	case Twrdraw:
-	//chatty9pclient = 1;
 		/*
 		 * In the drawfcall protocol:
 		 * 	J: Install screen image as image 0
@@ -286,33 +291,30 @@ chatty9pclient = 0;
 		 *
 		 * Instead, we read the screen image name
 		 * from winname and associate it to a devdraw
-		 * image with the command 'n'.
+		 * image with the command 'n', which we
+		 * will free after ctl is read.
 		 */
+		SET(n);
 		if(m->count == 2 && m->data[0] == 'J' && m->data[1] == 'I'){
-			f = fsopen(fsys, "winname", OREAD);
-			buf[0] = 'f';
-			BPLONG(&buf[1], 1);
-			fswrite(fdata, buf, 1+4);
-			buf[0] = 'n';
-			/*
-			 * TODO:
-			 * This id will conflict with other ids used by
-			 * libdraw, which does not check it, and we
-			 * cannot use 0 (as it expects) because that
-			 * corresponds to the screen, not the window.
-			 */
 			id = 1;
+			buf[0] = 'f';
 			BPLONG(&buf[1], id);
+			fswrite(fdata, buf, 1+4);
+			f = fsopen(fsys, "winname", OREAD);
+			buf[0] = 'n';
 			n = fsread(f, &buf[1+4+1], 64);
 			border = (strncmp((char*)&buf[1+4+1], "noborder", 8) != 0);
 			buf[1+4] = n;
 			fsclose(f);
-			fswrite(fdata, buf, 1+4+1+n);
+			BPLONG(&buf[1], id);
+			n = fswrite(fdata, buf, 1+4+1+n);
 			frddraw = fctl;
-		} else if(m->data[0] != 'f')
-			fswrite(fdata, m->data, m->count);
-		replymsg(m);
-	//chatty9pclient = 0;
+		} else
+			n = fswrite(fdata, m->data, m->count);
+		if(n < 0)
+			replyerror(m);
+		else
+			replymsg(m);
 		break;
 	
 	case Ttop:
