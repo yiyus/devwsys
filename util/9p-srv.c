@@ -16,7 +16,7 @@
 #include <cursor.h>
 #include <drawfcall.h>
 
-#define STACK (32*1024)
+#define STACK (1024)
 
 void runmsg(Wsysmsg*);
 void replymsg(Wsysmsg*);
@@ -154,7 +154,7 @@ runmsg(Wsysmsg *m)
 	CFid *f;
 	Rectangle r;
 	static int border;
-	static CFid *fcons, *fmouse, *fctl, *fdata, *frddraw;
+	static CFid *fcons, *fcursor, *fmouse, *fctl, *fdata, *frddraw;
 	static CFsys *fsys;
 
 	switch(m->type){
@@ -165,6 +165,7 @@ runmsg(Wsysmsg *m)
 
 		fcons = fsopen(fsys, "cons", OREAD);
 		fmouse = fsopen(fsys, "mouse", ORDWR);
+		fcursor = fsopen(fsys, "cursor", OWRITE);
 
 		f = fsopen(fsys, "label", OWRITE);
 		fsprint(f, m->label);
@@ -211,20 +212,21 @@ runmsg(Wsysmsg *m)
 		break;
 
 	case Tcursor:
-		f = fsopen(fsys, "cursor", OWRITE);
 		if(m->arrowcursor)
-			fswrite(f, buf, 0);
+			n = fswrite(fcursor, buf, 0);
 		else{
-			PUT(&buf[0], m->cursor.offset.x);
-			PUT(&buf[4], m->cursor.offset.y);
+			BPLONG(&buf[0], m->cursor.offset.x);
+			BPLONG(&buf[4], m->cursor.offset.y);
 			for(n = 0; n < 32; n++){
 				buf[2*4+n] = m->cursor.clr[n];
 				buf[2*4+32+n] = m->cursor.set[n];
 			}
-			fswrite(f, buf, 72);
+			n = fswrite(fcursor, buf, 72);
 		}
-		fsclose(f);
-		replymsg(m);
+		if(n < 0)
+			replyerror(m);
+		else
+			replymsg(m);
 		break;
 
 	case Tbouncemouse:
