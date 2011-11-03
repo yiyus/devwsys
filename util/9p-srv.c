@@ -154,7 +154,6 @@ runmsg(Wsysmsg *m)
 	CFid *f;
 	Rectangle r;
 	static int border;
-	static int id = -1;
 	static CFid *fcons, *fmouse, *fctl, *fdata, *frddraw;
 	static CFsys *fsys;
 
@@ -296,17 +295,13 @@ runmsg(Wsysmsg *m)
 		 */
 		SET(n);
 		if(m->count == 2 && m->data[0] == 'J' && m->data[1] == 'I'){
-			id = 1;
-			buf[0] = 'f';
-			BPLONG(&buf[1], id);
-			fswrite(fdata, buf, 1+4);
 			f = fsopen(fsys, "winname", OREAD);
 			buf[0] = 'n';
 			n = fsread(f, &buf[1+4+1], 64);
 			border = (strncmp((char*)&buf[1+4+1], "noborder", 8) != 0);
 			buf[1+4] = n;
 			fsclose(f);
-			BPLONG(&buf[1], id);
+			BPLONG(&buf[1], 1);
 			n = fswrite(fdata, buf, 1+4+1+n);
 			frddraw = fctl;
 		} else
