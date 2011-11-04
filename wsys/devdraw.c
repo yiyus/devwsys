@@ -1860,6 +1860,7 @@ drawreplacescreenimage(Window *w)
 		}
 	}
 
+	drawfreedimage(d, d->screendimage);
 	d->screendimage = di;
 
 	/*
