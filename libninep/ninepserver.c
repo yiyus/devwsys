@@ -625,7 +625,7 @@ nilconv(char *s)
 
 static
 Ninepfile *
-addfile(Ninepserver *server, Ninepfile *parent, Path qid)
+addfile(Ninepserver *server, Ninepfile *parent)
 {
 	Ninepfile *file;
 
@@ -659,7 +659,7 @@ newfile(Ninepserver *server, Ninepfile *parent, int isdir, Path qid, char *name,
 				return nil;
 	}
 
-	file = addfile(server, parent, qid);
+	file = addfile(server, parent);
 	h = hash(qid);
 	file->next = server->ftab[h];
 	server->ftab[h] = file;
@@ -1194,7 +1194,7 @@ ninepbind(Ninepserver *server, Path pqid, Path qid)
 	f = ninepfindfile(server, qid);
 	if(f == nil || (f->d.qid.type&QTDIR) == 0)
 		return nil;
-	p = addfile(server, p, qid);
+	p = addfile(server, p);
 	p->bind = f;
 	return p;
 }
