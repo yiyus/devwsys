@@ -65,6 +65,7 @@ deletewin(Window *w)
 		return;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
+	fsdelete(w);
 }
 
 void

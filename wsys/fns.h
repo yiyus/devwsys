@@ -31,6 +31,7 @@ char* wctlmesg(Window*, char*, int);
 char* fsloop(char*, int);
 int killreply(Window*);
 void readreply(void*, char*);
+void fsdelete(Window*);
 
 /* X connection */
 int xinit(void);

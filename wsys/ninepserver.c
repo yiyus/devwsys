@@ -41,6 +41,31 @@ updateref(void)
 	}
 }
 
+void
+fsdelete(Window *w)
+{
+	Path p;
+
+	if(w == nil)
+		return;
+	p = PATH(w->id, 0);
+	nineprmfile(server, p|Qcons);
+	nineprmfile(server, p|Qconsctl);
+	nineprmfile(server, p|Qkeyboard);
+	nineprmfile(server, p|Qcursor);
+	nineprmfile(server, p|Qmouse);
+	nineprmfile(server, p|Qpointer);
+	nineprmfile(server, p|Qsnarf);
+	nineprmfile(server, p|Qlabel);
+	nineprmfile(server, p|Qwctl);
+	nineprmfile(server, p|Qwinid);
+	nineprmfile(server, p|Qwinname);
+	nineprmfile(server, p|Qwsys);
+	nineprmfile(server, p|Qnew);
+	nineprmfile(server, p|Qdraw);
+	nineprmfile(server, p);
+}
+
 char*
 fsloop(char *address, int xfd)
 {
