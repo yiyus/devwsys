@@ -83,7 +83,6 @@ struct Ninepfile
 	Ninepfile *sibling;
 	Ninepfile *next;
 	Ninepfile *bind;
-	Ninepfile *nf;
 	int ref;
 	int open;
 	void	*u;

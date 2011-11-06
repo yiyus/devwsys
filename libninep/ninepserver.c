@@ -461,26 +461,23 @@ fidclone(Fid *old, short fid)
 
 static
 Ninepfile *
-nextfile(Ninepfile *f)
+nextfile(Ninepfile *f, int first)
 {
-	static Ninepfile *nf = nil;
+	static int n, cap;
+	static Ninepfile **nf;
 
-	if(f == nil){
-		f = nf;
-		nf = nil;
-		if(f != nil){
-			nf = f->nf;
-			f->nf = nil;
-		}
-	}
+	if(first)
+		n = 0;
+	if(f == nil && n > 0)
+		f = nf[--n];
 	if(f == nil || f->bind == nil)
 		return f;
-	if(f->sibling != nil){
-		f->sibling->nf = nf;
-		nf = f->sibling;
+	if(n == cap){
+		cap = (cap == 0) ? 12 : cap * 3/2;
+		nf = realloc(nf, cap);
 	}
-	f = nextfile(f->bind->child);
-	return f;
+	nf[n++] = f->sibling;
+	return nextfile(f->bind->child, 0);
 }
 
 static
@@ -560,7 +557,7 @@ devwalk(Client *c, Ninepfile *file, Fid *fp, Fid *nfp, char **name, int nname, c
 		}
 
 		if(p != nil)
-		for(f = nextfile(p->child); f != nil;f = nextfile(f->sibling)){
+		for(f = nextfile(p->child, 1); f != nil;f = nextfile(f->sibling, 0)){
 			if(strcmp(n, f->d.name) == 0){
 				decref(p);
 				nfp->qid = f->d.qid;
@@ -596,11 +593,11 @@ devdirread(Fid *fp, Ninepfile *file, char *d, long n)
 		char slop[100];	/* TO DO */
 	}dir;
 
-	f = nextfile(file->child);
+	f = nextfile(file->child, 1);
 	for(i = 0; i < fp->dri; i++){
 		if(f == 0)
 			return 0;
-		f = nextfile(f->sibling);
+		f = nextfile(f->sibling, 0);
 	}
 	for(m = 0; m < n; fp->dri++){
 		if(f == nil)
@@ -609,7 +606,7 @@ devdirread(Fid *fp, Ninepfile *file, char *d, long n)
 		dsz = convD2M(&dir.d, (uchar*)d, n-m);
 		m += dsz;
 		d += dsz;
-		f = nextfile(f->sibling);
+		f = nextfile(f->sibling, 0);
 	}
 	return m;
 }
