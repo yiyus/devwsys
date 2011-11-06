@@ -52,6 +52,7 @@ deletewin(Window *w)
 
 	if(w->pid > 0 && killreply(w))
 		return;
+	fsdelete(w);
 	drawdettach(w);
 	xdeletewin(w);
 	w->deleted++;
@@ -65,7 +66,6 @@ deletewin(Window *w)
 		return;
 	--nwindow;
 	memmove(window+i, window+i+1, (nwindow-i)*sizeof(Window*));
-	fsdelete(w);
 }
 
 void

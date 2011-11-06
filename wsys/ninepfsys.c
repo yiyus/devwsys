@@ -87,6 +87,55 @@ wsysaddfiles(Ninepserver *s, Window *w)
 	return p;
 }
 
+static
+void
+drawrmfiles(Ninepserver *s, DClient *c)
+{
+	int i;
+	Path p;
+
+	i = drawpath(c);
+	p = PATH(i, 0);
+	nineprmfile(s, p|Qctl);
+	nineprmfile(s, p|Qdata);
+	nineprmfile(s, p|Qcolormap);
+	nineprmfile(s, p|Qrefresh);
+	nineprmfile(s, p|Qwindow);
+	nineprmfile(s, p|Qdrawn);
+}
+
+void
+wsysrmfiles(Ninepserver *s, Window *w)
+{
+	int i;
+	DClient *c;
+	Path p;
+
+	if(w == nil)
+		return;
+	p = PATH(w->id, 0);
+	nineprmfile(s, p|Qcons);
+	nineprmfile(s, p|Qconsctl);
+	nineprmfile(s, p|Qkeyboard);
+	nineprmfile(s, p|Qcursor);
+	nineprmfile(s, p|Qmouse);
+	nineprmfile(s, p|Qpointer);
+	nineprmfile(s, p|Qsnarf);
+	nineprmfile(s, p|Qlabel);
+	nineprmfile(s, p|Qwctl);
+	nineprmfile(s, p|Qwinid);
+	nineprmfile(s, p|Qwinname);
+	nineprmfile(s, p|Qwsys);
+	nineprmfile(s, p|Qnew);
+	nineprmfile(s, p|Qdraw);
+	for(i = 0; i < nclient; i++){
+		c = client[i];
+		if(drawwindow(c) == w)
+			drawrmfiles(s, c);
+	}
+	nineprmfile(s, p);
+}
+
 /* Service Functions */
 char*
 wsysattach(Qid *qid, char *uname, char *aname)

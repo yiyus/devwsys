@@ -51,6 +51,7 @@ extern char
 
 void fsinit(Ninepserver*);
 Window* qwindow(Qid*);
+void wsysrmfiles(Ninepserver*, Window*);
 
 char *eve;
 Ninepops ops;
