@@ -107,12 +107,12 @@ void xtogglefullscreen(Window* w)
 	}else{
 		xconn.restore = rectaddpt(w->screenr, w->orig);
 		/* xconn.fullscreen must be nil when xresizewindow is called */
-		xresizewindow(w, xconn.screenrect);
 		xconn.fullscreen = w;
 		attr.override_redirect = True;
 		XChangeWindowAttributes(xconn.display, xw->drawable, CWOverrideRedirect, &attr);
 		XUnmapWindow(xconn.display, xw->drawable);
 		XMapRaised(xconn.display, xw->drawable);
+		xresizewindow(w, xconn.screenrect);
 		XGrabKeyboard(xconn.display, xw->drawable, False, GrabModeAsync, GrabModeAsync, CurrentTime);
 	}
 	writemouse(w, m, 1);
