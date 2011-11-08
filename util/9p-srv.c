@@ -142,37 +142,101 @@ replyerror(Wsysmsg *m)
 }
 
 
+#define INC(a, i) BPLONG(a+i, BGLONG(a+i)+1)
+/*
+ * drawmsg increments the id of images in
+ * devdraw messages so that id 1 can be used
+ * for the main screen, instead of 0 as p9p's
+ * libdraw expects.
+ * The message size is returned.
+ */
 int
-drawmsgsize(uchar *a)
+drawmsg(uchar *a)
 {
+	int i;
+
 	switch(*a){
-	case 'b':	return 1+4+4+1+4+1+4*4+4*4+4;
-	case 'A':	return 1+4+4+4+1;
-	case 'c':	return 1+4+1+4*4;
-	case 'd':	return 1+4+4+4+4*4+2*4+2*4;
-	case 'D':	return 1+1;
+	case 'b':
+		INC(a, 1);
+		return 1+4+4+1+4+1+4*4+4*4+4;
+	case 'A':
+		INC(a, 5);
+		INC(a, 9);
+		return 1+4+4+4+1;
+	case 'c':
+		INC(a, 1);
+		return 1+4+1+4*4;
+	case 'd':
+		INC(a, 1);
+		INC(a, 5);
+		INC(a, 9);
+		return 1+4+4+4+4*4+2*4+2*4;
+	case 'D':
+		return 1+1;
 	case 'e':
-	case 'E':	return 1+4+4+2*4+4+4+4+2*4+2*4;
-	case 'f':	return 1+4;
-	case 'F':	return 1+4;
-	case 'i':	return 1+4+4+1;
-	case 'l':	return 1+4+4+2+4*4+2*4+1+1;
-	case 'L':	return 1+4+2*4+2*4+4+4+4+4+2*4;
-	case 'm':	return 4+4;
-	case 'n':	return 1+4+1+a[5];
-	case 'N':	return 1+4+1+1+a[6];
-	case 'o':	return 1+4+2*4+2*4;
-	case 'O':	return 1+1;
+	case 'E':
+		INC(a, 1);
+		INC(a, 5);
+		return 1+4+4+2*4+4+4+4+2*4+2*4;
+	case 'f':
+		INC(a, 1);
+		return 1+4;
+	case 'F':
+		return 1+4;
+	case 'i':
+		INC(a, 1);
+		return 1+4+4+1;
+	case 'l':
+		INC(a, 1);
+		INC(a, 5);
+		return 1+4+4+2+4*4+2*4+1+1;
+	case 'L':
+		INC(a, 1);
+		return 1+4+2*4+2*4+4+4+4+4+2*4;
+	case 'm':
+		return 4+4;
+	case 'n':
+		INC(a, 1);
+		return 1+4+1+a[5];
+	case 'N':
+		INC(a, 1);
+		return 1+4+1+1+a[6];
+	case 'o':
+		INC(a, 1);
+		return 1+4+2*4+2*4;
+	case 'O':
+		return 1+1;
 	case 'p':
-	case 'P':	return 1+4+2+4+4+4+4+2*2*4+2*2*BGSHORT(a+5);;
-	case 'r':	return 1+4+4*4;
-	case 's':	return 1+4+4+4+2*4+4*4+2*4+2+BGSHORT(a+45)*2;
-	case 'x':	return 1+4+4+4+2*4+4*4+2*4+2+4+2*4+BGSHORT(a+45)*2;
-	case 'S':	return 1+4+4;
-	case 't':	return 1+1+2+4*BGSHORT(a+2);
-	case 'v':	return 1;
-	// case 'y':
-	// case 'Y':
+	case 'P':
+		INC(a, 1);
+		INC(a, 19);
+		return 1+4+2+4+4+4+4+2*2*4+2*2*BGSHORT(a+5);;
+	case 'r':
+		INC(a, 1);
+		return 1+4+4*4;
+	case 's':
+		INC(a, 1);
+		INC(a, 5);
+		INC(a, 9);
+		return 1+4+4+4+2*4+4*4+2*4+2+BGSHORT(a+45)*2;
+	case 'x':
+		INC(a, 1);
+		INC(a, 5);
+		INC(a, 9);
+		INC(a, 47);
+		return 1+4+4+4+2*4+4*4+2*4+2+4+2*4+BGSHORT(a+45)*2;
+	case 'S':
+		return 1+4+4;
+	case 't':
+		for(i = 0; i < BGSHORT(a+2); i++)
+			INC(a, 4+4*i);
+		return 1+1+2+4*BGSHORT(a+2);
+	case 'v':
+		return 1;
+	case 'y':
+	case 'Y':
+		INC(a, 1);
+		return -1;
 	}
 	return -1;
 }
@@ -330,9 +394,8 @@ runmsg(Wsysmsg *m)
 		 * 	I: get "screen" (image 0) information
 		 *
 		 * Instead, we read the screen image name
-		 * from winname and associate it to a devdraw
-		 * image with the command 'n', which we
-		 * will free after ctl is read.
+		 * from winname and associate it to the image
+		 * with id 1 using the command 'n'.
 		 */
 		SET(n);
 		if(m->count == 2 && m->data[0] == 'J' && m->data[1] == 'I'){
@@ -348,7 +411,7 @@ runmsg(Wsysmsg *m)
 		} else {
 			a = m->data;
 			if(aa){
-				n = drawmsgsize(aa);
+				n = drawmsg(aa);
 				memmove(aa+na, m->data, n-na);
 				a += n-na;
 				if((n = fswrite(fdata, aa, n)) < 0)
@@ -357,7 +420,7 @@ runmsg(Wsysmsg *m)
 				aa = nil;
 			}
 			while((na = a-m->data) < m->count){
-				if((n = drawmsgsize(a)) < 0)
+				if((n = drawmsg(a)) < 0)
 					n = m->count - na;
 				if(n > m->count - na){
 					/* fprint(2, "Eshortdraw: %d < %d\n", a-m->data, n); */

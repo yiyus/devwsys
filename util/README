@@ -34,5 +34,3 @@ Eg:
 	# Alternatively, if using wsys instead of rio:
 	$ WSYS='unix!'/tmp/ns.$USER.$DISPLAY/wsys export WSYS
 
-The patch p9p.patch needs to be applied to the p9p tree in order to use
-devdraw.9p. It will not affect the usage of other drawing devices.
