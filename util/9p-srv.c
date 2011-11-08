@@ -142,6 +142,41 @@ replyerror(Wsysmsg *m)
 }
 
 
+int
+drawmsgsize(uchar *a)
+{
+	switch(*a){
+	case 'b':	return 1+4+4+1+4+1+4*4+4*4+4;
+	case 'A':	return 1+4+4+4+1;
+	case 'c':	return 1+4+1+4*4;
+	case 'd':	return 1+4+4+4+4*4+2*4+2*4;
+	case 'D':	return 1+1;
+	case 'e':
+	case 'E':	return 1+4+4+2*4+4+4+4+2*4+2*4;
+	case 'f':	return 1+4;
+	case 'F':	return 1+4;
+	case 'i':	return 1+4+4+1;
+	case 'l':	return 1+4+4+2+4*4+2*4+1+1;
+	case 'L':	return 1+4+2*4+2*4+4+4+4+4+2*4;
+	case 'm':	return 4+4;
+	case 'n':	return 1+4+1+a[5];
+	case 'N':	return 1+4+1+1+a[6];
+	case 'o':	return 1+4+2*4+2*4;
+	case 'O':	return 1+1;
+	case 'p':
+	case 'P':	return 1+4+2+4+4+4+4+2*2*4+2*2*BGSHORT(a+5);;
+	case 'r':	return 1+4+4*4;
+	case 's':	return 1+4+4+4+2*4+4*4+2*4+2+BGSHORT(a+45)*2;
+	case 'x':	return 1+4+4+4+2*4+4*4+2*4+2+4+2*4+BGSHORT(a+45)*2;
+	case 'S':	return 1+4+4;
+	case 't':	return 1+1+2+4*BGSHORT(a+2);
+	case 'v':	return 1;
+	// case 'y':
+	// case 'Y':
+	}
+	return -1;
+}
+
 /* 
  * Handle a single wsysmsg. 
  * Might queue for later (kbd, mouse read)
@@ -150,12 +185,16 @@ void
 runmsg(Wsysmsg *m)
 {
 	uchar buf[65536];
+	uchar *a;
 	int n;
 	CFid *f;
 	Rectangle r;
 	static int border;
 	static CFid *fcons, *fcursor, *fmouse, *fctl, *fdata, *frddraw;
 	static CFsys *fsys;
+
+	static int na;
+	static uchar *aa;
 
 	switch(m->type){
 	case Tinit:
@@ -306,12 +345,36 @@ runmsg(Wsysmsg *m)
 			BPLONG(&buf[1], 1);
 			n = fswrite(fdata, buf, 1+4+1+n);
 			frddraw = fctl;
-		} else
-			n = fswrite(fdata, m->data, m->count);
+		} else {
+			a = m->data;
+			if(aa){
+				n = drawmsgsize(aa);
+				memmove(aa+na, m->data, n-na);
+				a += n-na;
+				if((n = fswrite(fdata, aa, n)) < 0)
+					break;
+				free(aa);
+				aa = nil;
+			}
+			while((na = a-m->data) < m->count){
+				if((n = drawmsgsize(a)) < 0)
+					n = m->count - na;
+				if(n > m->count - na){
+					/* fprint(2, "Eshortdraw: %d < %d\n", a-m->data, n); */
+					aa = malloc(n);
+					memmove(aa, fdata, n);
+					goto End;
+				}
+				if((n = fswrite(fdata, a, n)) < 0)
+					break;
+				a += n;
+			}
+		}
 		if(n < 0)
 			replyerror(m);
 		else
 			replymsg(m);
+End:
 		break;
 	
 	case Ttop:

@@ -1446,7 +1446,7 @@ drawmesg(DClient *client, void *av, int n)
 		case 'p':
 		case 'P':
 			printmesg(fmt="LslllLPP", a, 0);
-			m = 1+4+2+4+4+4+4+2*4;
+			m = 1+4+2+4+4+4+4+2*2*4;
 			if(n < m)
 				goto Eshortdraw;
 			dst = drawimage(client, a+1);
