@@ -25,7 +25,7 @@ void mousethread(void*);
 
 int chatty = 0;
 int drawsleep;
-int fd;
+int wsysfd;
 
 Channel *kbdchan;
 Channel *mousechan;
@@ -48,7 +48,7 @@ bell(void *v, char *msg)
 void
 threadmain(int argc, char **argv)
 {
-	char *addr, *defaddr, *ns;
+	char *defwsys, *wsysaddr, *ns;
 	uchar buf[4], *mbuf;
 	int nmbuf, n, nn;
 	Ioproc *io;
@@ -89,20 +89,20 @@ threadmain(int argc, char **argv)
 	 * Connect to 9P server defined by $WSYS
 	 * or unix!$NAMESPACE/wsys.
 	 */
-	addr = getenv("WSYS");
-	defaddr = nil;
-	if(addr == 0){
+	wsysaddr = getenv("WSYS");
+	defwsys = nil;
+	if(wsysaddr == 0){
 		ns = getns();
 		if(ns == nil)
 			sysfatal("no name space");
-		defaddr = smprint("unix!%s/wsys", ns);
-		addr = defaddr;
+		defwsys = smprint("unix!%s/wsys", ns);
+		wsysaddr = defwsys;
 	}
-	fd = dial(addr, 0, 0, 0);
-	if(fd < 0)
-		sysfatal("dial %s: %r", addr);
-	if(addr == defaddr)
-		free(addr);
+	wsysfd = dial(wsysaddr, 0, 0, 0);
+	if(wsysfd < 0)
+		sysfatal("dial %s: %r", wsysaddr);
+	if(wsysaddr == defwsys)
+		free(wsysaddr);
 
 	mbuf = nil;
 	nmbuf = 0;
@@ -255,7 +255,7 @@ runmsg(Wsysmsg *m)
 	Rectangle r;
 	static int border;
 	static CFid *fcons, *fcursor, *fmouse, *fctl, *fdata, *frddraw;
-	static CFsys *fsys;
+	static CFsys *wsysfs;
 
 	static int na;
 	static uchar *aa;
@@ -263,14 +263,14 @@ runmsg(Wsysmsg *m)
 	switch(m->type){
 	case Tinit:
 		sprint((char*)buf, "new %s", m->winsize);
-		if((fsys = fsmount(fd, (char*)buf)) == nil)
+		if((wsysfs = fsmount(wsysfd, (char*)buf)) == nil)
 			sysfatal("fsmount: %r");
 
-		fcons = fsopen(fsys, "cons", OREAD);
-		fmouse = fsopen(fsys, "mouse", ORDWR);
-		fcursor = fsopen(fsys, "cursor", OWRITE);
+		fcons = fsopen(wsysfs, "cons", OREAD);
+		fmouse = fsopen(wsysfs, "mouse", ORDWR);
+		fcursor = fsopen(wsysfs, "cursor", OWRITE);
 
-		f = fsopen(fsys, "label", OWRITE);
+		f = fsopen(wsysfs, "label", OWRITE);
 		fsprint(f, m->label);
 		fsclose(f);
 
@@ -281,7 +281,7 @@ runmsg(Wsysmsg *m)
 		 */
 		kbdchan = chancreate(sizeof(uchar), 12);
 		mousechan = chancreate(sizeof(uchar), 12);
-		f= fsopen(fsys, "consctl", OWRITE);
+		f= fsopen(wsysfs, "consctl", OWRITE);
 		fsprint(f, "rawon");
 		threadcreate(kbdthread, fcons, STACK);
 		threadcreate(mousethread, fmouse, STACK);
@@ -290,11 +290,11 @@ runmsg(Wsysmsg *m)
 		 * Open draw(3) files and register
 		 * image named winname
 		 */
-		fctl = fsopen(fsys, "draw/new", ORDWR);
+		fctl = fsopen(wsysfs, "draw/new", ORDWR);
 		fsread(fctl, buf, 12*12);
 		n = atoi((char*)buf);
 		sprint((char*)buf, "draw/%d/data", n);
-		fdata = fsopen(fsys, (char*)buf, ORDWR);
+		fdata = fsopen(wsysfs, (char*)buf, ORDWR);
 		
 		replymsg(m);
 		break;
@@ -338,14 +338,14 @@ runmsg(Wsysmsg *m)
 		break;
 
 	case Tlabel:
-		f = fsopen(fsys, "label", OWRITE);
+		f = fsopen(wsysfs, "label", OWRITE);
 		fsprint(f, m->label);
 		fsclose(f);
 		replymsg(m);
 		break;
 
 	case Trdsnarf:
-		f = fsopen(fsys, "snarf", OREAD);
+		f = fsopen(wsysfs, "snarf", OREAD);
 		fsread(f, buf, sizeof buf);
 		fsclose(f);
 		m->snarf = strdup((char*)buf);
@@ -353,7 +353,7 @@ runmsg(Wsysmsg *m)
 		break;
 
 	case Twrsnarf:
-		f = fsopen(fsys, "snarf", OWRITE);
+		f = fsopen(wsysfs, "snarf", OWRITE);
 		fsprint(f, m->snarf);
 		fsclose(f);
 		replymsg(m);
@@ -399,7 +399,7 @@ runmsg(Wsysmsg *m)
 		 */
 		SET(n);
 		if(m->count == 2 && m->data[0] == 'J' && m->data[1] == 'I'){
-			f = fsopen(fsys, "winname", OREAD);
+			f = fsopen(wsysfs, "winname", OREAD);
 			buf[0] = 'n';
 			n = fsread(f, &buf[1+4+1], 64);
 			border = (strncmp((char*)&buf[1+4+1], "noborder", 8) != 0);
@@ -441,14 +441,14 @@ End:
 		break;
 	
 	case Ttop:
-		f = fsopen(fsys, "wctl", OWRITE);
+		f = fsopen(wsysfs, "wctl", OWRITE);
 		fsprint(f, "top");
 		fsclose(f);
 		replymsg(m);
 		break;
 	
 	case Tresize:
-		f = fsopen(fsys, "wctl", OWRITE);
+		f = fsopen(wsysfs, "wctl", OWRITE);
 		fsprint(f, "resize %d %d", Dx(m->rect), Dy(m->rect));
 		fsclose(f);
 		replymsg(m);
