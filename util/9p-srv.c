@@ -25,7 +25,7 @@ void mousethread(void*);
 
 int chatty = 0;
 int drawsleep;
-int wsysfd;
+int devfd, wsysfd;
 
 Channel *kbdchan;
 Channel *mousechan;
@@ -33,7 +33,7 @@ Channel *mousechan;
 void
 usage(void)
 {
-	fprint(2, "usage: devdraw (don't run directly)\n");
+	fprint(2, "usage: [WSYS=...] [DEV=...] devdraw (don't run directly)\n");
 	threadexitsall(0);
 }
 
@@ -48,7 +48,7 @@ bell(void *v, char *msg)
 void
 threadmain(int argc, char **argv)
 {
-	char *defwsys, *wsysaddr, *ns;
+	char *defwsys, *devaddr, *wsysaddr, *ns;
 	uchar buf[4], *mbuf;
 	int nmbuf, n, nn;
 	Ioproc *io;
@@ -78,6 +78,10 @@ threadmain(int argc, char **argv)
 	default:
 		usage();
 	}ARGEND
+	if(argc == 0){
+		usage();
+		threadexitsall(0);
+	}
 
 	/*
 	 * Ignore arguments.  They're only for good ps -a listings.
@@ -101,6 +105,11 @@ threadmain(int argc, char **argv)
 	wsysfd = dial(wsysaddr, 0, 0, 0);
 	if(wsysfd < 0)
 		sysfatal("dial %s: %r", wsysaddr);
+	devaddr = getenv("DEV");
+	if(devaddr != 0 && strcmp(devaddr, wsysaddr) != 0)
+		devfd = dial(devaddr, 0, 0, 0);
+	if(devfd < 0)
+		sysfatal("dial %s: %r", devaddr);
 	if(wsysaddr == defwsys)
 		free(wsysaddr);
 
@@ -255,7 +264,7 @@ runmsg(Wsysmsg *m)
 	Rectangle r;
 	static int border;
 	static CFid *fcons, *fcursor, *fmouse, *fctl, *fdata, *frddraw;
-	static CFsys *wsysfs;
+	static CFsys *devfs, *wsysfs;
 
 	static int na;
 	static uchar *aa;
@@ -264,6 +273,9 @@ runmsg(Wsysmsg *m)
 	case Tinit:
 		sprint((char*)buf, "new %s", m->winsize);
 		if((wsysfs = fsmount(wsysfd, (char*)buf)) == nil)
+			sysfatal("fsmount: %r");
+		devfs = wsysfs;
+		if(devfd > 0 && (devfs = fsmount(devfd, nil)) == nil)
 			sysfatal("fsmount: %r");
 
 		fcons = fsopen(wsysfs, "cons", OREAD);
@@ -290,11 +302,11 @@ runmsg(Wsysmsg *m)
 		 * Open draw(3) files and register
 		 * image named winname
 		 */
-		fctl = fsopen(wsysfs, "draw/new", ORDWR);
+		fctl = fsopen(devfs, "draw/new", ORDWR);
 		fsread(fctl, buf, 12*12);
 		n = atoi((char*)buf);
 		sprint((char*)buf, "draw/%d/data", n);
-		fdata = fsopen(wsysfs, (char*)buf, ORDWR);
+		fdata = fsopen(devfs, (char*)buf, ORDWR);
 		
 		replymsg(m);
 		break;
@@ -346,14 +358,19 @@ runmsg(Wsysmsg *m)
 
 	case Trdsnarf:
 		f = fsopen(wsysfs, "snarf", OREAD);
-		fsread(f, buf, sizeof buf);
+		if(f == nil)
+			f = fsopen(devfs, "snarf", OREAD);
+		n = fsread(f, buf, sizeof buf);
+		buf[n] = 0;
 		fsclose(f);
-		m->snarf = strdup((char*)buf);
+		m->snarf = (char*)buf;
 		replymsg(m);
 		break;
 
 	case Twrsnarf:
 		f = fsopen(wsysfs, "snarf", OWRITE);
+		if(f == nil)
+			f = fsopen(devfs, "snarf", OWRITE);
 		fsprint(f, m->snarf);
 		fsclose(f);
 		replymsg(m);

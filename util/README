@@ -20,15 +20,25 @@ devdraw.9p
 	9c 9p-srv.c && 9l -o devdraw.9p 9p-srv.o
 	cp devdraw.9p $PLAN9/bin
 
+It will connect to the window system with address $WSYS.  Some files
+(snarf and the draw directory) are not served by rio, although they
+are served by wsys(4).  These files are expected to be found on the
+file server with address $DEV.
+
 Eg:
-	# From rio:
+	# From rio (for just one window, created from rio):
 	; mount $wsys /n/w new
 	; bind -a '#i' /n/w
 	; aux/listen1 -t 'tcp!*!12345' /bin/exportfs -r /n/w
 
+	# From rio (create new windows with new commands):
+	; aux/listen1 -t 'tcp!*!12345' /bin/exportfs -S $wsys
+	; aux/listen1 -t 'tcp!*!12346' /bin/exportfs -r /dev
+
 	# From unix:
 	$ DEVDRAW=devdraw.9p export DEVDRAW
 	$ WSYS='tcp!127.0.0.1!12345' export WSYS
+	$ DEV='tcp!127.0.0.1!12346' export DEV # if needed
 	$ 9term
 
 	# Alternatively, if using wsys instead of rio:
