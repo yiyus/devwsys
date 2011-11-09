@@ -78,20 +78,24 @@ threadmain(int argc, char **argv)
 	default:
 		usage();
 	}ARGEND
+
+	/*
+	 * Ignore arguments.  They're only for good ps -a listings.
+	 * P9p's libdraw always add arguments, so if argc is 0
+	 * it is assumed that devdraw is being run directly.
+	 */
 	if(argc == 0){
 		usage();
 		threadexitsall(0);
 	}
-
-	/*
-	 * Ignore arguments.  They're only for good ps -a listings.
-	 */
 	
 	notify(bell);
 
 	/*
 	 * Connect to 9P server defined by $WSYS
 	 * or unix!$NAMESPACE/wsys.
+	 * If defined, $DEV should serve draw(3)
+	 * and snarf files
 	 */
 	wsysaddr = getenv("WSYS");
 	defwsys = nil;
@@ -299,8 +303,7 @@ runmsg(Wsysmsg *m)
 		threadcreate(mousethread, fmouse, STACK);
 
 		/*
-		 * Open draw(3) files and register
-		 * image named winname
+		 * Open draw(3) files
 		 */
 		fctl = fsopen(devfs, "draw/new", ORDWR);
 		fsread(fctl, buf, 12*12);
@@ -382,7 +385,7 @@ runmsg(Wsysmsg *m)
 			break;
 		}
 		/*
-		 * If it is not a "noborder" image lie to p9p's libdraw saying
+		 * If it is not a "noborder" image, lie to p9p's libdraw saying
 		 * that the image is smaller, to respect the window border.
 		 */
 		if(frddraw == fctl){
@@ -412,7 +415,9 @@ runmsg(Wsysmsg *m)
 		 *
 		 * Instead, we read the screen image name
 		 * from winname and associate it to the image
-		 * with id 1 using the command 'n'.
+		 * with id 1 using the command 'n'. All the
+		 * image ids in Twrdraw messages will be
+		 * incremented by drawmsg.
 		 */
 		SET(n);
 		if(m->count == 2 && m->data[0] == 'J' && m->data[1] == 'I'){

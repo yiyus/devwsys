@@ -29,6 +29,7 @@ Eg:
 	# From rio (for just one window, created from rio):
 	; mount $wsys /n/w new
 	; bind -a '#i' /n/w
+	; bind /dev/snarf /n/w # if needed
 	; aux/listen1 -t 'tcp!*!12345' /bin/exportfs -r /n/w
 
 	# From rio (create new windows with new commands):
