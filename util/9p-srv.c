@@ -223,7 +223,7 @@ drawmsg(uchar *a)
 	case 'P':
 		INC(a, 1);
 		INC(a, 19);
-		return 1+4+2+4+4+4+4+2*2*4+2*2*BGSHORT(a+5);;
+		return 1+4+2+4+4+4+4+2*4+2*2*BGSHORT(a+5);;
 	case 'r':
 		INC(a, 1);
 		return 1+4+4*4;
