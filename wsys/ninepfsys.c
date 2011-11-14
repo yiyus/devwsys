@@ -378,7 +378,7 @@ wsysclose(Qid qid, int mode) {
 	 * by updateref. If it were called now it could
 	 * free the client and qwindow (called from
 	 * updateref) would not find a window.
-	 */;
+	 */
 	}
 	return nil;
 }

@@ -1981,3 +1981,14 @@ drawpath(DClient *cl)
 	return 0;
 }
 
+char*
+drawstat(Qid qid)
+{
+	DClient *cl;
+
+	cl = drawlookupclient(QSLOT(qid.path));
+	if(cl)
+		cl->r++;
+	return nil;
+}
+

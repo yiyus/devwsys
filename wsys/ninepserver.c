@@ -29,6 +29,8 @@ updateref(void)
 		return;
 	if(t == Rattach || t == Rwalk)
 		w->ref++;
+	else if(t == Rstat && QTYPE(qid->path) > Qdrawn && w->draw)
+		drawstat(*qid);
 	else if(t == Rclunk){
 		w->ref--;
 		if(QTYPE(qid->path) > Qdrawn && w->draw)
