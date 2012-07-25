@@ -25,9 +25,8 @@ LD=		cc -m32
 LDFLAGS=	-L/usr/openwin/lib\
 		-L/usr/X11R6/lib\
 		-L/usr/lib\
-		-lX11\
 
-SYSLIBS=
+SYSLIBS=	-lX11
 
 YACC=		iyacc
 YFLAGS=		-d
