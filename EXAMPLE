@@ -1,0 +1,23 @@
+Running devwsys
+
+The most straightforward way to use devwsys is from 9vx. First, devwsys have to be launched:
+
+	user@unix$ devwsys
+
+This will post a 9p server in /tmp/ns.user.:0/wsys (where user is the user name in the unix system and :0 is the current X display). Now, this 9p server can be mounted from 9vx to create new windows. An easy way to access devwsys is setting the wsys environment variable. Then, you will be able to open programs in new windows using window(1) with the -m flag:
+
+	term% wsys='#Z/tmp/ns.user.:0/wsys'
+	term% window -m acme
+
+For a better experience the wctl rc script, included in the util directory of the devwsys distribution, can be used to provide a wctl service. Then, the -m option is not needed any more, new applications will use the namespace of the wctl process:
+
+	term% wctl=`{wctl}
+	post...
+	term% window acme
+
+Similar commands will work from drawterm(8) too. Inferno, instead, is a bit different. Some files have different names, and cursors have a slight different format. To solve this issue, devwsys will deduce what cursor format is being used depending on what is written to the cursor file, while extra keyboard and pointer files are equivalent to cons and mouse. So, the only required step is to mount devwsys before launching wm(1):
+
+	; mount -Ab '#U*/tmp/ns.user.:0/wsys' /dev
+	; wm/wm
+
+Have fun!
